@@ -2,8 +2,8 @@ import copy
 
 from openpyxl.styles import Side
 
-from v_chk_colors import Colors
-from v_chk_logger import logger
+from vault_check.v_chk_colors import Colors
+from vault_check.v_chk_logger import logger
 
 class NewWb():
     def __init__(self, vhc_obj):

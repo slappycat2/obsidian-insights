@@ -1,8 +1,8 @@
 from pathlib import Path
 import json
 
-from v_chk_json_file import JsonFile
-from v_chk_logger import logger
+from vault_check.v_chk_json_file import JsonFile
+from vault_check.v_chk_logger import logger
 
 class PluginMan:
     def __init__(self, v_path=None):

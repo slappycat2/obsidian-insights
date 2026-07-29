@@ -5,7 +5,7 @@ from PIL import ImageTk
 from datetime import datetime
 import subprocess
 
-from v_chk_logger import logger
+from vault_check.v_chk_logger import logger
 
 class SetupScreen:
     def __init__(self, sys_obj):

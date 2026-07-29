@@ -19,9 +19,9 @@ from tkinter import messagebox
 
 
 # from src.v_chk_wb_setup import WbDataDef
-from v_chk_colors import Colors
-from v_chk_plugin_man import PluginMan
-from v_chk_logger import logger
+from vault_check.v_chk_colors import Colors
+from vault_check.v_chk_plugin_man import PluginMan
+from vault_check.v_chk_logger import logger
 
 # from src.v_chk import logger
 

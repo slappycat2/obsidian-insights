@@ -7,10 +7,11 @@ from datetime import datetime
 from tkinter import messagebox
 from dataclasses import dataclass, field
 
-import v_chk_paths as paths
-from v_chk_obs_app import ObsidianApp
-from v_chk_setupscreen import SetupScreen
-from v_chk_logger import logger, make_logger
+from vault_check import __version__
+from vault_check import v_chk_paths as paths
+from vault_check.v_chk_obs_app import ObsidianApp
+from vault_check.v_chk_setupscreen import SetupScreen
+from vault_check.v_chk_logger import logger, make_logger
 
 #: Workbook tabs, in render order. Single source of truth -- this was
 #: previously duplicated between __post_init__ and cfg_unpack.
@@ -31,7 +32,7 @@ class VaultNotFoundError(ValueError):
 class SysConfig:
     sys_cfg:                 dict = field(default_factory=dict)
     sys_id:                  str  = 'v_chk'
-    sys_ver:                 str  = '0.2.9'
+    sys_ver:                 str  = __version__
     sys_dir_sys:             str  = field(default=None)
     sys_dir_dat:             str  = field(default=None)
     sys_dir_bat:             str  = field(default=None)
@@ -172,12 +173,12 @@ class SysConfig:
         These stay as ``str`` (not Path) because downstream code concatenates
         them with ``+``, e.g. WbDataDef.get_last_bat().
         """
-        self.sys_dir_sys    = str(paths.APP_DIR)
+        self.sys_dir_sys    = str(paths.DATA_ROOT)
         self.sys_dir_dat    = str(paths.DATA_DIR)
         self.sys_dir_bat    = str(paths.BATCH_DIR)
         self.sys_dir_wbs    = str(paths.WORKBOOK_DIR)
         self.sys_dir_log    = str(paths.LOG_DIR)
-        self.sys_dir_img    = str(paths.IMG_DIR)
+        self.sys_dir_img    = str(paths.ASSETS_DIR)
 
         self.sys_pn_cfg     = str(paths.CONFIG_FILE)
         self.sys_pn_lg2     = str(paths.LOGO_SPLASH)   # splash
@@ -347,7 +348,7 @@ class SysConfig:
 
     def cfg_unpack(self):
         self.sys_id             = self.sys_cfg.get('sys_id',            'v_chk')
-        self.sys_ver            = self.sys_cfg.get('sys_ver',           '0.2.9')
+        self.sys_ver            = self.sys_cfg.get('sys_ver',           __version__)
         # Paths are always recomputed from v_chk_paths rather than restored from
         # CONFIG.yaml, so a config file written on another machine (or before
         # the project moved) still resolves correctly.

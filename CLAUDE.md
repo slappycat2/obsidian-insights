@@ -9,17 +9,26 @@ Obsidian vault, harvests frontmatter properties, inline (`key:: value`) properti
 duplicate filenames and unparseable YAML, then emits a multi-tab, heavily-formatted `.xlsx` workbook
 with hyperlinks back into the vault. Nothing is written to the vault and nothing leaves the machine.
 
-## Where the live code is
+## Layout
 
-Only `vault_check/src/` is live. Everything else is noise you should not edit or take as reference:
+Standard `src/` layout. The package is installed into the venv by `uv sync`, so imports resolve to
+the installed copy rather than to whatever directory you happen to be standing in.
 
-- `xcluded/` — abandoned/scratch versions of most modules (`v_chk.py`, `x_chk*.py`, `v_chk_class_lib.py`, …).
-  Names collide with live modules; never import from here or use it to answer "how does X work".
-- `pkg/src/obsidian_vault_health_check_swenlarsen/` — empty packaging stub.
-- `main.py` (repo root) — hello-world placeholder, not an entry point.
-- `tests/batch_test_vaults.py` — an interactive batch-runner script, not a test suite. It imports
-  `src.v_chk_class_lib` and calls `SysConfig` methods that no longer exist, so it does not run as-is.
-  There is no pytest/unittest setup in this repo.
+```
+main.py                      entry point for source checkouts
+pyproject.toml               version lives in src/vault_check/__init__.py (hatchling reads it)
+src/vault_check/             the package -- all live code
+    assets/                  runtime images (logos, banner, area51)
+    logging_configs/         JSON/YAML logging dictConfigs
+tests/                       pytest suite
+img/                         README screenshot and brand source files (not runtime)
+data/, logs/, CONFIG.yaml    generated at runtime, gitignored
+xcluded/                     dead scratch code -- see below
+```
+
+`xcluded/` holds abandoned versions of most modules (`v_chk.py`, `x_chk*.py`, `v_chk_class_lib.py`, …)
+whose names collide with live ones. Never import from it or use it to answer "how does X work".
+It is preserved in git history and slated for deletion.
 
 ## Running it
 
@@ -27,24 +36,29 @@ Dependencies are managed with `uv` (`uv.lock`, Python 3.13 pinned in `.python-ve
 
 ```powershell
 uv sync
-python main.py --help
-python main.py                                  # vault last opened in Obsidian
-python main.py "D:/Vaults/o26"                # a specific vault
-python main.py --headless --do-not-open <vault> # no GUI, no Excel launch
+uv run v-chk --help
+uv run v-chk                                    # vault last opened in Obsidian
+uv run v-chk "D:/Vaults/o26"                  # a specific vault
+uv run v-chk --headless --do-not-open <vault>   # no GUI, no Excel launch
 ```
 
-`main.py` at the repo root is the entry point. It puts `vault_check/src/` on `sys.path` (the modules
-import each other by bare name) and calls `v_chk.main()`.
+`uv sync` installs the project itself (`[project.scripts] v-chk = "vault_check.v_chk:main"`), which is
+what makes the `v-chk` command and clean `vault_check.*` imports work. `python main.py [...]` is
+equivalent. **After changing `pyproject.toml`, re-run `uv sync`** — PyCharm's Run button invokes
+`.venv\Scripts\python.exe` directly and never consults uv or the lockfile.
 
-**Paths do not depend on the working directory.** Everything is anchored on `v_chk_paths.py`, which
-derives from `__file__`. Run it from anywhere. Do not reintroduce `Path.cwd()`.
+**Paths never depend on the working directory.** Everything resolves through `v_chk_paths.py`, which
+separates *package assets* (relative to `__file__`) from *writable data* (`DATA_ROOT`). Run it from
+anywhere. Do not reintroduce `Path.cwd()`.
+
+`DATA_ROOT` resolution order: `$V_CHK_DATA_DIR` → the repo root when running from a source checkout
+(detected via `pyproject.toml`) → `~/.v_chk`. Tests set the env var to redirect into a `tmp_path`.
 
 Useful flags: `--headless` (never open a window; raises `ConfigIncompleteError` rather than blocking
-on a dialog — this is what tests use), `-q/--no-splash`, `-x/--do-not-open`, `-s/--setup` (force the
-setup screen), `-i/--init` (delete CONFIG.yaml, batch files and workbooks; prompts first),
-`-d/--debug-level`.
+on a dialog), `-q/--no-splash`, `-x/--do-not-open`, `-s/--setup` (force the setup screen),
+`-i/--init` (delete CONFIG.yaml, batch files and workbooks; prompts first), `-d/--debug-level`.
 
-To reach the setup GUI directly: `python vault_check/src/v_chk_setup.py`.
+To reach the setup GUI directly: `uv run python -m vault_check.v_chk_setup`.
 
 ### First run requires the GUI
 
@@ -107,8 +121,8 @@ Adding or renaming one touches **five** places, and a mismatch raises or silentl
 4. `WbDataDef.get_next_bat()`'s `wb_tabs` dict (`v_chk_wb_setup.py`).
 5. `Colors.init_tab_clrs()` (`v_chk_colors.py`) — keyed by tab id; a missing entry is a `KeyError`.
 
-Render order and inclusion come from `sys_cfg['sys_tab_seq']`, whose default list is duplicated in both
-`SysConfig.__post_init__` and `SysConfig.cfg_unpack`.
+Render order and inclusion come from `sys_cfg['sys_tab_seq']`, defaulting to `DEFAULT_TAB_SEQ` in
+`v_chk_setup.py`.
 
 `NewTab` is the base class: it defines table naming (`tbl_<tab_id>`), the header row/column origin, the
 `RowId` / `IsVisible` / `P-V Index` helper columns, and the Excel formula strings (`f_uniq_*`, `f_txt_*`,
@@ -148,8 +162,8 @@ frontmatter at all, `11` max links per property value, `12` max links per tag.
   surfaced only on the Files tab.
 - **Logging**: `from v_chk_logger import logger` everywhere; `make_logger(level)` is called once, by
   `cli()`. Swap the active handler config via `ACTIVE_LOG_CONFIG` (alternatives live in
-  `src/logging_configs/`). Those JSON files declare relative log paths, which `_resolve_handler_paths()`
-  rewrites to absolute under `APP_DIR`. Logs rotate at 3 MB, 50 backups, into `vault_check/logs/`.
+  `src/vault_check/logging_configs/`). Those JSON files declare relative log paths, which `_resolve_handler_paths()`
+  rewrites to absolute under `APP_DIR`. Logs rotate at 3 MB, 50 backups, into `logs/`.
 - **Version strings are still duplicated**: `__version__` in `v_chk.py`, `SysConfig.sys_ver`, and
   `version` in `pyproject.toml` (which disagrees at `0.2.0`). Phase 2 should single-source these from
   package metadata.

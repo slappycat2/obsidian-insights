@@ -4,7 +4,7 @@ Import ``logger`` from here everywhere; call ``make_logger()`` exactly once, at
 application start-up.
 
 The JSON files in ``src/logging_configs/`` declare their log files with
-relative paths (``logs/v_chk.log``). Those are resolved against APP_DIR here
+relative paths (``logs/v_chk.log``). Those are resolved against DATA_ROOT here
 rather than the working directory, so logging works no matter where v_chk is
 launched from.
 """
@@ -15,7 +15,7 @@ import logging.config
 import logging.handlers
 from pathlib import Path
 
-import v_chk_paths as paths
+from vault_check import v_chk_paths as paths
 
 # Pillow logs a great deal at DEBUG; keep it out of our log file.
 pil_logger = logging.getLogger('PIL')
@@ -31,7 +31,7 @@ DEFAULT_LOG_LEVEL = "INFO"  # NOTSET, DEBUG, INFO, WARNING, ERROR, CRITICAL
 
 
 def _resolve_handler_paths(config: dict) -> dict:
-    """Rewrite relative handler filenames to absolute paths under APP_DIR.
+    """Rewrite relative handler filenames to absolute paths under DATA_ROOT.
 
     Also creates the destination directory, since RotatingFileHandler raises if
     the parent directory does not exist.
@@ -43,7 +43,7 @@ def _resolve_handler_paths(config: dict) -> dict:
 
         path = Path(filename)
         if not path.is_absolute():
-            path = (paths.APP_DIR / path).resolve()
+            path = (paths.DATA_ROOT / path).resolve()
 
         path.parent.mkdir(parents=True, exist_ok=True)
         handler["filename"] = str(path)

@@ -1,4 +1,4 @@
-from v_chk_logger import logger
+from vault_check.v_chk_logger import logger
 
 class Colors:
     # There are 16 million colors, these are ones I picked to play with,

@@ -4,7 +4,7 @@ import os
 from pathlib import Path, PurePath
 import yaml
 
-from v_chk_logger import logger
+from vault_check.v_chk_logger import logger
 
 class WbDataDef:
     def __init__(self, sys_obj):

@@ -21,16 +21,49 @@ This system will run a set of python scripts and read[^1] through all Markdown f
 - A Summary tab of vault statistics is also provided.
 
 ### Installation & Setup
-1. Download/clone and unpack the repository to a folder
-2. Run `setup.py` and fill in the following required values:
-   1. The full path of the Obsidian Vault you wish to analyze
-   2. The full pathname of your spreadsheet executable
-   3. All other options can be left, as is.
-3. Click on Save and Run and give it a few seconds to gather statistics
-4. When completed, a new, sequentially named spreadsheet will be created and will load automatically.
-5. Lastly, please consider buying me, a poor coder (steady there!), a coffee.
 
-Tip: Unless you need to change the setup parameters, you can skip that step by simply running `v_chk.py`, instead.
+Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
+
+```bash
+git clone <this repository>
+cd v_chk_master
+uv sync
+```
+
+Then run it:
+
+```bash
+uv run v-chk
+```
+
+On the very first run a setup screen appears. Fill in:
+
+1. The full path of the Obsidian Vault you wish to analyze
+2. The full pathname of your spreadsheet executable (auto-detected where possible)
+3. All other options can be left as-is
+
+Click **Save and Run** and give it a few seconds to gather statistics. When it finishes, a new,
+sequentially named spreadsheet is created and loads automatically. Afterwards the setup screen is
+skipped -- just run `uv run v-chk` again.
+
+Lastly, please consider buying me, a poor coder (steady there!), a coffee.
+
+#### Usage
+
+```bash
+uv run v-chk                          # the vault last opened in Obsidian
+uv run v-chk "D:/Vaults/MyVault"      # a specific vault
+uv run v-chk --setup                  # change settings
+uv run v-chk --do-not-open            # build the workbook but don't launch the spreadsheet
+uv run v-chk --headless --do-not-open # no windows at all; for scripting
+uv run v-chk --init                   # delete generated config, batch files and workbooks
+uv run v-chk --help                   # all options
+```
+
+`python main.py [...]` works identically if you'd rather not use the installed command.
+
+Generated workbooks land in `data/workbooks/`, and logs in `logs/`. Set the `V_CHK_DATA_DIR`
+environment variable to put them somewhere else.
 
 Note: I am in the process of learning how OOP works, as well as Python, so if you want to read/analyze the code, please be kind ;-). My background in coding is limited and primarily functional. That having been said, this tool works surprisingly well! And hopefully, it's not just me!
 

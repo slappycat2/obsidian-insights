@@ -17,15 +17,14 @@ from subprocess import Popen
 
 import click
 
-import v_chk_paths as paths
-import v_chk_splash as v_splash
-from v_chk_build import VaultHealthCheck
-from v_chk_logger import DEFAULT_LOG_LEVEL, logger, make_logger
-from v_chk_setup import ConfigIncompleteError, SysConfig, VaultNotFoundError
-from v_chk_wb_tabs import NewWb
-from v_chk_xl import ExcelExporter
-
-__version__ = "0.2.9"
+from vault_check import __version__
+from vault_check import v_chk_paths as paths
+from vault_check import v_chk_splash as v_splash
+from vault_check.v_chk_build import VaultHealthCheck
+from vault_check.v_chk_logger import DEFAULT_LOG_LEVEL, logger, make_logger
+from vault_check.v_chk_setup import ConfigIncompleteError, SysConfig, VaultNotFoundError
+from vault_check.v_chk_wb_tabs import NewWb
+from vault_check.v_chk_xl import ExcelExporter
 
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 

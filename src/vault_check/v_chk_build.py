@@ -5,9 +5,9 @@ from typing import Any
 
 import yaml
 
-from v_chk_wb_setup import WbDataDef
-from v_chk_plugin_man import PluginMan
-from v_chk_logger import logger
+from vault_check.v_chk_wb_setup import WbDataDef
+from vault_check.v_chk_plugin_man import PluginMan
+from vault_check.v_chk_logger import logger
 
 class VaultHealthCheck:   # WbConfig
     def __init__(self, sys_obj):

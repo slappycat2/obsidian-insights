@@ -4,8 +4,8 @@ from datetime import  datetime
 from pathlib import Path
 from dataclasses import dataclass, field
 
-from v_chk_json_file import JsonFile
-from v_chk_logger import logger
+from vault_check.v_chk_json_file import JsonFile
+from vault_check.v_chk_logger import logger
 
 @dataclass
 class ObsidianApp:
