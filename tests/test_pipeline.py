@@ -126,6 +126,21 @@ def _properties_rows(workbook_path):
     return rows
 
 
+def test_properties_tab_headers(workbook_path):
+    """The third column counts distinct notes, so it is "Files", not "Links".
+
+    The name is also the Excel table column name, which the Summary tab's
+    tbl_pros[...] formulas reference -- they derive from the same string, so a
+    mismatch here would break those formulas rather than just the label.
+    """
+    wb = openpyxl.load_workbook(workbook_path)
+    tab = wb["Properties"]
+
+    headers = [tab.cell(row=10, column=c).value for c in range(10, 14)]
+
+    assert headers == ["RowId", "Properties", "Values", "Files"]
+
+
 def test_every_property_gets_exactly_one_row(workbook_path):
     """Regression, issue #1: rows were emitted at the boundary between two
     properties, so the tab opened with a phantom row carrying no property name

@@ -6,6 +6,12 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ## [Unreleased]
 
+### Changed
+
+- Properties tab: the third column is now "Files" rather than "Links", since it counts distinct
+  notes. The name is also the Excel table column name, so the Summary tab's `tbl_pros[...]`
+  formulas follow it automatically.
+
 ### Fixed
 
 - Properties tab: every property now gets exactly one row, and its file count is the number of

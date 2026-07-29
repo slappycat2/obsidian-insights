@@ -67,10 +67,15 @@ class NewWb():
                     , 'col_key2': ""
                     , 'col_val1': "Values"
                     , 'col_val2': ""
-                    , 'col_lnks': "Links"
+                    # "Files", not "Links": this column counts distinct notes
+                    # using the property, so a note supplying two values of it
+                    # counts once. Renaming here also renames the Excel table
+                    # column, the totals label and the Summary tab's
+                    # tbl_pros[...] references, which all derive from it.
+                    , 'col_lnks': "Files"
                     , 'help_txt': {
                           'subtitle': [
-                            'All Vault Properties with counts of values and note files.'
+                            'All Vault Properties with counts of values and the notes using them.'
                         ]
                         , 'notes': [
                               ' - Anything in red bold/italics are likely errors or at least worthy of review.'
