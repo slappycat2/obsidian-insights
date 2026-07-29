@@ -16,6 +16,16 @@ Notable changes to Obsidian Vault Health Check. Format follows
   because items can be counted twice". The behaviour is unchanged and intended; only the
   explanation was misleading. Notes Analyzed on the Summary tab remains the distinct note count.
 
+### Added
+
+- The Templates tab now has data ([#6]). Templates were skipped outright, and nothing populated
+  `obs_tmplt`, so the tab was always empty and always dropped from the workbook. Files under the
+  Templater folder are now read into it — Templater `<% ... %>` tags are stripped before parsing,
+  and a property left valueless by that (`date: <% tp.date.now() %>`) is marked `(-None-)` rather
+  than rendered blank. They still reach no other tab: not Properties, Tags, Files, nested-plugin
+  data, code blocks or duplicate filenames, and a template whose frontmatter fails to load is not
+  reported as a vault problem, since Templater syntax is not valid YAML.
+
 ### Fixed
 
 - Plugin-managed nested frontmatter no longer inflates the Files tab, and no longer swallows the

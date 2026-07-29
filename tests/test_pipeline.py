@@ -225,3 +225,44 @@ def test_tables_are_defined_on_data_tabs(workbook_path):
 
     assert "tbl_pros" in wb["Properties"].tables
     assert "tbl_vals" in wb["Values"].tables
+
+
+def test_templates_tab_reaches_the_workbook(make_vault, stub_config):
+    """Regression, issue #6: nothing populated obs_tmplt, so the Templates tab
+    was always empty -- and initialize_all_tabs() drops empty tabs, so it never
+    reached a workbook at all.
+
+    Asserted end to end because the drop happens during export, not harvesting.
+    """
+    from vault_check.v_chk_build import VaultHealthCheck
+    from vault_check.v_chk_wb_tabs import NewWb
+    from vault_check.v_chk_xl import ExcelExporter
+
+    vault = make_vault({
+        "Notes/Real.md": "---\nauthor: Jane\n---\n\nReal note.\n",
+        "Templates/Daily.md": (
+            '---\nauthor: PLACEHOLDER\ndate: <% tp.date.now("YYYY-MM-DD") %>\n'
+            "tags: [daily]\n---\n\n# <% tp.file.title %>\n"
+        ),
+    })
+    health_check = VaultHealthCheck(stub_config(vault, dir_templates=str(vault / "Templates")))
+    exporter = ExcelExporter(NewWb(health_check).wbd_obj)
+    exporter.export()
+
+    wb = openpyxl.load_workbook(exporter.sys_pn_wbs)
+    assert "Templates" in wb.sheetnames
+
+    # This tab's table starts at a different column from the Properties tab:
+    # RowId 4, Property 5, Values 6. Pinned by the header assertion below.
+    tab = wb["Templates"]
+    assert [tab.cell(row=10, column=c).value for c in range(4, 7)] == \
+           ["RowId", "Property", "Values"]
+
+    rows = {tab.cell(row=r, column=5).value: tab.cell(row=r, column=6).value
+            for r in range(11, tab.max_row + 1)}
+
+    assert rows.get("author") == "PLACEHOLDER"
+    assert rows.get("tags") == "daily"
+    # `date: <% tp.date.now() %>` loses its value when Templater tags are
+    # stripped, and is marked rather than left blank.
+    assert rows.get("date") == "(-None-)"

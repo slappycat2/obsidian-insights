@@ -184,7 +184,7 @@ Cells are plain 11-element lists shared between `v_chk_wb_tabs.py` and `v_chk_xl
 ### `ctot` counters
 
 `sys_cfg['ctot']` is a 13-slot list of counters incremented throughout `v_chk_build.py` and consumed by
-the Summary tab. Slots: `0` md files seen, `1` templates skipped, `2` skip-dir files skipped, `3` files
+the Summary tab. Slots: `0` md files seen, `1` templates seen, `2` skip-dir files skipped, `3` files
 processed, `4` NestedDictionary resets, `5` files with frontmatter, `6` files with body properties,
 `7` `upd_obs_files` calls, `8` `upd_obs_nests` calls, `9` `upd_obs_props` calls, `10` files with no
 frontmatter at all, `11` max links per property value, `12` max links per tag.
@@ -193,7 +193,15 @@ frontmatter at all, `11` max links per property value, `12` max links per tag.
 
 - **Nested YAML means a plugin.** Obsidian doesn't allow nested frontmatter dicts, so `unpack_yaml()`
   treats one as plugin-managed data and routes it to `obs_nests` under a plugin id resolved from
-  `WbDataDef.plugin_id_def` (falling back to `NestedDictionary`). `PluginMan` (`v_chk_plugin_man.py`)
+  `WbDataDef.plugin_id_def` (falling back to `NestedDictionary`). The routing decision is
+  **structural** — `upd_val()` tests whether `key_stack` is non-empty, i.e. whether it is currently
+  inside a nested dict. It must not go back to testing `plugin_id`, which is a whole-file text scan:
+  that swallowed a plugin-touched note's genuine top-level properties, tags and inline fields.
+  `plugin_id` names the bucket only.
+- **Templates are read, but reach only the Templates tab.** Files under the Templater folder are
+  harvested into `obs_tmplt` and deliberately kept out of every other sink — Properties, Tags,
+  Files, nested-plugin data, code blocks, duplicate filenames and the bad-YAML tab (`record_yaml_issue()`
+  is a no-op for them, since Templater syntax isn't valid YAML). They count in `ctot[1]`, not `ctot[3]`. `PluginMan` (`v_chk_plugin_man.py`)
   separately reads `.obsidian/plugins/*/manifest.json` + `community-plugins.json` for the Plugins tab and
   maps code-block signatures (`dataview`, `button`, …) to plugin ids.
 - **Bad frontmatter is classified, not dropped** — `obs_xyaml` codes `BadY` / `NoFm` / `MtFm` / `ErrY` /
@@ -212,7 +220,7 @@ frontmatter at all, `11` max links per property value, `12` max links per tag.
   `uv sync --reinstall-package obsidian-vault-health-check`, or the installed metadata stays stale.
 - **Empty tabs are dropped**, not rendered: `ExcelExporter.initialize_all_tabs()` skips any tab whose
   `data_src` is empty and rewrites `sys_tab_seq` to the surviving list. A vault with no Templater
-  templates or no nested plugin data legitimately produces 10 sheets rather than 12.
+  folder configured, or no nested plugin data, legitimately produces 10 sheets rather than 12.
 - **Outstanding work lives in GitHub issues**, not in code comments. A ~90-line `Bug-NNN` / `ER-NNN`
   block at the top of `v_chk_xl.py` (whose own Bug-022 asked for exactly this) became
   `docs/BACKLOG.md`, which in turn became issues #1–#25 on 2026-07-29. `docs/BACKLOG.md` is now a

@@ -378,26 +378,104 @@ def test_a_value_merely_mentioning_a_plugin_is_not_plugin_data(scan):
     assert result.obs_nests == {}
 
 
-def test_templates_are_excluded_from_the_vault_tabs(make_vault, stub_config):
-    """Issue #6: a template's placeholder properties are not vault metadata.
+TEMPLATE_VAULT = {
+    "Notes/Real.md": """
+        ---
+        author: Jane
+        tags: [research]
+        ---
 
-    Templates are skipped wholesale when a Templater folder is configured, so
-    they reach none of the tabs. Nothing populates obs_tmplt, which is why the
-    Templates tab is always empty and gets dropped from the workbook.
+        Real note.
+
+        ```dataview
+        TABLE file.name
+        ```
+    """,
+    "Templates/Daily.md": """
+        ---
+        author: PLACEHOLDER
+        date: <% tp.date.now("YYYY-MM-DD") %>
+        tags: [daily]
+        ---
+
+        # <% tp.file.title %>
+
+        ```dataview
+        TASK WHERE !completed
+        ```
+    """,
+    "Templates/Broken.md": """
+        ---
+        title: <% tp.file.title %>
+        unclosed: [oops
+        ---
+    """,
+}
+
+
+def scan_with_templates(make_vault, stub_config):
+    """A vault whose Templates/ folder is registered with Templater.
 
     dir_templates must be absolute -- is_subdirectory() tests it against
     md_file.parents, and a relative Path silently matches nothing.
     """
     from vault_check.v_chk_build import VaultHealthCheck
 
-    vault = make_vault({
-        "Notes/Real.md": "---\nauthor: Jane\n---\n",
-        "Templates/Daily.md": "---\nauthor: PLACEHOLDER\nstatus: TEMPLATE\n---\n",
-    })
-    result = VaultHealthCheck(stub_config(vault, dir_templates=str(vault / "Templates")))
+    vault = make_vault(TEMPLATE_VAULT)
+    return VaultHealthCheck(stub_config(vault, dir_templates=str(vault / "Templates")))
+
+
+def test_templates_are_excluded_from_the_vault_tabs(make_vault, stub_config):
+    """Issue #6: a template's placeholder properties are not vault metadata."""
+    result = scan_with_templates(make_vault, stub_config)
 
     assert "Jane" in result.obs_props["author"]
     assert "PLACEHOLDER" not in result.obs_props["author"]
-    assert "status" not in result.obs_props
-    assert result.ctot[1] == 1          # counted as a skipped template
-    assert result.obs_tmplt == {}       # nothing harvests templates yet
+    assert "date" not in result.obs_props
+    assert "daily" not in result.obs_atags       # the template's tag, not the vault's
+    assert "research" in result.obs_atags
+
+
+def test_templates_are_harvested_into_obs_tmplt(make_vault, stub_config):
+    """Issue #6: nothing used to populate obs_tmplt, so the Templates tab was
+    always empty and always dropped from the workbook."""
+    result = scan_with_templates(make_vault, stub_config)
+
+    assert "PLACEHOLDER" in result.obs_tmplt["author"]
+    assert "daily" in result.obs_tmplt["tags"]
+
+
+def test_a_dynamic_template_value_is_marked_not_blank(make_vault, stub_config):
+    """`date: <% tp.date.now() %>` loses its value when Templater tags are
+    stripped. Marked the way obs_nests marks an empty, so the cell is not just
+    blank and unexplained."""
+    result = scan_with_templates(make_vault, stub_config)
+
+    assert "(-None-)" in result.obs_tmplt["date"]
+
+
+def test_a_template_with_invalid_yaml_is_not_a_vault_problem(make_vault, stub_config):
+    """Templater syntax is not valid YAML, so a template that fails to load is
+    normal. Flagging it would fill the Issues tab with false positives."""
+    result = scan_with_templates(make_vault, stub_config)
+
+    assert "BadY" not in result.obs_xyaml
+
+
+def test_template_code_blocks_are_not_vault_code_blocks(make_vault, stub_config):
+    """A template's code blocks are boilerplate waiting to be stamped out."""
+    result = scan_with_templates(make_vault, stub_config)
+
+    sources = " ".join(result.obs_codes)
+    assert "Real.md" in sources
+    assert "Daily.md" not in sources
+
+
+def test_templates_are_not_notes_for_counting_purposes(make_vault, stub_config):
+    """A template is not a duplicate-filename candidate and is not an analysed
+    note; ctot[1] counts templates separately."""
+    result = scan_with_templates(make_vault, stub_config)
+
+    assert result.ctot[1] == 2          # two templates
+    assert result.ctot[3] == 1          # one real note analysed
+    assert set(result.obs_dupfn["dupfn"]) == {"Real.md"}

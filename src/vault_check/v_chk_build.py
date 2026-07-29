@@ -79,15 +79,16 @@ class VaultHealthCheck:   # WbConfig
                 logger.warning(f"dbug is on: Skipping_file: {md_file} is not equal to {self.dbug}")
                 continue
 
+            # A template is read, but everything it yields goes to obs_tmplt and
+            # nowhere else -- its placeholder properties are not vault metadata.
+            # Templater tags are stripped before the frontmatter is parsed, which
+            # is what makes reading one with PyYAML viable at all; whatever fails
+            # to load is simply not recorded, since a template is not expected to
+            # hold valid YAML.
             self.isTemplate = False
             if self.dir_templates and self.is_subdirectory(md_file, self.dir_templates):
                 self.isTemplate = True
                 self.ctot[1] += 1
-                # right now, support for templates is not implemented.
-                # this will require a special decoding of the markdown
-                # without using PyYaml, since they would not load properly
-                # otherwise it will like all be invalid properties...
-                continue
 
             x_dir_test = False
             for x_dir in md_file.parts:
@@ -130,9 +131,27 @@ class VaultHealthCheck:   # WbConfig
     def process_md_file(self, filepath):
         self.filepath = filepath
 
-        self.upd_obs_props(self.obs_dupfn, 'dupfn', Path(filepath).name, filepath)
-        self.ctot[3] += 1
+        # A template is read for the Templates tab only. It is not a note, so it
+        # is not a duplicate-filename candidate and does not count towards the
+        # notes analysed -- ctot[1] counts it separately.
+        if not self.isTemplate:
+            self.upd_obs_props(self.obs_dupfn, 'dupfn', Path(filepath).name, filepath)
+            self.ctot[3] += 1
+
         self.parse_file()
+
+    def record_yaml_issue(self, code):
+        """Record a frontmatter problem for the Issues tab.
+
+        Templates are exempt. Templater syntax is not valid YAML, and although
+        `<% ... %>` tags are stripped before parsing, what is left is routinely
+        empty or partial. That is normal for a template and is not a defect in
+        the vault.
+        """
+        if self.isTemplate:
+            return
+
+        self.upd_obs_props(self.obs_xyaml, code, self.filepath, self.filepath)
 
     def parse_file(self):
         self.plugin_id = ""
@@ -146,7 +165,7 @@ class VaultHealthCheck:   # WbConfig
         y_text, x_text = self.split_file(content)
         if len(y_text) == 0 and len(x_text) == 0:
             self.ctot[10] += 1
-            self.upd_obs_props(self.obs_xyaml, 'NoFm', self.filepath, self.filepath)
+            self.record_yaml_issue('NoFm')
 
         if len(y_text) != 0:
             self.plugin_id = ''.join([pid for pid in self.plugin_id_def if pid in y_text])
@@ -206,24 +225,24 @@ class VaultHealthCheck:   # WbConfig
         try:
             data = yaml.safe_load(front_text) or {}
             if not isinstance(data, dict):
-                self.upd_obs_props(self.obs_xyaml, 'NonD', f"{self.filepath}", self.filepath)
+                self.record_yaml_issue('NonD')
                 return
 
         except yaml.YAMLError as e:
             logger.debug(f"v_chk_build:process_yaml (BadY) Error in YAML: {self.filepath} {e}")
-            self.upd_obs_props(self.obs_xyaml, 'BadY', self.filepath, self.filepath)
+            self.record_yaml_issue('BadY')
             return
 
         except Exception as e:
             logger.error(f"v_chk_build:process_yaml (ErrY) Unknown YAML: {self.filepath} {e}")
                 # e = unhashable type: 'dict'
-            self.upd_obs_props(self.obs_xyaml, 'ErrY', self.filepath, self.filepath)
+            self.record_yaml_issue('ErrY')
             return
 
         if data:
             self.unpack_yaml(None, data)
         else:
-            self.upd_obs_props(self.obs_xyaml, 'MtFm', self.filepath, self.filepath)
+            self.record_yaml_issue('MtFm')
         return
 
         # new version here
@@ -322,6 +341,17 @@ class VaultHealthCheck:   # WbConfig
         # entirely. It also fired on any note that merely mentioned a plugin
         # name inside a value. plugin_id still names the bucket; it no longer
         # decides what goes in it.
+        if self.isTemplate:
+            # Templates get their own tab and touch nothing else -- not
+            # Properties, not Tags, not Files, and not the nested-plugin tab.
+            if v is None or v == "":
+                # Usually the remains of a stripped "<% tp.date.now() %>": the
+                # property is stamped out with a dynamic value. Marked the same
+                # way obs_nests marks an empty, so the cell is not just blank.
+                v = "(-None-)"
+            self.upd_obs_props(self.obs_tmplt, k, v, self.filepath)
+            return
+
         if self.key_stack:
             # Here, we're passing in a subset of obs_nests, the set for this plugin, only
             if v is None or v == "":
@@ -386,6 +416,11 @@ class VaultHealthCheck:   # WbConfig
         return
 
     def process_code_blocks(self, content):
+        # A template's code blocks are boilerplate waiting to be stamped out, not
+        # code blocks that exist in the vault.
+        if self.isTemplate:
+            return
+
         cb_list = self.extract_codeblocks(content)
         for cb in cb_list:
             cb_sig = self.extract_codeblock_info(cb)
