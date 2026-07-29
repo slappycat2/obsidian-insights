@@ -4,12 +4,12 @@ The working list of bugs and enhancement requests, extracted from the comment bl
 at the top of `src/vault_check/v_chk_xl.py` (that block was itself item Bug-022: *"Remove this
 section and track bugs and ERs in Github"*).
 
-Original `Bug-NNN` / `ER-NNN` identifiers are kept for traceability with older commits and notes.
-They are **not** unique — see [ID collisions](#id-collisions) below. Once these become GitHub
-issues, the issue number is authoritative and these IDs are historical.
+**These are now [GitHub issues #1–#25](https://github.com/slappycat2/obsidian-vault-health-check/issues),
+and the issue tracker is authoritative.** Track work there; this file is kept as the historical
+record of where those issues came from, and is no longer updated.
 
-To create them on GitHub in one go: `scripts/import_backlog_issues.sh` (see
-[Importing](#importing-to-github)).
+Original `Bug-NNN` / `ER-NNN` identifiers are preserved in each issue body for traceability with
+older commits and notes. They are **not** unique — see [ID collisions](#id-collisions) below.
 
 ---
 
@@ -73,24 +73,12 @@ Empty placeholder entries (`Bug-0`, `ER-024` … `ER-029`, `ER-0`) carried no co
 
 ---
 
-## Importing to GitHub
+## How this reached GitHub
 
-The repository already exists — `slappycat2/obsidian-vault-health-check`, private, with Issues
-enabled — so there is nothing to create. `pyproject.toml`'s `Homepage` and `Issues` URLs were
-verified against it and are correct.
-
-1. Install the GitHub CLI (<https://cli.github.com>) and run `gh auth login`.
-2. Add the remote and push:
-   ```bash
-   git remote add origin https://github.com/slappycat2/obsidian-vault-health-check.git
-   git push -u origin master
-   ```
-3. Import this backlog (`--dry-run` first — it needs neither `gh` nor a remote):
-   ```bash
-   bash scripts/import_backlog_issues.sh
-   ```
-4. Delete `scripts/import_backlog_issues.sh` — it is a one-shot bootstrap, and re-running it would
-   create duplicates.
+Done on 2026-07-29. The seven open bugs and eighteen open enhancements above became issues #1–#25,
+in the order listed, via `scripts/import_backlog_issues.sh` — a one-shot bootstrap that was deleted
+straight after running, because `gh` has no "create if absent" and a second run would duplicate
+every issue. It also created the `refactor`, `testing`, `parsing` and `workbook` labels.
 
 > **The remote holds three unrelated histories.** `main` is the pre-2026 development history and
 > remains the default branch; `archive/2026-02-snapshot` is the pre-modernisation snapshot (formerly
