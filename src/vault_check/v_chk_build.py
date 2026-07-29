@@ -309,16 +309,32 @@ class VaultHealthCheck:   # WbConfig
         if k == "tags" and isinstance(v, str):
             v = v.lower()
 
-        if self.plugin_id != "":
+        # Whether a value is plugin-managed is a question about *where it sits*,
+        # not about the file it sits in: key_stack is non-empty only while
+        # unpack_yaml is recursing through a nested dict, which Obsidian does
+        # not allow and a plugin therefore wrote.
+        #
+        # This used to test self.plugin_id, which parse_file sets by scanning
+        # the whole frontmatter for a known plugin name. That routed every
+        # property in the file -- genuine top-level ones, and inline "key:: value"
+        # ones from the body -- into obs_nests, so a note carrying a kindle-sync
+        # block lost its real author and tags from the Properties and Tags tabs
+        # entirely. It also fired on any note that merely mentioned a plugin
+        # name inside a value. plugin_id still names the bucket; it no longer
+        # decides what goes in it.
+        if self.key_stack:
             # Here, we're passing in a subset of obs_nests, the set for this plugin, only
             if v is None or v == "":
                 v = "(-None-)"
             self.upd_obs_nests(self.obs_nests, k, v, self.filepath)
+            # Deliberately not added to obs_files: plugin-managed data has its
+            # own tab and should not inflate the vault tabs.
+            return
+
+        if k == "tags":
+            self.upd_obs_props(self.obs_atags, v, v, self.filepath) # Note k is not used here...
         else:
-            if k == "tags":
-                self.upd_obs_props(self.obs_atags, v, v, self.filepath) # Note k is not used here...
-            else:
-                self.upd_obs_props(self.obs_props, k, v, self.filepath)
+            self.upd_obs_props(self.obs_props, k, v, self.filepath)
 
         self.upd_obs_files(self.obs_files, k, v, self.filepath)
 

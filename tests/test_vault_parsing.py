@@ -300,3 +300,104 @@ def test_ctot_counts_markdown_files(scan):
 
     assert result.ctot[0] == 3   # markdown files seen
     assert result.ctot[3] == 3   # files processed
+
+
+# ---------------------------------------------------------------------------
+# Plugin-managed nested frontmatter (issue #6)
+# ---------------------------------------------------------------------------
+
+PLUGIN_NOTE = {
+    "Plain.md": """
+        ---
+        author: Jane
+        ---
+        A normal note.
+    """,
+    "PluginNote.md": """
+        ---
+        author: Sam
+        tags: [research]
+        kindle-sync:
+          bookId: '12345'
+          title: Some Book
+          author: Some Author
+        ---
+        Body text.
+
+        rating:: 5
+    """,
+}
+
+
+def test_nested_plugin_data_goes_to_obs_nests(scan):
+    """Nested dicts are not something Obsidian allows, so a plugin wrote them.
+    They belong on the Nested tab."""
+    result = scan(PLUGIN_NOTE)
+
+    nested = {key for bucket in result.obs_nests.values() for key in bucket}
+
+    assert "kindle-sync/bookid" in nested
+    assert "kindle-sync/title" in nested
+
+
+def test_nested_plugin_data_stays_off_the_files_tab(scan):
+    """Regression, issue #6: upd_obs_files was called outside the plugin
+    branch, so plugin-managed keys inflated the Files tab alongside real ones."""
+    result = scan(PLUGIN_NOTE)
+
+    file_keys = {key for entry in result.obs_files.values() for key in entry}
+
+    assert not [k for k in file_keys if k.startswith("kindle-sync/")]
+    assert "author" in file_keys
+
+
+def test_real_properties_survive_in_a_plugin_managed_note(scan):
+    """Regression, issue #6: routing keyed off a whole-file scan for a plugin
+    name, so every property in a note containing a kindle-sync block -- its own
+    top-level author, its tags, even inline "key:: value" pairs from the body --
+    was diverted into obs_nests and vanished from the vault tabs."""
+    result = scan(PLUGIN_NOTE)
+
+    assert "Sam" in result.obs_props["author"]      # top-level, alongside the plugin block
+    assert "research" in result.obs_atags           # tags still reach the Tags tab
+    assert "5" in result.obs_props["rating"]        # inline "key:: value" from the body
+
+
+def test_a_value_merely_mentioning_a_plugin_is_not_plugin_data(scan):
+    """Regression, issue #6: the plugin test was a substring search of the raw
+    frontmatter, so a note that only talked about a plugin had its properties
+    diverted."""
+    result = scan({"note.md": """
+        ---
+        author: Jane
+        summary: how I set up kindle-sync last year
+        ---
+    """})
+
+    assert "Jane" in result.obs_props["author"]
+    assert result.obs_nests == {}
+
+
+def test_templates_are_excluded_from_the_vault_tabs(make_vault, stub_config):
+    """Issue #6: a template's placeholder properties are not vault metadata.
+
+    Templates are skipped wholesale when a Templater folder is configured, so
+    they reach none of the tabs. Nothing populates obs_tmplt, which is why the
+    Templates tab is always empty and gets dropped from the workbook.
+
+    dir_templates must be absolute -- is_subdirectory() tests it against
+    md_file.parents, and a relative Path silently matches nothing.
+    """
+    from vault_check.v_chk_build import VaultHealthCheck
+
+    vault = make_vault({
+        "Notes/Real.md": "---\nauthor: Jane\n---\n",
+        "Templates/Daily.md": "---\nauthor: PLACEHOLDER\nstatus: TEMPLATE\n---\n",
+    })
+    result = VaultHealthCheck(stub_config(vault, dir_templates=str(vault / "Templates")))
+
+    assert "Jane" in result.obs_props["author"]
+    assert "PLACEHOLDER" not in result.obs_props["author"]
+    assert "status" not in result.obs_props
+    assert result.ctot[1] == 1          # counted as a skipped template
+    assert result.obs_tmplt == {}       # nothing harvests templates yet

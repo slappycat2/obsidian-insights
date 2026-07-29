@@ -18,6 +18,13 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ### Fixed
 
+- Plugin-managed nested frontmatter no longer inflates the Files tab, and no longer swallows the
+  note's real metadata ([#6]). Whether a value is plugin-managed is now decided by where it sits —
+  inside a nested dict, which Obsidian does not permit — rather than by scanning the whole
+  frontmatter for a known plugin name. That scan applied to the entire file, so a note carrying a
+  `kindle-sync` block lost its own top-level properties, its tags and its inline `key:: value`
+  fields from the Properties and Tags tabs; it also fired on any note that merely mentioned a
+  plugin name inside a value.
 - Properties tab: every property now gets exactly one row, and its file count is the number of
   distinct notes using the property ([#1]). Rows were previously emitted at the boundary *between*
   two properties, which produced a phantom first row labelled "Properties", silently dropped the
@@ -26,6 +33,7 @@ Notable changes to Obsidian Vault Health Check. Format follows
   once.
 
 [#1]: https://github.com/slappycat2/obsidian-vault-health-check/issues/1
+[#6]: https://github.com/slappycat2/obsidian-vault-health-check/issues/6
 
 ## [0.1.0] — 2026-07-29
 
