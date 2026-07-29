@@ -27,10 +27,9 @@ img/                         README screenshot and brand source files (not runti
 data/, logs/, CONFIG.yaml    generated at runtime, gitignored
 ```
 
-Everything tracked is live — 59 files, 6 MB. Two untracked directories may still be sitting on disk
-and are safe to delete: `vault_check/` (pre-Phase-2 generated output) and `xcluded/` (old scratch
-code, removed from tracking in Phase 4 and recoverable from commit `d24449d`; only its
-gitignored Node artifacts remain).
+Everything tracked is live — 63 files, 6 MB. The two directories that used to linger untracked on
+disk (`vault_check/`, pre-Phase-2 generated output, and `xcluded/`, old scratch code removed from
+tracking in Phase 4) are both gone; `xcluded/` remains recoverable from commit `d24449d`.
 
 ### Keep .gitignore patterns anchored
 
@@ -203,9 +202,10 @@ frontmatter at all, `11` max links per property value, `12` max links per tag.
   `cli()`. Swap the active handler config via `ACTIVE_LOG_CONFIG` (alternatives live in
   `src/vault_check/logging_configs/`). Those JSON files declare relative log paths, which `_resolve_handler_paths()`
   rewrites to absolute under `APP_DIR`. Logs rotate at 3 MB, 50 backups, into `logs/`.
-- **Version strings are still duplicated**: `__version__` in `v_chk.py`, `SysConfig.sys_ver`, and
-  `version` in `pyproject.toml` (which disagrees at `0.2.0`). Phase 2 should single-source these from
-  package metadata.
+- **The version is single-sourced** from `__version__` in `src/vault_check/__init__.py`.
+  `pyproject.toml` declares `dynamic = ["version"]` and points `[tool.hatch.version]` at that file;
+  the CLI's `--version`, `SysConfig.sys_ver` and the splash screen all import it. Bump it in one
+  place.
 - **Empty tabs are dropped**, not rendered: `ExcelExporter.initialize_all_tabs()` skips any tab whose
   `data_src` is empty and rewrites `sys_tab_seq` to the surviving list. A vault with no Templater
   templates or no nested plugin data legitimately produces 10 sheets rather than 12.

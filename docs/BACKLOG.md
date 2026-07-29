@@ -75,20 +75,24 @@ Empty placeholder entries (`Bug-0`, `ER-024` … `ER-029`, `ER-0`) carried no co
 
 ## Importing to GitHub
 
-Not yet possible from this checkout: there is no git remote, and the GitHub CLI is not installed.
+The repository already exists — `slappycat2/obsidian-vault-health-check`, private, with Issues
+enabled — so there is nothing to create. `pyproject.toml`'s `Homepage` and `Issues` URLs were
+verified against it and are correct.
 
 1. Install the GitHub CLI (<https://cli.github.com>) and run `gh auth login`.
-2. Create the repository and push:
+2. Add the remote and push:
    ```bash
-   gh repo create <owner>/<name> --private --source=. --remote=origin --push
+   git remote add origin https://github.com/slappycat2/obsidian-vault-health-check.git
+   git push -u origin master
    ```
-3. Import this backlog:
+3. Import this backlog (`--dry-run` first — it needs neither `gh` nor a remote):
    ```bash
    bash scripts/import_backlog_issues.sh
    ```
 4. Delete `scripts/import_backlog_issues.sh` — it is a one-shot bootstrap, and re-running it would
    create duplicates.
 
-> **Check `pyproject.toml` before publishing.** Its `Homepage` and `Issues` URLs point at
-> `slappycat2/obsidian-vault-health-check`, which was a placeholder — the owner matches the account
-> linked from the README, but the repository name is a guess. Correct it to the real repository.
+> **The remote holds three unrelated histories.** `main` is the pre-2026 development history and
+> remains the default branch; `archive/2026-02-snapshot` is the pre-modernisation snapshot (formerly
+> the remote `master`); `master` is this modernised tree. None of them share a common ancestor, so
+> git will refuse to merge or compare them — that is expected, not a broken checkout.

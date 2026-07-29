@@ -28,8 +28,8 @@ if ! $DRY_RUN; then
         exit 1
     fi
     if ! git remote get-url origin >/dev/null 2>&1; then
-        echo "error: no 'origin' remote. Create the repo first, e.g." >&2
-        echo "  gh repo create <owner>/<name> --private --source=. --remote=origin --push" >&2
+        echo "error: no 'origin' remote. Add one first, e.g." >&2
+        echo "  git remote add origin https://github.com/slappycat2/obsidian-vault-health-check.git" >&2
         exit 1
     fi
 fi
