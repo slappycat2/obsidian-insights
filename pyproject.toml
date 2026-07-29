@@ -1,0 +1,12 @@
+[project]
+name = "v-chk-master"
+version = "0.2.0"
+description = "Add your description here"
+readme = "README.md"
+requires-python = ">=3.13"
+dependencies = [
+    "click>=8.2.1",
+    "openpyxl>=3.1.5",
+    "pillow>=11.3.0",
+    "pyyaml>=6.0.2",
+]
