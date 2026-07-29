@@ -75,7 +75,11 @@ git tag -a v0.2.0 -m "v0.2.0"
 git push origin master --follow-tags
 ```
 
-Optionally publish it: `gh release create v0.2.0 --notes-from-tag`.
+> **Tagging is not publishing, and publishing needs explicit approval.** A tag is a pointer inside
+> the private repository. Creating a GitHub release (`gh release create`), uploading to PyPI, or
+> making the repository public are separate acts that require the owner to ask for them by name.
+> Nothing in this checklist authorises them, and none of it has happened: no release, no PyPI
+> package under either name, repository still private.
 
 > **Gotcha: `uv sync` alone is not enough.** The version is baked into the editable install's
 > metadata at install time, so bumping `__version__` leaves `importlib.metadata` reporting the old
