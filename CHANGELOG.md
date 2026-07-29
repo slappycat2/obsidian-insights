@@ -25,6 +25,12 @@ Notable changes to Obsidian Vault Health Check. Format follows
   usages, one per property per note — instead of describing it as a total that "will appear high
   because items can be counted twice". The behaviour is unchanged and intended; only the
   explanation was misleading. Notes Analyzed on the Summary tab remains the distinct note count.
+- Tab titles and subtitles now ask for **Impact**, which is present on both Windows and macOS,
+  instead of "Berlin Sans FB Demi" and "Berlin Sans", which ship with Microsoft Office ([#5]). The
+  name was written 38 times across the tab subclasses and is now resolved once. Where the font is
+  not installed — Linux, mainly, since Impact arrives there only with `ttf-mscorefonts-installer` —
+  titles fall through to the same fallback as every other unstyled cell rather than naming a font
+  that is not there. Note Impact has no bold cut, so bold titles are synthesised by the viewer.
 - The IsVisible column's position is computed in one place, `NewTab.calc_col_pointers()` ([#4]).
   Each tab used to also hardcode it twice — as `tab_tots_isVisible_col` and as a column index in
   `tab_cd_fixed_grid['isVisible']` — both of which were then overwritten. A tab that declares
@@ -49,6 +55,7 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 [#1]: https://github.com/slappycat2/obsidian-vault-health-check/issues/1
 [#4]: https://github.com/slappycat2/obsidian-vault-health-check/issues/4
+[#5]: https://github.com/slappycat2/obsidian-vault-health-check/issues/5
 [#6]: https://github.com/slappycat2/obsidian-vault-health-check/issues/6
 
 ## [0.1.0] — 2026-07-29

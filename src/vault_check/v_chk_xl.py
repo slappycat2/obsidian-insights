@@ -31,6 +31,9 @@ from vault_check.v_chk_plugin_man import PluginMan
 from vault_check.v_chk_logger import logger
 
 
+FALLBACK_FONT = "Arial"
+
+
 class ExcelExporter:
     def __init__(self, wbd_obj):
         self.tab_def = {}
@@ -573,7 +576,15 @@ class ExcelExporter:
             c_sz = 10
 
         if c_font == '' or c_font is None:
-            c_font = "Arial"
+            # Every cell that states no preference lands here, including a tab
+            # title whose display font is not installed on this machine. Arial
+            # is the fallback because an .xlsx names one font with no fallback
+            # list: it is present on Windows and macOS, and on Linux fontconfig
+            # substitutes metric-compatible Liberation Sans. Naming nothing at
+            # all would leave the cell on the workbook default, which is
+            # Calibri -- itself an Office font, and so missing in exactly the
+            # places this fallback exists to cover.
+            c_font = FALLBACK_FONT
 
         fg_clr = txt_clr
         if fill_clr != "" and fill_clr is not None:

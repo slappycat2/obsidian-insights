@@ -170,6 +170,14 @@ Render order and inclusion come from `sys_cfg['sys_tab_seq']`, defaulting to `DE
 and `set_table_links()` compute where the variable-width "FileNN" hyperlink columns land — the count comes
 from `ctot[11]`/`ctot[12]` (max links seen) capped by the user's `link_lim_vals`/`link_lim_tags`.
 
+**Fonts are resolved once, at the top of `v_chk_wb_tabs.py`.** `DISPLAY_FONT` (Impact) is used for
+every tab title and subtitle via the module-level `TITLE_FONT`; never write a font name in a tab
+subclass. An `.xlsx` cell names exactly one font with no fallback list, so `display_font()` checks
+what is installed on this machine — fair, since v_chk builds and opens the workbook in one run — and
+returns `None` when it is absent. `None` means "no preference", which lands on
+`ExcelExporter.FALLBACK_FONT` (Arial: on Windows and macOS, and substituted by metric-compatible
+Liberation Sans on Linux). Expect the fallback to fire on Linux, where Impact is not an OS font.
+
 **`calc_col_pointers()` is the only place the IsVisible column's position is decided.** A tab declares
 `tab_has_isVisible_col`, and optionally lists `isVisible` among its `tab_cd_table_hdr` columns; it must
 never state a column number. If it lists `isVisible` anywhere but the end of its own table, the method

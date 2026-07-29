@@ -2,9 +2,102 @@ import copy
 
 from openpyxl.styles import Side
 
+import os
+import platform
+from functools import lru_cache
+from pathlib import Path
+
 from vault_check import __version__
 from vault_check.v_chk_colors import Colors
 from vault_check.v_chk_logger import logger
+
+# --------------------------------------------------------------------------
+# Display font for tab titles and subtitles
+#
+# An .xlsx cell names exactly one font -- there is no fallback list -- so a
+# font that is not installed is silently substituted by whatever opens the
+# file. That is how the workbook spent years asking for "Berlin Sans FB Demi",
+# which ships with Microsoft Office and exists on almost no macOS or Linux
+# machine.
+#
+# Impact is on Windows and macOS. It is a Microsoft web-core font rather than
+# an OS font on Linux, where it arrives only with ttf-mscorefonts-installer, so
+# the fallback is expected to fire there. Falling back means naming no font,
+# which sends the cell down ExcelExporter's FALLBACK_FONT path.
+#
+# Impact has no bold or italic cut. Titles are set bold, so a viewer will
+# synthesise one by smearing the glyphs, which on a face this heavy and
+# condensed reads as blurred rather than bolder. Worth revisiting if the
+# titles look wrong.
+#
+# v_chk builds the workbook and opens it on the same machine, so looking at
+# what is installed here is a fair proxy for what will render it.
+# --------------------------------------------------------------------------
+DISPLAY_FONT = "Impact"
+
+FONT_SUFFIXES = (".ttf", ".ttc", ".otf")
+
+
+def font_search_dirs():
+    """Directories this platform keeps fonts in, most specific first."""
+    home = Path.home()
+    system = platform.system()
+
+    if system == "Windows":
+        return [Path(os.environ.get("LOCALAPPDATA", home)) / "Microsoft/Windows/Fonts",
+                Path(os.environ.get("WINDIR", "C:/Windows")) / "Fonts"]
+
+    if system == "Darwin":
+        return [home / "Library/Fonts",
+                Path("/Library/Fonts"),
+                Path("/System/Library/Fonts"),
+                Path("/System/Library/Fonts/Supplemental"),
+                Path("/Network/Library/Fonts")]
+
+    return [home / ".fonts",
+            home / ".local/share/fonts",
+            Path("/usr/share/fonts"),
+            Path("/usr/local/share/fonts")]
+
+
+@lru_cache(maxsize=None)
+def font_is_installed(family):
+    """Is a font family installed on this machine?
+
+    Matched on filename, not on the family name recorded inside the file, so it
+    is approximate -- good enough for a known face like Impact (impact.ttf),
+    and it avoids a font-parsing dependency for one lookup.
+    """
+    wanted = family.lower().replace(" ", "")
+
+    for directory in font_search_dirs():
+        if not directory.is_dir():
+            continue
+        for _, _, filenames in os.walk(directory):
+            for filename in filenames:
+                name = filename.lower()
+                if not name.endswith(FONT_SUFFIXES):
+                    continue
+                if name.rsplit(".", 1)[0].replace(" ", "").replace("-", "") == wanted:
+                    logger.debug(f"v_chk_wb_tabs: font '{family}' found: {filename}")
+                    return True
+
+    logger.info(f"v_chk_wb_tabs: font '{family}' is not installed; "
+                f"titles will use the workbook default")
+    return False
+
+
+@lru_cache(maxsize=None)
+def display_font():
+    """DISPLAY_FONT if it is installed, otherwise None.
+
+    None states no preference, which sends the cell down the same fallback
+    every unstyled cell already takes -- ExcelExporter.FALLBACK_FONT, Arial.
+    """
+    return DISPLAY_FONT if font_is_installed(DISPLAY_FONT) else None
+
+
+TITLE_FONT = display_font()
 
 class NewWb():
     def __init__(self, vhc_obj):
@@ -433,8 +526,8 @@ class NewTab:
         self.tab_txt_sz = 11
         self.tab_link_clr = self.colors.get_clr("blu", 0)
         self.tab_fill_clr = ''
-        self.font_title_lst = ['Berlin Sans FB Demi', 24, '']
-        self.font_subs_lst = ['Berlin Sans', 14, '']
+        self.font_title_lst = [TITLE_FONT, 24, '']
+        self.font_subs_lst = [TITLE_FONT, 14, '']
         self.font_body_lst = ['Calibri'    , 11, '']
         self.cell_width = 8
         self.tbl_name = f"tbl_{self.tab_id}"
@@ -509,7 +602,7 @@ class NewTab:
                     , 'data_src':           self.data_src
                     , 'tab_help_txt':       self.help_txt
                                      # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
-                    , 'tab_cd_title_def':    [3,  2, 'Berlin Sans FB Demi', 24, 0, '', '', True, False, 'left', self.tab_title]
+                    , 'tab_cd_title_def':    [3,  2, TITLE_FONT, 24, 0, '', '', True, False, 'left', self.tab_title]
                     , 'tab_cd_subtitle_def': [3,  3, '', sz, 0, '', '', True, False, 'left', '']
                     , 'tab_cd_notes_def':    [3, 22, '', sz, 0, '', '', True, False, 'left', '']
                     , 'tab_color': ''
@@ -677,8 +770,8 @@ class DefPros(NewTab):
 
         sz = self.tab_txt_sz
 
-        self.font_title_lst = ['Berlin Sans FB Demi', 24, clr1]
-        self.font_subs_lst = ['Berlin Sans', 14, txt1]
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst = [TITLE_FONT, 14, txt1]
         self.font_body_lst = ['Calibri', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
@@ -693,7 +786,7 @@ class DefPros(NewTab):
         # if self.tab_def['tab_name'] != 'Properties':
         #     raise WorkbookDefinitionError(f"Tab_Def: pros-tab_name tab name not defined.")
         # self.tab_def['tab_name'] = 'Properties'
-        self.tab_def['tab_cd_title_def'] = [3, 2, 'Berlin Sans FB Demi', 24, 0, clr1, '', True, False, 'left',self.tab_title]
+        self.tab_def['tab_cd_title_def'] = [3, 2, TITLE_FONT, 24, 0, clr1, '', True, False, 'left',self.tab_title]
         self.tab_def['tab_cd_subtitle_def'] = [ 3,  3, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_cd_notes_def']    = [ 3, 12, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_help_txt'] = self.help_txt
@@ -761,8 +854,8 @@ class DefVals(NewTab):
 
         sz = self.tab_txt_sz
 
-        self.font_title_lst = ['Berlin Sans FB Demi', 24, clr1]
-        self.font_subs_lst = ['Berlin Sans', 14, txt1]
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst = [TITLE_FONT, 14, txt1]
         self.font_body_lst = ['Calibri', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
@@ -781,7 +874,7 @@ class DefVals(NewTab):
         # if self.tab_def['tab_name'] != 'Properties':
         #     raise WorkbookDefinitionError(f"Tab_Def: pros-tab_name tab name not defined.")
         # self.tab_def['tab_name'] = 'Properties'
-        self.tab_def['tab_cd_title_def'] = [ 3,  2, 'Berlin Sans FB Demi', 24, 0, clr1, '', True, False, 'left',self.tab_title]
+        self.tab_def['tab_cd_title_def'] = [ 3,  2, TITLE_FONT, 24, 0, clr1, '', True, False, 'left',self.tab_title]
         self.tab_def['tab_cd_subtitle_def'] = [ 3,  3, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_cd_notes_def']    = [ 3, 12, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_help_txt'] = self.help_txt
@@ -846,8 +939,8 @@ class DefTags(NewTab):
 
         sz = self.tab_txt_sz
 
-        self.font_title_lst = ['Berlin Sans FB Demi', 24, clr1]
-        self.font_subs_lst = ['Berlin Sans', 14, txt1]
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst = [TITLE_FONT, 14, txt1]
         self.font_body_lst = ['Calibri', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
@@ -865,7 +958,7 @@ class DefTags(NewTab):
         # self.tab_def['tab_table_links_cols'] = 10
 
         # self.tab_def['tab_name'] = 'Tags'
-        self.tab_def['tab_cd_title_def']    = [3,  2, 'Berlin Sans FB Demi', 24, 0, clr1, '', True, False, 'left', self.tab_title]
+        self.tab_def['tab_cd_title_def']    = [3,  2, TITLE_FONT, 24, 0, clr1, '', True, False, 'left', self.tab_title]
         self.tab_def['tab_cd_subtitle_def'] = [3,  3, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_cd_notes_def']    = [3, 11, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_help_txt'] = self.help_txt
@@ -920,8 +1013,8 @@ class DefFile(NewTab):
 
         sz = self.tab_txt_sz
 
-        self.font_title_lst = ['Berlin Sans FB Demi', 24, clr1]
-        self.font_subs_lst  = ['Berlin Sans', 14, txt1]
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst  = [TITLE_FONT, 14, txt1]
         self.font_body_lst  = ['Calibri', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
@@ -934,7 +1027,7 @@ class DefFile(NewTab):
         self.tab_def['tab_has_isVisible_col'] = True
 
         # self.tab_def['tab_name'] = 'All Files'
-        self.tab_def['tab_cd_title_def'] = [3, 2, 'Berlin Sans FB Demi', 24, 0, clr1, '', True, False, 'left', self.tab_title]
+        self.tab_def['tab_cd_title_def'] = [3, 2, TITLE_FONT, 24, 0, clr1, '', True, False, 'left', self.tab_title]
         self.tab_def['tab_cd_subtitle_def'] = [ 3, 3, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_cd_notes_def'] =    [ 3, 13, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_help_txt'] = self.help_txt
@@ -1008,8 +1101,8 @@ class DefCode(NewTab):
         # txt1 = text color on cells that use color fills
 
         sz = self.tab_txt_sz
-        self.font_title_lst = ['Berlin Sans FB Demi', 24, clr1]
-        self.font_subs_lst  = ['Berlin Sans', 14, txt1]
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst  = [TITLE_FONT, 14, txt1]
         self.font_body_lst  = ['Calibri', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
@@ -1022,7 +1115,7 @@ class DefCode(NewTab):
         self.tab_def['tab_has_isVisible_col'] = True
 
         # self.tab_def['tab_name'] = 'Code'
-        self.tab_def['tab_cd_title_def']    = [3,  2, 'Berlin Sans FB Demi', 24, 0, clr1, '', True, False, 'left', self.tab_title]
+        self.tab_def['tab_cd_title_def']    = [3,  2, TITLE_FONT, 24, 0, clr1, '', True, False, 'left', self.tab_title]
         self.tab_def['tab_cd_subtitle_def'] = [3,  3, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_cd_notes_def']    = [3, 13, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_help_txt'] = self.help_txt
@@ -1086,8 +1179,8 @@ class DefXyml(NewTab):
         # txt1 = text color on cells that use color fills
 
         sz = self.tab_txt_sz
-        self.font_title_lst = ['Berlin Sans FB Demi', 24, clr1]
-        self.font_subs_lst =  ['Berlin Sans', 14, txt1]
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst =  [TITLE_FONT, 14, txt1]
         self.font_body_lst =  ['Calibri', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
@@ -1100,7 +1193,7 @@ class DefXyml(NewTab):
         self.tab_def['tab_table_links_cols'] = 0
 
         # self.tab_def['tab_name'] = 'Xyml'
-        self.tab_def['tab_cd_title_def']    = [3,  2, 'Berlin Sans FB Demi', 24, 0, clr1, '', True, False, 'left', self.tab_title]
+        self.tab_def['tab_cd_title_def']    = [3,  2, TITLE_FONT, 24, 0, clr1, '', True, False, 'left', self.tab_title]
         self.tab_def['tab_cd_subtitle_def'] = [3,  3, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_cd_notes_def']    = [3, 16, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_help_txt'] = self.help_txt
@@ -1184,8 +1277,8 @@ class DefDups(NewTab):
 
         sz = self.tab_txt_sz
 
-        self.font_title_lst = ['Berlin Sans FB Demi', 24, clr1]
-        self.font_subs_lst = ['Berlin Sans', 14, txt1]
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst = [TITLE_FONT, 14, txt1]
         self.font_body_lst = ['Calibri', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
@@ -1198,7 +1291,7 @@ class DefDups(NewTab):
         self.tab_def['tab_table_links_cols']    = 4
 
         # self.tab_def['tab_name'] = 'Dups'
-        self.tab_def['tab_cd_title_def']    = [ 3,  2, 'Berlin Sans FB Demi', 24, 0, clr1, '', True, False, 'left', self.tab_title]
+        self.tab_def['tab_cd_title_def']    = [ 3,  2, TITLE_FONT, 24, 0, clr1, '', True, False, 'left', self.tab_title]
         self.tab_def['tab_cd_subtitle_def'] = [ 3,  3, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_cd_notes_def']    = [ 3, 11, '', sz, 0, '', '', False,  False, 'left', '']
         self.tab_def['tab_help_txt'] = self.help_txt
@@ -1249,8 +1342,8 @@ class DefNest(NewTab):
         # txt1 = text color on cells that use color fills
 
         sz = self.tab_txt_sz
-        self.font_title_lst = ['Berlin Sans FB Demi', 24, clr1]
-        self.font_subs_lst = ['Berlin Sans', 14, txt1]
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst = [TITLE_FONT, 14, txt1]
         self.font_body_lst = ['Calibri', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
@@ -1265,7 +1358,7 @@ class DefNest(NewTab):
         # if self.tab_def['tab_name'] != 'Plug-Ins':
         #     raise WorkbookDefinitionError(f"Tab_Def: pros-tab_name tab name not defined.")
         # self.tab_def['tab_name'] = 'Properties'
-        self.tab_def['tab_cd_title_def'] = [3, 2, 'Berlin Sans FB Demi', 24, 0, clr1, '', True, False, 'left',
+        self.tab_def['tab_cd_title_def'] = [3, 2, TITLE_FONT, 24, 0, clr1, '', True, False, 'left',
                                          self.tab_title]
         self.tab_def['tab_cd_subtitle_def'] = [3,  3, '', sz, 0, '', '', False, False, 'left', '']
         self.tab_def['tab_cd_notes_def']    = [3, 12, '', sz, 0, '', '', False, False, 'left', '']
@@ -1343,8 +1436,8 @@ class DefPlug(NewTab):
         # txt1 = text color on cells that use color fills
 
         sz = self.tab_txt_sz
-        self.font_title_lst = ['Berlin Sans FB Demi', 24, clr1]
-        self.font_subs_lst = ['Berlin Sans', 14, txt1]
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst = [TITLE_FONT, 14, txt1]
         self.font_body_lst = ['Calibri', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
@@ -1359,7 +1452,7 @@ class DefPlug(NewTab):
         # if self.tab_def['tab_name'] != 'Plug-Ins':
         #     raise WorkbookDefinitionError(f"Tab_Def: pros-tab_name tab name not defined.")
         # self.tab_def['tab_name'] = 'Properties'
-        self.tab_def['tab_cd_title_def'] = [3, 2, 'Berlin Sans FB Demi', 24, 0, clr1, '', True, False, 'left', self.tab_title]
+        self.tab_def['tab_cd_title_def'] = [3, 2, TITLE_FONT, 24, 0, clr1, '', True, False, 'left', self.tab_title]
         self.tab_def['tab_cd_subtitle_def'] = [3, 3, '', sz, 0, '', '', False, False, 'left', '']
         self.tab_def['tab_cd_notes_def']    = [3, 11, '', sz, 0, '', '', False, False, 'left', '']
         self.tab_def['tab_help_txt'] = self.help_txt
@@ -1437,8 +1530,8 @@ class DefTmpl(NewTab):
 
         sz = self.tab_txt_sz
 
-        self.font_title_lst = ['Berlin Sans FB Demi', 24, clr1]
-        self.font_subs_lst = ['Berlin Sans', 14, txt1]
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst = [TITLE_FONT, 14, txt1]
         self.font_body_lst = ['Calibri', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
@@ -1453,7 +1546,7 @@ class DefTmpl(NewTab):
         # if self.tab_def['tab_name'] != 'Templates':
         #     raise WorkbookDefinitionError(f"Tab_Def: pros-tab_name tab name not defined.")
         # self.tab_def['tab_name'] = 'Properties'
-        self.tab_def['tab_cd_title_def'] = [3, 2, 'Berlin Sans FB Demi', 24, 0, clr1, '', True, False, 'left',                                            self.tab_title]
+        self.tab_def['tab_cd_title_def'] = [3, 2, TITLE_FONT, 24, 0, clr1, '', True, False, 'left',                                            self.tab_title]
         self.tab_def['tab_cd_subtitle_def'] = [3, 3, '', sz, 0, '', '', False, False, 'left', '']
         self.tab_def['tab_cd_notes_def'] = [3, 22, '', sz, 0, '', '', False, False, 'left', '']
         self.tab_def['tab_help_txt'] = self.help_txt
@@ -1527,8 +1620,8 @@ class DefSumm(NewTab):
 
         sz = self.tab_txt_sz
 
-        self.font_title_lst = ['Berlin Sans FB Demi', 24, clr1]
-        self.font_subs_lst = ['Berlin Sans', 14, txt1]
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst = [TITLE_FONT, 14, txt1]
         self.font_body_lst = ['Calibri', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
@@ -1572,7 +1665,7 @@ class DefSumm(NewTab):
             }
 
         # self.tab_def['tab_name'] = 'Summary'
-        self.tab_def['tab_cd_title_def']    = [3,  2, 'Berlin Sans FB Demi', sz, 0, clr1, '', True, False, 'left', '']
+        self.tab_def['tab_cd_title_def']    = [3,  2, TITLE_FONT, sz, 0, clr1, '', True, False, 'left', '']
         self.tab_def['tab_cd_notes_def']    = [14, 3, '', sz, 0, '', '', False, False, 'left', '']
         # self.tab_def['tab_help_txt']        = self.tab_common['summ']['help_txt']
         self.tab_def['tab_cd_subtitle1_def'] = [3, 2, '', sz, 0, '', '', False, False, 'left', '']
@@ -1738,8 +1831,8 @@ class DefAr51(NewTab):
 
         sz = self.tab_txt_sz
 
-        self.font_title_lst = ['Berlin Sans FB Demi', 24, clr1]
-        self.font_subs_lst = ['Berlin Sans', 14, txt1]
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst = [TITLE_FONT, 14, txt1]
         self.font_body_lst = ['Calibri', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
