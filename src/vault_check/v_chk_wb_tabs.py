@@ -586,12 +586,44 @@ class NewTab:
         self.tab_def['tbl_end_col'] = ((link_cols + spcr_cols)
             + (self.tab_def['tbl_fix_cols'] - 1)
             + (self.tab_def['tbl_beg_col']))
-        if self.tab_def['tbl_end_col'] < self.tab_def['tab_tots_isVisible_col']:
-            self.tab_def['tbl_end_col'] = self.tab_def['tab_tots_isVisible_col']
-
+        # ------------------------------------------------------------------
+        # The IsVisible column. This is the ONLY place its position is worked
+        # out -- subclasses declare whether they want one, never where it goes.
+        #
+        # They used to also hardcode the column number, twice: once as
+        # tab_tots_isVisible_col and once in tab_cd_fixed_grid['isVisible'].
+        # Both were then overwritten here, so the constants were pure drift
+        # risk, and had already drifted -- the Code tab claimed 44 while its
+        # table really ended at 54. Only one of them ever did anything: the old
+        # code used it as a floor on tbl_end_col, which is how a tab with no
+        # link columns got the extra column IsVisible needs. That is now
+        # derived instead.
+        # ------------------------------------------------------------------
         if self.tab_def['tab_has_isVisible_col']:
-            self.tab_def['tab_tots_isVisible_col'] = int(self.tab_def['tbl_end_col'])
-            self.tab_def['tab_cd_fixed_grid']['isVisible'][0] = self.tab_def['tbl_end_col']
+            declared = self.tab_def['tab_cd_table_hdr'].get('isVisible')
+
+            if declared is None:
+                # IsVisible is not one of the tab's declared table columns, so
+                # it needs one of its own, immediately past the fixed columns.
+                # A tab with link columns is already wider than that and keeps
+                # its computed width.
+                self.tab_def['tbl_end_col'] = max(
+                    self.tab_def['tbl_end_col'],
+                    self.tab_def['tbl_beg_col'] + self.tab_def['tbl_fix_cols'])
+
+            isvis_col = int(self.tab_def['tbl_end_col'])
+
+            if declared is not None and int(declared[0]) != isvis_col:
+                # A tab that declares IsVisible among its columns has put it
+                # somewhere other than the end of its own table. Silent before;
+                # the totals and the column would simply disagree.
+                raise ValueError(
+                    f"tab '{self.tab_id}': IsVisible is declared at column "
+                    f"{declared[0]} in tab_cd_table_hdr, but the table ends at "
+                    f"column {isvis_col}")
+
+            self.tab_def['tab_tots_isVisible_col'] = isvis_col
+            self.tab_def['tab_cd_fixed_grid']['isVisible'][0] = isvis_col
 
     def set_table_links(self, tab_cd_table_hdr, tab_cd_table_dtl):
         tab_table_links_hdr     = self.tab_def['tab_cd_table_links']
@@ -657,7 +689,6 @@ class DefPros(NewTab):
         self.tab_def['hdr_links_pfx'] = ""
         self.tab_def['tab_table_links_cols'] = 0
         self.tab_def['tab_has_isVisible_col'] = True
-        self.tab_def['tab_tots_isVisible_col'] = 14
 
         # if self.tab_def['tab_name'] != 'Properties':
         #     raise WorkbookDefinitionError(f"Tab_Def: pros-tab_name tab name not defined.")
@@ -746,7 +777,6 @@ class DefVals(NewTab):
 
         self.tab_def['hdr_links_pfx'] = "File"
         self.tab_def['tab_has_isVisible_col'] = True
-        # self.tab_def['tab_tots_isVisible_col'] = 44
 
         # if self.tab_def['tab_name'] != 'Properties':
         #     raise WorkbookDefinitionError(f"Tab_Def: pros-tab_name tab name not defined.")
@@ -832,7 +862,6 @@ class DefTags(NewTab):
 
         self.tab_def['hdr_links_pfx'] = "File"
         self.tab_def['tab_has_isVisible_col'] = True
-        # self.tab_def['tab_tots_isVisible_col'] = 32
         # self.tab_def['tab_table_links_cols'] = 10
 
         # self.tab_def['tab_name'] = 'Tags'
@@ -903,7 +932,6 @@ class DefFile(NewTab):
         self.tab_def['hdr_links_pfx'] = "File"
         self.tab_def['tab_table_links_cols'] = 0
         self.tab_def['tab_has_isVisible_col'] = True
-        self.tab_def['tab_tots_isVisible_col'] = 18
 
         # self.tab_def['tab_name'] = 'All Files'
         self.tab_def['tab_cd_title_def'] = [3, 2, 'Berlin Sans FB Demi', 24, 0, clr1, '', True, False, 'left', self.tab_title]
@@ -992,7 +1020,6 @@ class DefCode(NewTab):
         self.tab_def['hdr_links_pfx'] = "CodeBlock-"
         self.tab_def['tab_table_links_cols'] = 20
         self.tab_def['tab_has_isVisible_col'] = True
-        self.tab_def['tab_tots_isVisible_col'] = 44
 
         # self.tab_def['tab_name'] = 'Code'
         self.tab_def['tab_cd_title_def']    = [3,  2, 'Berlin Sans FB Demi', 24, 0, clr1, '', True, False, 'left', self.tab_title]
@@ -1067,7 +1094,6 @@ class DefXyml(NewTab):
         # self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
 
         self.tab_def['tab_has_isVisible_col'] = False
-        self.tab_def['tab_tots_isVisible_col']  = 0
         self.tab_def['showGridLines'] = self.showGridLines
 
         self.tab_def['hdr_links_pfx'] = ""
@@ -1166,7 +1192,6 @@ class DefDups(NewTab):
         self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
 
         self.tab_def['tab_has_isVisible_col'] = False
-        self.tab_def['tab_tots_isVisible_col']  = 0
         self.tab_def['showGridLines'] = self.showGridLines
 
         self.tab_def['hdr_links_pfx'] = "Full Pathnames"
@@ -1236,7 +1261,6 @@ class DefNest(NewTab):
         self.tab_def['hdr_links_pfx'] = "File"
         self.tab_def['tab_table_links_cols'] = 0
         self.tab_def['tab_has_isVisible_col'] = True
-        self.tab_def['tab_tots_isVisible_col'] = 16
 
         # if self.tab_def['tab_name'] != 'Plug-Ins':
         #     raise WorkbookDefinitionError(f"Tab_Def: pros-tab_name tab name not defined.")
@@ -1331,7 +1355,6 @@ class DefPlug(NewTab):
         self.tab_def['hdr_links_pfx'] = "File"
         self.tab_def['tab_table_links_cols'] = 0
         self.tab_def['tab_has_isVisible_col'] = False
-        self.tab_def['tab_tots_isVisible_col'] = 0
 
         # if self.tab_def['tab_name'] != 'Plug-Ins':
         #     raise WorkbookDefinitionError(f"Tab_Def: pros-tab_name tab name not defined.")
@@ -1426,7 +1449,6 @@ class DefTmpl(NewTab):
         self.tab_def['hdr_links_pfx'] = "File"
         self.tab_def['tab_table_links_cols'] = 15
         self.tab_def['tab_has_isVisible_col'] = True
-        self.tab_def['tab_tots_isVisible_col'] = 38
 
         # if self.tab_def['tab_name'] != 'Templates':
         #     raise WorkbookDefinitionError(f"Tab_Def: pros-tab_name tab name not defined.")
@@ -1513,7 +1535,6 @@ class DefSumm(NewTab):
         self.tab_def['tab_table_link_spcrs']    = True  # Always, TRUE for now
 
         self.tab_def['tab_has_isVisible_col']   = False
-        self.tab_def['tab_tots_isVisible_col']  = 0
         self.tab_def['showGridLines']           = self.showGridLines
 
         self.tab_def['hdr_links_pfx']           = ""
@@ -1725,7 +1746,6 @@ class DefAr51(NewTab):
         self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
 
         self.tab_def['tab_has_isVisible_col'] = False
-        self.tab_def['tab_tots_isVisible_col']  = 0
         self.tab_def['showGridLines'] = self.showGridLines
 
         self.tab_def['hdr_links_pfx'] = ""

@@ -6,16 +6,6 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ## [Unreleased]
 
-### Changed
-
-- Properties tab: the third column is now "Files" rather than "Links", since it counts distinct
-  notes. The name is also the Excel table column name, so the Summary tab's `tbl_pros[...]`
-  formulas follow it automatically.
-- Help text on the Summary and Properties tabs now states what the Files total measures — property
-  usages, one per property per note — instead of describing it as a total that "will appear high
-  because items can be counted twice". The behaviour is unchanged and intended; only the
-  explanation was misleading. Notes Analyzed on the Summary tab remains the distinct note count.
-
 ### Added
 
 - The Templates tab now has data ([#6]). Templates were skipped outright, and nothing populated
@@ -25,6 +15,21 @@ Notable changes to Obsidian Vault Health Check. Format follows
   than rendered blank. They still reach no other tab: not Properties, Tags, Files, nested-plugin
   data, code blocks or duplicate filenames, and a template whose frontmatter fails to load is not
   reported as a vault problem, since Templater syntax is not valid YAML.
+
+### Changed
+
+- Properties tab: the third column is now "Files" rather than "Links", since it counts distinct
+  notes. The name is also the Excel table column name, so the Summary tab's `tbl_pros[...]`
+  formulas follow it automatically.
+- Help text on the Summary and Properties tabs now states what the Files total measures — property
+  usages, one per property per note — instead of describing it as a total that "will appear high
+  because items can be counted twice". The behaviour is unchanged and intended; only the
+  explanation was misleading. Notes Analyzed on the Summary tab remains the distinct note count.
+- The IsVisible column's position is computed in one place, `NewTab.calc_col_pointers()` ([#4]).
+  Each tab used to also hardcode it twice — as `tab_tots_isVisible_col` and as a column index in
+  `tab_cd_fixed_grid['isVisible']` — both of which were then overwritten. A tab that declares
+  IsVisible among its table columns but puts it anywhere other than the end now raises instead of
+  silently disagreeing with the totals.
 
 ### Fixed
 
@@ -43,6 +48,7 @@ Notable changes to Obsidian Vault Health Check. Format follows
   once.
 
 [#1]: https://github.com/slappycat2/obsidian-vault-health-check/issues/1
+[#4]: https://github.com/slappycat2/obsidian-vault-health-check/issues/4
 [#6]: https://github.com/slappycat2/obsidian-vault-health-check/issues/6
 
 ## [0.1.0] — 2026-07-29

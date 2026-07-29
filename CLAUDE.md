@@ -170,6 +170,12 @@ Render order and inclusion come from `sys_cfg['sys_tab_seq']`, defaulting to `DE
 and `set_table_links()` compute where the variable-width "FileNN" hyperlink columns land — the count comes
 from `ctot[11]`/`ctot[12]` (max links seen) capped by the user's `link_lim_vals`/`link_lim_tags`.
 
+**`calc_col_pointers()` is the only place the IsVisible column's position is decided.** A tab declares
+`tab_has_isVisible_col`, and optionally lists `isVisible` among its `tab_cd_table_hdr` columns; it must
+never state a column number. If it lists `isVisible` anywhere but the end of its own table, the method
+raises. Do not reintroduce a per-tab `tab_tots_isVisible_col` constant — that duplication is issue #4,
+and the constants had already drifted (the Code tab claimed 44 while its table ended at 54).
+
 ### Cell definition convention
 
 Cells are plain 11-element lists shared between `v_chk_wb_tabs.py` and `v_chk_xl.py`:
