@@ -22,6 +22,7 @@ src/vault_check/             the package -- all live code
     logging_configs/         JSON/YAML logging dictConfigs
 tests/                       pytest suite
 docs/BACKLOG.md              historical record of the backlog now tracked as GitHub issues
+docs/WORKING-NOTES.md        repo/process to-dos and session working agreements
 img/                         README screenshot and brand source files (not runtime)
 data/, logs/, CONFIG.yaml    generated at runtime, gitignored
 ```
@@ -212,4 +213,5 @@ frontmatter at all, `11` max links per property value, `12` max links per tag.
   block at the top of `v_chk_xl.py` (whose own Bug-022 asked for exactly this) became
   `docs/BACKLOG.md`, which in turn became issues #1–#25 on 2026-07-29. `docs/BACKLOG.md` is now a
   frozen historical record — file new work on the tracker, and do not reintroduce todo lists in
-  source files.
+  source files. The one exception is `docs/WORKING-NOTES.md`, which tracks repo administration, CI
+  upkeep and open decisions — things with no code to attach an issue to. Keep code defects out of it.
