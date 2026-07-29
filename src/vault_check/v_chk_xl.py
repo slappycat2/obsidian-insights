@@ -212,7 +212,6 @@ class ExcelExporter:
         p_v_Index_p_count, p_v_Index_v_count = 0, 0
         beg_prop_group = row_idx + 1
         last_prop_name = ""
-        pros_total = values_total = files_total = 0
 
         # ==============================================================================
         # TABLE-Dtl: Gathering data--Loop each prop_name, getting the list of all values
@@ -230,7 +229,6 @@ class ExcelExporter:
             # so for dups, values_dict will be all pathnames using this filename
             prop_name = self.xl_clean_cell(prop_name)
             p_v_Index_p_count += 1
-            pros_total += 1
             p_v_Index_v_count = 0
             if tab_id == "vals" and last_prop_name == "":
                 last_prop_name = prop_name
@@ -251,15 +249,33 @@ class ExcelExporter:
                 value_item_count = len(value_files_list)
                 vals = []
                 p_v_Index_v_count += 1
-                values_total += 1
-                files_total += value_item_count
 
                 # TABLE Dtl - Set up First (Fixed) Columns Values
                 if tab_id == "pros":
+                    # The Properties tab is one row per property, so only the
+                    # first value of each property emits, and it counts the
+                    # property as a whole.
+                    #
+                    # The previous scheme emitted at the *boundary* between two
+                    # properties instead, carrying running counters that were
+                    # reset mid-property. Every row was therefore named after
+                    # the preceding property, its file count dropped that
+                    # property's own first value and borrowed the next
+                    # property's, the first row was a phantom holding no
+                    # property at all, and the last property in the vault never
+                    # got a row.
+                    if p_v_Index_v_count > 1:
+                        continue
+
+                    # Distinct files, not the sum of per-value file lists: one
+                    # note listing two values of the same property is one file.
+                    distinct_files = {file
+                                      for files in values_dict.values()
+                                      for file in files}
                     vals = [int((row_idx - tbl_hdr_row))
-                    , last_prop_name
-                    , values_total
-                    , files_total
+                        , prop_name
+                        , len(values_dict)
+                        , len(distinct_files)
                         ]
                 elif tab_id == "vals":
                     vals = [int((row_idx - tbl_hdr_row))
@@ -384,9 +400,6 @@ class ExcelExporter:
                 # TABLE-Dtl Finally, now we have all the col values in vals, so we can add this row...
                 logger.debug(f"Processing [Property]:{prop_name} - [Value]:{value_item} - [Count]: {value_item_count}")
 
-                if tab_id == "pros" and prop_name == last_prop_name:
-                    continue
-
                 # ===========================================================================================
                 # TABLE-Sub-Dtl Actual start of a new row export, loop thru tab_table columns and add to sheet
                 # ===========================================================================================
@@ -424,8 +437,6 @@ class ExcelExporter:
                             beg_prop_group = row_idx + 1
 
                 last_prop_name = prop_name
-                values_total = 0
-                files_total = 0
                 row_idx += 1
 
         # Group last group

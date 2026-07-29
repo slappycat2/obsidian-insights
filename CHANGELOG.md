@@ -6,7 +6,16 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- Properties tab: every property now gets exactly one row, and its file count is the number of
+  distinct notes using the property ([#1]). Rows were previously emitted at the boundary *between*
+  two properties, which produced a phantom first row labelled "Properties", silently dropped the
+  last property in the vault, and gave each row a file count that omitted its own first value and
+  borrowed the following property's. A note supplying two values of one property is now counted
+  once.
+
+[#1]: https://github.com/slappycat2/obsidian-vault-health-check/issues/1
 
 ## [0.1.0] — 2026-07-29
 

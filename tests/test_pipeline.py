@@ -39,6 +39,17 @@ VAULT = {
 
         A duplicate filename, in a different folder.
     """,
+    # One note supplying two values of the same property: two values, but one
+    # file. This is the case the Properties tab's file count used to double.
+    "Projects/Gamma.md": """
+        ---
+        contributors:
+          - Ann
+          - Bob
+        ---
+
+        Gamma body.
+    """,
     "Broken.md": """
         ---
         author: [unclosed
@@ -94,6 +105,56 @@ def test_properties_reach_the_workbook(workbook_path):
 
     assert "author" in text
     assert "Jane" in text
+
+
+def _properties_rows(workbook_path):
+    """The Properties tab as {property: (values count, file count)}.
+
+    Columns are RowId 10, Properties 11, Values 12, Links 13; the header is on
+    row 10 and the data starts at 11.
+    """
+    wb = openpyxl.load_workbook(workbook_path)
+    tab = wb["Properties"]
+
+    rows = {}
+    for row in range(11, tab.max_row + 1):
+        name = tab.cell(row=row, column=11).value
+        if name is None or name == "":
+            break
+        rows[str(name)] = (tab.cell(row=row, column=12).value,
+                           tab.cell(row=row, column=13).value)
+    return rows
+
+
+def test_every_property_gets_exactly_one_row(workbook_path):
+    """Regression, issue #1: rows were emitted at the boundary between two
+    properties, so the tab opened with a phantom row carrying no property name
+    and the last property in the vault was never written at all."""
+    rows = _properties_rows(workbook_path)
+
+    assert set(rows) == {"author", "status", "contributors"}
+    assert "Properties" not in rows, "phantom row named after the column header"
+
+
+def test_property_file_count_is_distinct_files(workbook_path):
+    """Regression, issue #1: the file count summed each value's file list, so a
+    note using two values of one property was counted twice.
+
+    'contributors' is the case that matters -- Projects/Gamma.md supplies both
+    values, so it is two values but one file.
+    """
+    rows = _properties_rows(workbook_path)
+
+    assert rows["contributors"] == (2, 1)
+
+
+def test_property_row_counts_match_the_vault(workbook_path):
+    """The other side of the same regression: 'author' has two values spread
+    over three files, and used to report two."""
+    rows = _properties_rows(workbook_path)
+
+    assert rows["author"] == (2, 3)
+    assert rows["status"] == (2, 2)
 
 
 def test_summary_tab_shows_the_running_version(workbook_path):
