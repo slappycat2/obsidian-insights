@@ -42,7 +42,12 @@ class VaultHealthCheck:   # WbConfig
         self.obs_plugs = self.wb_data.get('obs_plugs', {})
 
         self.rgx_boundary = re.compile('^---\\s*$', re.MULTILINE)
-        self.rgx_body_pros = re.compile('(^|(\\[))([)([A-Za-z0-9_]+)[:]{2}(.*?)(\\]?\\]?)($|\\])')
+        # re.MULTILINE is essential: the leading ^ is meant to anchor an inline
+        # field to the start of a *line* ("rating:: 5"). Without the flag it
+        # anchored to the start of the whole body, so the only inline fields
+        # ever found were bracketed ones ("[rating:: 5]").
+        self.rgx_body_pros = re.compile('(^|(\\[))([)([A-Za-z0-9_]+)[:]{2}(.*?)(\\]?\\]?)($|\\])',
+                                        re.MULTILINE)
         self.rgx_tag_pattern = re.compile(r'[^|\w]#(\w+)', re.MULTILINE)
         self.rgx_noTZdatePattern = re.compile(r"([0-9]{4})[-\/]([0-1]?[0-9]{1})[-\/]([0-3])?([0-9]{1})(\s+)([0-9]{2}:[0-9]{2}:[0-9]{2})(.*)", re.MULTILINE)
         self.rgx_code_blocks = re.compile(r'^`{3}[\s\S]*?^`{3}', re.MULTILINE)
@@ -247,10 +252,19 @@ class VaultHealthCheck:   # WbConfig
             if isinstance(value, list) and len(value) == 0:
                 value = None
 
-            if (isinstance(value, list)
-                    and isinstance(value[0], list)
-                    and len(value) == 1):
-                value = f"[[{value[0][0]}]]"
+            # An unquoted wikilink in a block sequence:
+            #     related:
+            #       - [[Some Note]]
+            # parses as [[['Some Note']]] -- list, list, list, scalar. The
+            # innermost-list test is what separates it from an ordinary flow
+            # sequence such as "- [alpha, beta]", which parses as
+            # [['alpha', 'beta']]. Without that test the branch fired on both,
+            # rebuilt the value from value[0][0] alone, and silently discarded
+            # every element after the first.
+            if (isinstance(value, list) and len(value) == 1
+                    and isinstance(value[0], list) and len(value[0]) == 1
+                    and isinstance(value[0][0], list) and len(value[0][0]) == 1):
+                value = f"[[{value[0][0][0]}]]"
 
             if isinstance(value, dict):
                 # nested dicts not allowed in Obsidian, so this must be a plugin
