@@ -48,12 +48,12 @@ class NewWb():
                 #       ]
                       'notes': [
                            # 123456789 1 2345678 2 2345678 3 2345678 4 2345678 5 2345678 6 2345678 7 2345678 8
-                             ' - Some Totals will appear high because items can be counted twice.'
-                           , '     Use them for control purposes or feel free to add your own totals,'
-                           , '     in the spreadsheet if you need something different.'
-                           , '     For example, the Files Total on the Properties tab will count one'
-                           , '     for every property in every file. So if "My Note" has an "aliases"'
-                           , '     property and an "author" property, that file is counted twice'
+                             ' - The Files total on the Properties tab counts property usages, not'
+                           , '     notes. A note with an "aliases" property and an "author" property'
+                           , '     is counted once for each, so the total answers "how much property'
+                           , '     usage is in this vault". For a count of notes, use Notes Analyzed,'
+                           , '     above. Each Properties row still counts its own notes only once.'
+                           , ' - Totals respect column filters, so they change as you filter a tab.'
                     ]
                   }
                 , 'data_src': ['obs_props']
@@ -81,6 +81,10 @@ class NewWb():
                               ' - Anything in red bold/italics are likely errors or at least worthy of review.'
                             , ' - All Properties and Tags are listed in lowercase, as that is how Obsidian sees them.'
                             , '     The FileDetails Tab shows them as entered, if lowercase was not used.'
+                            , ' - "Files" is the number of distinct notes using the property. A note giving that'
+                            , '     property two values is counted once.'
+                            , ' - The Files total sums that column, so it is the number of property usages, not'
+                            , '     the number of notes -- a note using two properties adds one to each.'
                         ]
                     }
                     , 'data_src': ['obs_props']
