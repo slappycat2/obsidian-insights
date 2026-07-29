@@ -25,8 +25,8 @@ This system will run a set of python scripts and read[^1] through all Markdown f
 Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone <this repository>
-cd v_chk_master
+git clone https://github.com/slappycat2/obsidian-vault-health-check.git
+cd obsidian-vault-health-check
 uv sync
 ```
 
