@@ -1,0 +1,37 @@
+name: tests
+
+on:
+  push:
+    branches: [main, master]
+  pull_request:
+  workflow_dispatch:
+
+jobs:
+  pytest:
+    # The suite is pure filesystem work -- it builds throwaway vaults in a
+    # tmp_path and never touches Obsidian or a GUI -- so it runs on all three
+    # platforms. That is the point: v_chk has Windows/macOS/Linux branches for
+    # locating obsidian.json, and case-sensitive filesystems catch asset-name
+    # mistakes that Windows silently forgives.
+    runs-on: ${{ matrix.os }}
+    strategy:
+      fail-fast: false
+      matrix:
+        os: [ubuntu-latest, windows-latest, macos-latest]
+
+    steps:
+      - uses: actions/checkout@v4
+
+      - name: Install uv
+        uses: astral-sh/setup-uv@v5
+        with:
+          enable-cache: true
+
+      - name: Set up Python
+        run: uv python install
+
+      - name: Install the project and its dev dependencies
+        run: uv sync --all-extras --dev
+
+      - name: Run tests
+        run: uv run pytest -q

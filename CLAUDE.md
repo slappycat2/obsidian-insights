@@ -23,12 +23,12 @@ src/vault_check/             the package -- all live code
 tests/                       pytest suite
 img/                         README screenshot and brand source files (not runtime)
 data/, logs/, CONFIG.yaml    generated at runtime, gitignored
-xcluded/                     dead scratch code -- see below
 ```
 
-`xcluded/` holds abandoned versions of most modules (`v_chk.py`, `x_chk*.py`, `v_chk_class_lib.py`, …)
-whose names collide with live ones. Never import from it or use it to answer "how does X work".
-It is preserved in git history and slated for deletion.
+Everything tracked is live — 58 files, 6 MB. Two untracked directories may still be sitting on disk
+and are safe to delete: `vault_check/` (pre-Phase-2 generated output) and `xcluded/` (old scratch
+code, removed from tracking in Phase 4 and recoverable from commit `d24449d`; only its
+gitignored Node artifacts remain).
 
 ## Running it
 

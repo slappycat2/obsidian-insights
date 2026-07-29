@@ -51,12 +51,10 @@ Thumbs.db
 
 # ---------------------------------------------------------------------------
 # Node.js build artifacts.
-#
-# xcluded/obsidian-config-cli/ is an old TypeScript helper for locating the
-# Obsidian config directory -- a job v_chk_obs_app.py now does natively. Its
-# source is kept, but node_modules (25 MB) and the pkg-bundled 36 MB .exe are
-# reinstallable artifacts and would bloat git history permanently.
 # ---------------------------------------------------------------------------
 node_modules/
 *.exe
-xcluded/obsidian-config-cli/dist/
+
+# Old scratch code, untracked since Phase 4 and recoverable from commit
+# d24449d. The directory may still exist on disk; it is safe to delete.
+xcluded/

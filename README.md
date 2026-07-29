@@ -65,6 +65,30 @@ uv run v-chk --help                   # all options
 Generated workbooks land in `data/workbooks/`, and logs in `logs/`. Set the `V_CHK_DATA_DIR`
 environment variable to put them somewhere else.
 
+### Development
+
+```bash
+uv sync              # install the project plus dev dependencies
+uv run pytest        # run the test suite (~2s, no Obsidian install needed)
+```
+
+The tests build throwaway vaults in a temp directory, so they never touch a real vault.
+
+<details>
+<summary>Running from PyCharm</summary>
+
+Point the project interpreter at the `.venv` that `uv sync` creates
+(*Settings → Project → Python Interpreter*).
+
+Two things to know:
+
+- **PyCharm never calls uv.** The Run button executes `.venv\Scripts\python.exe` directly, so after
+  changing `pyproject.toml` you must run `uv sync` yourself or you'll get an `ImportError`.
+- Set your run configuration's **Script** to `main.py` in the project root. The working directory no
+  longer matters — all paths resolve from the package location, not the current directory.
+
+</details>
+
 Note: I am in the process of learning how OOP works, as well as Python, so if you want to read/analyze the code, please be kind ;-). My background in coding is limited and primarily functional. That having been said, this tool works surprisingly well! And hopefully, it's not just me!
 
 Also, if you are new to Obsidian, you may wish to download my one-page, [Obsidan Markdown Cheat Sheet](https://github.com/slappycat2/Obsidian-Markdown-Cheat-Sheet). Again, it's free, open-source, and I hope it helps!
