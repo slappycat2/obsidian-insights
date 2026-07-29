@@ -348,7 +348,12 @@ class SysConfig:
 
     def cfg_unpack(self):
         self.sys_id             = self.sys_cfg.get('sys_id',            'v_chk')
-        self.sys_ver            = self.sys_cfg.get('sys_ver',           __version__)
+        # The version is always the running code's, never the one restored from
+        # CONFIG.yaml -- otherwise the first config a machine writes pins the
+        # reported version forever. A config written by 0.2.9 really was making
+        # 0.3.0 report itself as 0.2.9. What lands back in CONFIG.yaml is
+        # therefore "the version that last wrote this file".
+        self.sys_ver            = __version__
         # Paths are always recomputed from v_chk_paths rather than restored from
         # CONFIG.yaml, so a config file written on another machine (or before
         # the project moved) still resolves correctly.

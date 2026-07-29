@@ -2,6 +2,7 @@ import copy
 
 from openpyxl.styles import Side
 
+from vault_check import __version__
 from vault_check.v_chk_colors import Colors
 from vault_check.v_chk_logger import logger
 
@@ -25,7 +26,7 @@ class NewWb():
               'summ': {
                   'tab_name': "Summary"
                 , 'shw_grid': False
-                , 'tab_titl': 'Obsidian Vault Healthcheck v1.0'
+                , 'tab_titl': f'Obsidian Vault Health Check v{__version__}'
                 , 'hdr_clrs': True          #  True=Force Tab Colors; False=Use TableStyle Colors
                 , 'col_key1': "Property"
                 , 'col_key2': ""
@@ -1512,7 +1513,7 @@ class DefSumm(NewTab):
 
         clr1, txt1, clr2, txt2,         table_style = self.colors.get_tab_clrs(self.tab_id)
         wht0 = 'FFFFFF'
-        val_version = f'=HYPERLINK("https://github.com/slappycat2/obsidian-vault-health-check","v.0.9 (beta)")'
+        val_version = f'=HYPERLINK("https://github.com/slappycat2/obsidian-vault-health-check","v{__version__}")'
         val_donate  = f'=HYPERLINK("https://ko-fi.com/swenlarsen","support this project!")'
         pros_key1 = f"{comm['pros']['col_key1']}"
         pros_lnks = f"{comm['pros']['col_lnks']}"

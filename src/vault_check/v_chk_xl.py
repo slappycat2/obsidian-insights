@@ -547,7 +547,7 @@ class ExcelExporter:
             txt_clr = self.colors.clr_red
             ital_bool = True
             bold_bool = True
-            val += ' (Deprecated in 1.4)'
+            val += ' (Deprecated in Obsidian 1.4)'
 
         if row_idx == 0:
             if def_row != 0:

@@ -96,6 +96,26 @@ def test_properties_reach_the_workbook(workbook_path):
     assert "Jane" in text
 
 
+def test_summary_tab_shows_the_running_version(workbook_path):
+    """Regression: the Summary tab used to announce two hardcoded versions --
+    'v1.0' in the title and 'v.0.9 (beta)' in the hyperlink -- while the package
+    said 0.3.0 and CONFIG.yaml said 0.2.9. This asserts the rendered workbook,
+    which is the only place a user ever sees the number."""
+    from vault_check import __version__
+
+    wb = openpyxl.load_workbook(workbook_path)
+    text = " ".join(
+        str(cell.value)
+        for row in wb["Summary"].iter_rows()
+        for cell in row
+        if cell.value is not None
+    )
+
+    assert f"v{__version__}" in text
+    assert "v1.0" not in text
+    assert "0.9 (beta)" not in text
+
+
 def test_duplicate_filenames_reach_the_workbook(workbook_path):
     wb = openpyxl.load_workbook(workbook_path)
     assert "Duplicates" in wb.sheetnames

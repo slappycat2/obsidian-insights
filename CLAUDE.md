@@ -21,6 +21,8 @@ src/vault_check/             the package -- all live code
     assets/                  runtime images (logos, banner, area51)
     logging_configs/         JSON/YAML logging dictConfigs
 tests/                       pytest suite
+CHANGELOG.md                 user-facing history; keep [Unreleased] current as work lands
+docs/VERSIONING.md           versioning protocol and release checklist
 docs/BACKLOG.md              historical record of the backlog now tracked as GitHub issues
 docs/WORKING-NOTES.md        repo/process to-dos and session working agreements
 img/                         README screenshot and brand source files (not runtime)
@@ -202,10 +204,12 @@ frontmatter at all, `11` max links per property value, `12` max links per tag.
   `cli()`. Swap the active handler config via `ACTIVE_LOG_CONFIG` (alternatives live in
   `src/vault_check/logging_configs/`). Those JSON files declare relative log paths, which `_resolve_handler_paths()`
   rewrites to absolute under `APP_DIR`. Logs rotate at 3 MB, 50 backups, into `logs/`.
-- **The version is single-sourced** from `__version__` in `src/vault_check/__init__.py`.
-  `pyproject.toml` declares `dynamic = ["version"]` and points `[tool.hatch.version]` at that file;
-  the CLI's `--version`, `SysConfig.sys_ver` and the splash screen all import it. Bump it in one
-  place.
+- **The version is single-sourced** from `__version__` in `src/vault_check/__init__.py` — see
+  `docs/VERSIONING.md` for the protocol and release steps. `pyproject.toml` declares
+  `dynamic = ["version"]`; the CLI's `--version`, the splash, `SysConfig.sys_ver` and both Summary
+  tab strings all derive from it, and `tests/test_version.py` fails if any of them stops doing so.
+  Never type a version literal anywhere else. Bumping `__version__` needs
+  `uv sync --reinstall-package obsidian-vault-health-check`, or the installed metadata stays stale.
 - **Empty tabs are dropped**, not rendered: `ExcelExporter.initialize_all_tabs()` skips any tab whose
   `data_src` is empty and rewrites `sys_tab_seq` to the surviving list. A vault with no Templater
   templates or no nested plugin data legitimately produces 10 sheets rather than 12.
