@@ -25,10 +25,22 @@ img/                         README screenshot and brand source files (not runti
 data/, logs/, CONFIG.yaml    generated at runtime, gitignored
 ```
 
-Everything tracked is live — 58 files, 6 MB. Two untracked directories may still be sitting on disk
+Everything tracked is live — 59 files, 6 MB. Two untracked directories may still be sitting on disk
 and are safe to delete: `vault_check/` (pre-Phase-2 generated output) and `xcluded/` (old scratch
 code, removed from tracking in Phase 4 and recoverable from commit `d24449d`; only its
 gitignored Node artifacts remain).
+
+### Keep .gitignore patterns anchored
+
+Root-only rules in `.gitignore` **must** start with `/` — `/data/`, `/logs/`, `/CONFIG.yaml`,
+`/vault_check/`. An unanchored pattern matches at every depth, and `vault_check/` therefore also
+matched `src/vault_check/`, the package itself. The damage was entirely silent: `git add -A` skipped
+`__init__.py` without a word, and because hatchling honours `.gitignore`, `uv build` produced a wheel
+containing only `dist-info` metadata — no modules, no assets. Nothing failed locally, because the
+editable install resolves imports from the source tree regardless.
+
+Guarded now by `tests/test_paths.py` (assets resolve) and a CI step that builds a wheel and asserts
+its contents. If you add a directory to `.gitignore`, anchor it and run `uv build --wheel`.
 
 ## Running it
 

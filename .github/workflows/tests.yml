@@ -35,3 +35,51 @@ jobs:
 
       - name: Run tests
         run: uv run pytest -q
+
+      # Guards against a class of bug that leaves every local check passing:
+      # hatchling honours .gitignore, so an over-broad ignore rule can silently
+      # strip the package out of the wheel while the editable install keeps
+      # working. This exact failure shipped a wheel containing only metadata.
+      - name: Build wheel
+        run: uv build --wheel
+
+      - name: Verify the wheel actually contains the package
+        shell: python
+        run: |
+          import glob
+          import sys
+          import zipfile
+
+          wheel = sorted(glob.glob("dist/*.whl"))[-1]
+          names = zipfile.ZipFile(wheel).namelist()
+
+          required = [
+              "vault_check/__init__.py",
+              "vault_check/v_chk.py",
+              "vault_check/v_chk_paths.py",
+          ]
+          missing = [name for name in required if name not in names]
+
+          modules = [n for n in names if n.endswith(".py")]
+          assets = [n for n in names if "/assets/" in n]
+          configs = [n for n in names if "/logging_configs/" in n]
+
+          print(f"{wheel}: {len(names)} entries, {len(modules)} modules, "
+                f"{len(assets)} assets, {len(configs)} logging configs")
+
+          problems = []
+          if missing:
+              problems.append(f"missing required files: {missing}")
+          if len(modules) < 15:
+              problems.append(f"expected >=15 modules, found {len(modules)}")
+          if len(assets) < 5:
+              problems.append(f"expected >=5 assets, found {len(assets)}")
+          if not configs:
+              problems.append("no logging configs packaged")
+          if any("tests/" in n for n in names):
+              problems.append("tests leaked into the wheel")
+
+          if problems:
+              sys.exit("Wheel verification failed:\n  " + "\n  ".join(problems))
+
+          print("Wheel contents verified.")

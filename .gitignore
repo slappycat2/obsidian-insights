@@ -20,14 +20,17 @@ venv/
 # and logs/ is regenerated on every run. Their location is resolved by
 # v_chk_paths._resolve_data_root() and can be redirected with V_CHK_DATA_DIR.
 # ---------------------------------------------------------------------------
-CONFIG.yaml
-data/
-logs/
+# NOTE the leading slashes: they anchor each pattern to the repository root.
+# Without them, "vault_check/" also matches src/vault_check/ -- which silently
+# excluded the entire package from git and produced a wheel containing nothing
+# but metadata. Keep these anchored.
+/CONFIG.yaml
+/data/
+/logs/
 
-# Pre-Phase-2 location of the above. The directory is a leftover holding only
-# generated output and can be deleted; it is ignored so it cannot be committed
-# by accident in the meantime.
-vault_check/
+# Pre-Phase-2 location of the above. A leftover holding only generated output;
+# safe to delete. Ignored so it cannot be committed by accident meanwhile.
+/vault_check/
 
 # ---------------------------------------------------------------------------
 # Editors / IDEs
