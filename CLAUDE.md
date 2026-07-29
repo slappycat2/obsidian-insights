@@ -21,6 +21,8 @@ src/vault_check/             the package -- all live code
     assets/                  runtime images (logos, banner, area51)
     logging_configs/         JSON/YAML logging dictConfigs
 tests/                       pytest suite
+docs/BACKLOG.md              open bugs and enhancements (was a comment block in v_chk_xl.py)
+scripts/                     one-shot maintenance scripts
 img/                         README screenshot and brand source files (not runtime)
 data/, logs/, CONFIG.yaml    generated at runtime, gitignored
 ```
@@ -207,5 +209,7 @@ frontmatter at all, `11` max links per property value, `12` max links per tag.
 - **Empty tabs are dropped**, not rendered: `ExcelExporter.initialize_all_tabs()` skips any tab whose
   `data_src` is empty and rewrites `sys_tab_seq` to the surviving list. A vault with no Templater
   templates or no nested plugin data legitimately produces 10 sheets rather than 12.
-- `v_chk_xl.py` carries a long inline Bug-NNN / ER-NNN todo list at the top of the file; that is the
-  project's de-facto issue tracker.
+- **Outstanding work lives in `docs/BACKLOG.md`**, not in code comments. It replaced a ~90-line
+  `Bug-NNN` / `ER-NNN` block at the top of `v_chk_xl.py` (whose own Bug-022 asked for exactly that).
+  `scripts/import_backlog_issues.sh` turns it into GitHub issues once a remote exists; run it with
+  `--dry-run` to preview. Do not reintroduce todo lists in source files.

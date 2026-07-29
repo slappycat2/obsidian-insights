@@ -1,3 +1,12 @@
+"""Render the analysed vault data into a formatted .xlsx workbook.
+
+Consumes the per-tab cell definitions built by v_chk_wb_tabs and writes tables,
+conditional formatting, obsidian:// hyperlinks and images through openpyxl.
+
+Outstanding bugs and enhancements live in docs/BACKLOG.md, and on GitHub once
+the repository is published -- not in comments here.
+"""
+
 import sys
 import os
 import time
@@ -17,112 +26,10 @@ from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 import tkinter as tk
 from tkinter import messagebox
 
-
-# from src.v_chk_wb_setup import WbDataDef
 from vault_check.v_chk_colors import Colors
 from vault_check.v_chk_plugin_man import PluginMan
 from vault_check.v_chk_logger import logger
 
-# from src.v_chk import logger
-
-# WIP
-# Todo: Bug-019 - File Count in Properties is really, meaningless. it's files * values
-#                 Look for more like this!
-
-# Open
-# Todo: Bug-006 - Testing: Mac, Sheets, LibreOffice
-# Todo: Bug-014 - make sure all Obsidian and Dataview Prop/Tag rules apply
-# Todo: Bug-016 - fix how IsVisCol column is defined and calc'd (it's in 3 places!)
-# Todo: Bug-018 - Needs better font support
-# Todo: Bug-020 - Exclude templates and Nests from Vault Tabs (props, tags, files, etc.)
-# Todo: Bug-022 - Remove this section and track bugs and ERs in Github
-# Todo: Bug-023 - After Testing Mac & Linux, remove/hardcode Setup Screen logo resize
-# Todo: Bug-0 -
-# Todo: Bug-0 -
-# Todo: Bug-0 -
-# Todo: Bug-0 -
-
-# Todo: ER-002 - Make last file links column show "More exist!"
-# Todo: ER-003 - Gather more stats?
-#   - Most Tags
-#   - Inline vs Frontmatter
-#   - Top Tags Graph?
-#   - Dataview Stats
-# Todo: ER-007 - Support for nested-tags (ie, i/article is two tags, but 1 (e)xplict tag)
-#      file.tags: A list of all unique tags in the note.
-#        Subtags are broken down by each level, so #Tag/1/A will be stored in the list
-#        as [#Tag, #Tag/1, #Tag/1/A].
-#      file.etags: A list of all explicit tags in the note;
-#        unlike file.tags, does not break subtags down, i.e. [#Tag/1/A] <- so this w/b 1 tag
-# Todo: ER-008 - Handle sub-tags (eg, assets/mac/software) better
-# Todo: ER-009 - Task shorthands are not supported
-#      (see https://blacksmithgu.github.io/obsidian-dataview/annotation/metadata-tasks/#field-shorthands)
-# Todo: ER-011 - Array Formulas in Summary? Can't think of one, now, but...
-# Todo: ER-012 - Include a Flag to Display Relative Path or just NoteName in all Hyperlinks
-# Todo: ER-013 - Identify Singular and Plural usages of properties and tags
-# Todo: ER-014 - Fix Area51 Table Dump
-# Todo: ER-015 - Rename skip_rel_str to skip_abs_lst_user
-# Todo: ER-016 - Files needs Date Modified and Date Created columns
-# Todo: ER-017 - v_chk: routines--to isolate properties and tags in a vault--need to be made into stand alone classes. \
-#                This would allow for a built-in Search and Replace function at a later date.
-# Todo: ER-018 - Setup should remember previous vault run settings
-# Todo: ER-019 - Add svg-icon.lucide-question icon in Files (and Pros??) for unquoted links in yaml
-# Todo: ER-020 - List files in Vault that are not in Obsidian? (Deleted attachments, images, etc.
-# Todo: ER-021 - Add Hidden Link Columns Warning--And add option to suppress
-# Todo: ER-022 - Options: Open Workbook on Create and Logging Level
-# Todo: ER-023 - Create an extra tab (Log) showing:  Batch Numbers, Create Dates, Ctots and Vault Names
-# Todo: ER-024 -
-# Todo: ER-025 -
-# Todo: ER-026 -
-# Todo: ER-027 -
-# Todo: ER-028 -
-# Todo: ER-029 -
-# Todo: ER-0 -
-
-# Todo: ER-999 - Refactoring:
-#   - Use Class sub-classes for tab definitions? Where is there overlap?
-#   - Clean up comments and print statements
-
-# Todo - Installation Notes - This is going to need an install script, like Opus,
-#        in order to build the directory structure, and include assets. Also, if someone puts the script in
-#        a directory that already contains a data, img, conf, CONFIG.yaml, etc.
-#        fireworks will ensue!
-
-# Done
-# Todo: Bug-023 - Highlight use of uppercase. Done. (Can only be done in Files)
-# Todo: ER-001 - Write GUI for Config
-# Todo: ER-010 - Stats: Deprecated Props (alias, cssclass, etc)-Noted in red/italic only, not totals
-# Todo: Bug-017 - Move Properties Summary to a new tab
-# Todo: Bug-012 - Unique Values calc as diff on Tags when all are showing
-# Todo: Bug-013 - make sure inline bookmarks are not seen as tags
-# Todo: Bug-009 - Change export_cell to accept relative row, coll
-# Todo: Bug-002 - Fix left column title descriptions in Summary
-# Todo: Bug-004 - Disable Output, if DBUG_LVL = 0
-# Todo: Bug-007 - xkeys appear in all tabs; xkeys is gone
-# Todo: Bug-010 - Change "xkey" to something like, x-k-e-y, so it's less likely to dup a prop?
-# Todo: Bug-001 - Cleanup/offset tables in Dups and Xyml
-# Todo: Bug-010 - Isvisible formula broken in Summary (Check others!)
-# Todo: Bug-011 - All tags m/b lowercase
-# Todo: Bug-021 - The last row in pros does not show Year, like pros does
-#                   Last row may be missing in others (can't reproduce anymore)
-# Todo: Bug-011 - Summary Table Totals are wrong
-# Todo: Bug-012 - Summary Table contains Tags
-# Todo: ER-004 - Research ways to sell it, or just go with Ko-Fi: Ko-Fi
-# Todo: ER-006 - List Mapwithtags (Plugins) Property's Separate Tab?
-# Todo: Bug-005 - De-couple Area51
-# Todo: Bug-015 - skip templates folder (duplicate of 020)
-# Todo: Bug-003 - Fix Bad Colors in tbl hdrs (Pending Plugins)
-# Todo: Bug-008 - Fix table color in xyml tab
-
-
-# file.tags: A list of all unique tags in the note.
-#   Subtags are broken down by each level, so #Tag/1/A will be stored in the list as [#Tag, #Tag/1, #Tag/1/A].
-# file.etags: A list of all explicit tags in the note;
-#   unlike file.tags, does not break subtags down, i.e. [#Tag/1/A] <- so this w/b 1 tag
-
-
-# This is defined outside of the Class, to make it easier to use in other scripts.
-# Need to restructure this. Should this be a "library", or maybe part of a WB_CLASS?
 
 class ExcelExporter:
     def __init__(self, wbd_obj):
