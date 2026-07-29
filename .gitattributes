@@ -1,0 +1,23 @@
+# Normalise line endings so the repository stays consistent across Windows,
+# macOS and Linux. Text files are stored with LF in git and checked out with
+# the platform's native endings.
+* text=auto
+
+# Explicitly text, regardless of content sniffing.
+*.py    text diff=python
+*.md    text
+*.yaml  text
+*.yml   text
+*.json  text
+*.toml  text
+*.ts    text
+*.cfg   text
+*.txt   text
+
+# Explicitly binary -- never munge these.
+*.png   binary
+*.jpg   binary
+*.ico   binary
+*.ai    binary
+*.xlsx  binary
+*.exe   binary

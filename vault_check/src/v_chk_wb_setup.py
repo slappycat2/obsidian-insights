@@ -19,7 +19,6 @@ class WbDataDef:
         self.wb_tabs        = {}
         self.wb_data        = {}
 
-        self.OPEN_ON_CREATE = True
         self.sys_pn_batch = None
         self.sys_pn_wbs = None
         self.sys_pn_batch = None

@@ -135,7 +135,6 @@ class ExcelExporter:
         self.PROP_BEG_COL = 9  # set the to the first column, ie, where to start
         self.COL_STEP = 2  # This should be the number of cols in each loop
         self.TABLE_GROUPINGS = False
-        self.OPEN_ON_CREATE = True
         self.next_cell_col = 0
         self.last_cell_row = 0
         self.colors = Colors()

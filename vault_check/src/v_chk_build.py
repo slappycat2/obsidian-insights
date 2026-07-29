@@ -23,7 +23,12 @@ class VaultHealthCheck:   # WbConfig
         self.wb_def = self.wbd_obj.wb_def
 
         self.sys_cfg = self.wb_def.get('sys_cfg', {})
-        self.dir_templates = Path(self.sys_cfg.get('dir_templates', ''))
+
+        # dir_templates is None whenever the Templater plugin is not installed
+        # in this vault, so it cannot be handed straight to Path().
+        templates_dir = self.sys_cfg.get('dir_templates') or None
+        self.dir_templates = Path(templates_dir) if templates_dir else None
+
         self.isTemplate = False
         self.wb_data = self.wb_def.get('wb_data', {})
         self.obs_props = self.wb_data.get('obs_props', {})
@@ -70,7 +75,7 @@ class VaultHealthCheck:   # WbConfig
                 continue
 
             self.isTemplate = False
-            if self.is_subdirectory(md_file, self.dir_templates):
+            if self.dir_templates and self.is_subdirectory(md_file, self.dir_templates):
                 self.isTemplate = True
                 self.ctot[1] += 1
                 # right now, support for templates is not implemented.
@@ -277,11 +282,18 @@ class VaultHealthCheck:   # WbConfig
 
     def upd_val(self, k, v):
         # logger.debug(f"v_chk_build:upd_val {k=}: {v=}")
-        if k == "tags" and v is not None:
-            v = v.lower()
 
+        # Normalise the value FIRST. Downstream it is used as a dictionary key,
+        # and YAML happily produces lists and dicts, which are unhashable.
         if isinstance(v, list) and len(v) == 1 and isinstance(v[0], list):
+            # An unquoted wikilink: "- [[Some Note]]" parses as [['Some Note']].
             v = self.convert_list_to_str(v)
+        elif isinstance(v, (list, dict, set)):
+            # Any other collection, e.g. "aliases: [one, two]".
+            v = self.flatten_unhashable(v)
+
+        if k == "tags" and isinstance(v, str):
+            v = v.lower()
 
         if self.plugin_id != "":
             # Here, we're passing in a subset of obs_nests, the set for this plugin, only
@@ -372,6 +384,17 @@ class VaultHealthCheck:   # WbConfig
         temp_content = self.strip_wikilinks(temp_content)
         tag_list = set(self.rgx_tag_pattern.findall(temp_content))
         return tag_list
+
+    @staticmethod
+    def flatten_unhashable(value):
+        """Render a list/dict/set YAML value as text so it can key a dict.
+
+        Obsidian shows multi-value properties comma-separated, so a list is
+        joined the same way rather than dumped with its Python brackets.
+        """
+        if isinstance(value, (list, set)):
+            return ", ".join(str(item) for item in value)
+        return str(value)
 
     def convert_list_to_str(self, wlink):
         logger.debug(f"v_chk_build:convert_list_to_str:started <{wlink=}>")

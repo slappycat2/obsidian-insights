@@ -2,16 +2,29 @@ import os
 import yaml
 import json
 import platform
-from pathlib import Path, PurePath
+from pathlib import Path
 from datetime import datetime
 from tkinter import messagebox
 from dataclasses import dataclass, field
 
+import v_chk_paths as paths
 from v_chk_obs_app import ObsidianApp
 from v_chk_setupscreen import SetupScreen
-from v_chk_logger import logger
+from v_chk_logger import logger, make_logger
 
-CLI_INIT_FLG = False
+#: Workbook tabs, in render order. Single source of truth -- this was
+#: previously duplicated between __post_init__ and cfg_unpack.
+DEFAULT_TAB_SEQ = ('pros', 'vals', 'tags', 'file',
+                   'code', 'xyml', 'dups', 'tmpl',
+                   'nest', 'plug', 'summ', 'ar51')
+
+
+class ConfigIncompleteError(RuntimeError):
+    """Raised when configuration is unusable and setup cannot be shown."""
+
+
+class VaultNotFoundError(ValueError):
+    """Raised when a requested vault path is not registered with Obsidian."""
 
 
 @dataclass
@@ -58,26 +71,23 @@ class SysConfig:
     v_chk_date:              str  = field(default=None)
     sys_init:                bool = field(default=False)
 
+    # Runtime behaviour, not persisted to CONFIG.yaml.
+    #: When False, never open a Tk window; raise ConfigIncompleteError instead.
+    #: Required for --headless runs and for pytest.
+    interactive:             bool = field(default=True)
+    #: When True, always show the setup screen even if config is valid (--setup).
+    force_setup:             bool = field(default=False)
+    #: Vault path from the command line; overrides the vault in CONFIG.yaml.
+    vault_path_override:     str  = field(default=None)
+
     def __post_init__(self):
         self.sys_cfg_os     = platform.system()
         self.v_chk_date     = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         self.set_path_vars()
-        # self.sys_dir_sys    = f"{Path.cwd()}"
-        # self.sys_dir_dat    = f'{PurePath(self.sys_dir_sys + "/data")}'
-        # self.sys_dir_bat    = f'{PurePath(self.sys_dir_sys + "/data/batch_files")}'
-        # self.sys_dir_wbs    = f'{PurePath(self.sys_dir_sys + "/data/workbooks")}'
-        # self.sys_dir_log    = f'{PurePath(self.sys_dir_sys + "/data/logs")}'
-        # self.sys_dir_img    = f'{PurePath(self.sys_dir_sys + "/img")}'
-#
-        # self.sys_pn_cfg     = f'{PurePath(self.sys_dir_sys + "/CONFIG.yaml")}'
-        # self.sys_pn_lg2     = f'{PurePath(self.sys_dir_img + "/swenlogo200.png")}'  # splash
-        # self.sys_pn_lg3     = f'{PurePath(self.sys_dir_img + "/swenlogo300.png")}'  # setup
-        # self.sys_pn_ico     = f'{PurePath(self.sys_dir_img + "/swenlogo.ico")}'     # window icon
-        # self.sys_pn_bnr     = f'{PurePath(self.sys_dir_img + "/v_chkBanner2.png")}'
-        # self.sys_pn_a51     = f'{PurePath(self.sys_dir_img + "/area51.png")}'
+        paths.ensure_runtime_dirs()
 
-        self.sys_splash_bg  = f"#800000"                            # #800000 = Maroon
+        self.sys_splash_bg  = "#800000"                             # #800000 = Maroon
 
         self.o_app = ObsidianApp(sys_vlts=self.sys_vlts)
 
@@ -85,67 +95,96 @@ class SysConfig:
 
         self.cur_vlts           = self.o_app.cur_vlts  # deepcopy?
         self.sys_vlts           = self.o_app.sys_vlts
-        self.vault_name         = self.o_app.dflt_vault_name
-        self.vault_id           = self.sys_vlts[self.vault_name]['vault_id']
-        self.dir_vault          = self.sys_vlts[self.vault_name]['dir_vault']
-        self.dir_templates      = self.sys_vlts[self.vault_name]['dir_templates']
-        self.skip_rel_str       = self.sys_vlts[self.vault_name]['skip_rel_str']
-        self.skip_abs_lst       = self.sys_vlts[self.vault_name]['skip_abs_lst']
-        self.dirs_dot           = self.sys_vlts[self.vault_name]['dirs_dot']
-        self.sys_tab_seq = ['pros', 'vals', 'tags', 'file',
-                            'code', 'xyml', 'dups', 'tmpl',
-                            'nest', 'plug', 'summ', 'ar51']
+        self.apply_vault(self.o_app.dflt_vault_name)
+        self.sys_tab_seq = list(DEFAULT_TAB_SEQ)
 
         self.sys_pn_wb_exec = self.get_dflt_wb_exec(self.sys_cfg_os)
 
-        self.chk_cli_flgs()
-
-        if os.path.exists(self.sys_pn_cfg):
+        config_exists = os.path.exists(self.sys_pn_cfg)
+        if config_exists:
             self.load_config(self.sys_pn_cfg)
             self.sys_init = True
-            if not self.chk_fields_on_load():
-                self.run_setup_ui()
-        else:
-            # Config.YAML doesn't exist, so create dirs, and show setup screen
-            self.make_v_chk_dirs([self.sys_dir_dat
-                                , self.sys_dir_bat
-                                , self.sys_dir_wbs
-                                , self.sys_dir_log
-                                ])
+
+        # An explicit vault on the command line beats whatever CONFIG.yaml says.
+        if self.vault_path_override:
+            self.select_vault_by_path(self.vault_path_override)
+
+        if self.force_setup or not config_exists or not self.chk_fields_on_load():
             self.run_setup_ui()
 
+    def apply_vault(self, vault_name: str) -> None:
+        """Point this config at one of the vaults known from obsidian.json."""
+        vault_rec = self.sys_vlts[vault_name]
+
+        self.vault_name    = vault_name
+        self.vault_id      = vault_rec['vault_id']
+        self.dir_vault     = vault_rec['dir_vault']
+        self.dir_templates = vault_rec['dir_templates']
+        self.skip_rel_str  = vault_rec['skip_rel_str']
+        self.skip_abs_lst  = vault_rec['skip_abs_lst']
+        self.dirs_dot      = vault_rec['dirs_dot']
+
+    def select_vault_by_path(self, vault_path) -> None:
+        """Select a vault by filesystem path, as passed on the command line.
+
+        :raises VaultNotFoundError: if the path is not a vault Obsidian knows
+            about. v_chk reads its vault list from obsidian.json, so a folder
+            that has never been opened in Obsidian cannot be selected.
+        """
+        target = Path(vault_path).expanduser().resolve()
+
+        for vault_name, vault_rec in self.sys_vlts.items():
+            known = vault_rec.get('dir_vault', '')
+            if known and Path(known).expanduser().resolve() == target:
+                logger.info("Vault selected from command line: %s", vault_name)
+                self.apply_vault(vault_name)
+                # Every downstream stage reads the packed sys_cfg dict rather
+                # than these attributes, so it has to be rebuilt or the run
+                # would silently analyse whatever vault CONFIG.yaml names.
+                self.cfg_pack()
+                return
+
+        known_vaults = "\n  ".join(sorted(self.sys_vlts)) or "(none found)"
+        raise VaultNotFoundError(
+            f"{target} is not a vault registered with Obsidian.\n"
+            f"Vaults known from obsidian.json:\n  {known_vaults}"
+        )
+
     def run_setup_ui(self):
+        """Show the Tk setup screen and persist whatever the user entered.
+
+        In non-interactive mode there is nobody to answer the dialog, so raise
+        instead of hanging on a window that will never be dismissed.
+        """
+        if not self.interactive:
+            raise ConfigIncompleteError(
+                f"Configuration at {self.sys_pn_cfg} is missing or invalid, and "
+                f"v_chk is running non-interactively. Run it once without "
+                f"--headless to complete setup."
+            )
+
         SetupScreen(self).show()
         self.save_config()
 
     def set_path_vars(self):
-        self.sys_dir_sys    = f"{Path.cwd()}"
-        self.sys_dir_dat    = f'{PurePath(self.sys_dir_sys + "/data")}'
-        self.sys_dir_bat    = f'{PurePath(self.sys_dir_sys + "/data/batch_files")}'
-        self.sys_dir_wbs    = f'{PurePath(self.sys_dir_sys + "/data/workbooks")}'
-        self.sys_dir_log    = f'{PurePath(self.sys_dir_sys + "/data/logs")}'
-        self.sys_dir_img    = f'{PurePath(self.sys_dir_sys + "/img")}'
+        """Populate every path attribute from v_chk_paths.
 
-        self.sys_pn_cfg     = f'{PurePath(self.sys_dir_sys + "/CONFIG.yaml")}'
-        self.sys_pn_lg2     = f'{PurePath(self.sys_dir_img + "/swenlogo200.png")}'  # splash
-        self.sys_pn_lg3     = f'{PurePath(self.sys_dir_img + "/swenlogo300.png")}'  # setup
-        self.sys_pn_ico     = f'{PurePath(self.sys_dir_img + "/swenlogo.ico")}'     # window icon
-        self.sys_pn_bnr     = f'{PurePath(self.sys_dir_img + "/v_chkBanner2.png")}'
-        self.sys_pn_a51     = f'{PurePath(self.sys_dir_img + "/area51.png")}'
+        These stay as ``str`` (not Path) because downstream code concatenates
+        them with ``+``, e.g. WbDataDef.get_last_bat().
+        """
+        self.sys_dir_sys    = str(paths.APP_DIR)
+        self.sys_dir_dat    = str(paths.DATA_DIR)
+        self.sys_dir_bat    = str(paths.BATCH_DIR)
+        self.sys_dir_wbs    = str(paths.WORKBOOK_DIR)
+        self.sys_dir_log    = str(paths.LOG_DIR)
+        self.sys_dir_img    = str(paths.IMG_DIR)
 
-    def make_v_chk_dirs(self, path_lst: str or list) -> None:
-        """
-            Checks if the given directory or list of directories exists, and creates them if they do not.
-            :param path_lst: A single path as a string or a list of directory paths.
-            :return: None
-        """
-        if isinstance(path_lst, list):
-            for p in path_lst:
-                self.make_v_chk_dirs(p)
-            return
-        if os.path.isdir(path_lst):
-            return
-        os.makedirs(path_lst)
+        self.sys_pn_cfg     = str(paths.CONFIG_FILE)
+        self.sys_pn_lg2     = str(paths.LOGO_SPLASH)   # splash
+        self.sys_pn_lg3     = str(paths.LOGO_SETUP)    # setup
+        self.sys_pn_ico     = str(paths.ICON_WINDOW)   # window icon
+        self.sys_pn_bnr     = str(paths.BANNER)
+        self.sys_pn_a51     = str(paths.AREA51)
 
     def get_dflt_wb_exec(self, cfg_os):
         # Todo - Needs testing on all platforms
@@ -171,21 +210,26 @@ class SysConfig:
         wb_exec_valid, _ = self.validate_sys_pn_wb_exec(self.sys_pn_wb_exec)
         return dir_vault_valid and wb_exec_valid
 
-    def get_templates_dir(self) -> str or None:
-        template_cfg_file = f"{self.dir_vault}/.obsidian/plugins/templater-obsidian/data.json"
+    def get_templates_dir(self):
+        """Locate the Templater plugin's templates folder for this vault.
+
+        :return: absolute path as a str, or None when the Templater plugin is
+            not installed or has no templates_folder configured. Callers must
+            handle None -- most vaults do not have Templater.
+        """
+        template_cfg_file = Path(self.dir_vault) / ".obsidian/plugins/templater-obsidian/data.json"
+
+        if not template_cfg_file.is_file():
+            return None
+
         try:
-            if os.path.isfile(template_cfg_file):
-                with open(template_cfg_file, 'r') as f:
-                    template_cfg_json = f.read()
-                template_cfg = json.loads(template_cfg_json)
-                templates_path = Path(self.dir_vault).joinpath(template_cfg['templates_folder'])
-                return f"{templates_path}"
-        except (FileNotFoundError, KeyError):
+            template_cfg = json.loads(template_cfg_file.read_text(encoding="utf-8"))
+            return str(Path(self.dir_vault) / template_cfg['templates_folder'])
+        except (FileNotFoundError, KeyError, json.JSONDecodeError) as e:
+            logger.debug("No Templater templates folder for %s: %s", self.dir_vault, e)
             return None
         except Exception as e:
             raise Exception(f"ConfigSys: Error in get_templates_dir: {e}")
-        else:
-            return None
 
     def get_dot_dirs(self, op_sys: str, dir_start: str) -> list:
         """
@@ -245,10 +289,9 @@ class SysConfig:
             messagebox.showerror("Error", f"Failed to save {pn_file}: {str(e)}")
             return False
 
-    def save_config(self, sys_pn_cfg: str = sys_pn_cfg) -> bool:
+    def save_config(self) -> bool:
         self.cfg_pack()
-        ret = self.write_config(self.sys_pn_cfg, self.sys_cfg)
-        return ret
+        return self.write_config(self.sys_pn_cfg, self.sys_cfg)
 
     def cfg_pack(self):
         # path = Path(self.dir_templates.strip())
@@ -305,26 +348,15 @@ class SysConfig:
     def cfg_unpack(self):
         self.sys_id             = self.sys_cfg.get('sys_id',            'v_chk')
         self.sys_ver            = self.sys_cfg.get('sys_ver',           '0.2.9')
+        # Paths are always recomputed from v_chk_paths rather than restored from
+        # CONFIG.yaml, so a config file written on another machine (or before
+        # the project moved) still resolves correctly.
         self.set_path_vars()
-        # self.sys_dir_sys        = self.sys_cfg.get('sys_dir_sys',       f"{Path.cwd()}/")
-        # self.sys_dir_dat        = self.sys_cfg.get('sys_dir_dat',       f"{self.sys_dir_sys}/data/")
-        # self.sys_dir_bat        = self.sys_cfg.get('sys_dir_bat',       f"{self.sys_dir_sys}/data/batch_files/")
-        # self.sys_dir_wbs        = self.sys_cfg.get('sys_dir_wbs',       f"{self.sys_dir_sys}/data/workbooks/")
-        # self.sys_dir_log        = self.sys_cfg.get('sys_dir_log',       f"{self.sys_dir_sys}/data/logs/")
-        # self.sys_dir_img        = self.sys_cfg.get('sys_dir_img',       f"{self.sys_dir_sys}/img")
-        # self.sys_pn_cfg         = self.sys_cfg.get('sys_pn_cfg',        f"{self.sys_dir_sys}/CONFIG.yaml")
-        # self.sys_pn_lg2         = self.sys_cfg.get('sys_pn_lg2',        f"{self.sys_dir_img}/swenlogo200.png" )
-        # self.sys_pn_lg3         = self.sys_cfg.get('sys_pn_lg3',        f"{self.sys_dir_img}/swenlogo300.png" )
-        # self.sys_pn_ico         = self.sys_cfg.get('sys_pn_ico',        f"{self.sys_dir_img}/swenlogo.ico"    )
-        # self.sys_pn_bnr         = self.sys_cfg.get('sys_pn_bnr',        f"{self.sys_dir_img}/v_chkBanner2.png")
-        # self.sys_pn_a51         = self.sys_cfg.get('sys_pn_a51',        f"{self.sys_dir_img}/area51.png"      )
-        self.sys_splash_bg      = self.sys_cfg.get('sys_splash_bg',     f"#800000")
+        self.sys_splash_bg      = self.sys_cfg.get('sys_splash_bg',     "#800000")
         self.sys_pn_wb_exec     = self.sys_cfg.get('sys_pn_wb_exec',    '')
         self.sys_pn_batch       = self.sys_cfg.get('sys_pn_batch',      '')
         self.sys_pn_wbs         = self.sys_cfg.get('sys_pn_wbs',        '')
-        self.sys_tab_seq        = self.sys_cfg.get('sys_tab_seq',       ['pros', 'vals', 'tags', 'file',
-                                                                        'code', 'xyml', 'dups', 'tmpl',
-                                                                        'nest', 'plug', 'summ', 'ar51'])
+        self.sys_tab_seq        = self.sys_cfg.get('sys_tab_seq',       list(DEFAULT_TAB_SEQ))
         self.sys_cfg_os         = self.sys_cfg.get('sys_cfg_os',        platform.system())
         self.sys_vlts           = self.sys_cfg.get('sys_vlts',          {})
         self.cur_vlts           = self.sys_cfg.get('cur_vlts',          {})
@@ -402,12 +434,14 @@ class SysConfig:
         return True, ""
 
 def main() -> None:
+    """Open the setup screen on its own: ``python src/v_chk_setup.py``.
 
+    Constructing SysConfig with force_setup=True shows the screen and saves
+    whatever is entered, regardless of whether CONFIG.yaml already validates.
+    """
+    make_logger()
+    SysConfig(force_setup=True)
 
-    sys_cfg_obj = SysConfig()
-
-    if sys_cfg_obj.sys_init:
-        SetupScreen(sys_cfg_obj).show()
 
 if __name__ == '__main__':
     main()
