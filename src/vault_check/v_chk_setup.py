@@ -28,6 +28,15 @@ class VaultNotFoundError(ValueError):
     """Raised when a requested vault path is not registered with Obsidian."""
 
 
+class SetupCancelledError(RuntimeError):
+    """Raised when the user dismisses the setup screen without saving.
+
+    Not a failure -- the user said no. It exists so the caller cannot mistake a
+    cancelled dialog for a completed one and go on to build a workbook, which
+    is exactly what used to happen.
+    """
+
+
 @dataclass
 class SysConfig:
     sys_cfg:                 dict = field(default_factory=dict)
@@ -152,10 +161,13 @@ class SysConfig:
         )
 
     def run_setup_ui(self):
-        """Show the Tk setup screen and persist whatever the user entered.
+        """Show the Tk setup screen, and let the user decline.
 
         In non-interactive mode there is nobody to answer the dialog, so raise
         instead of hanging on a window that will never be dismissed.
+
+        :raises ConfigIncompleteError: running non-interactively.
+        :raises SetupCancelledError: the user cancelled or closed the window.
         """
         if not self.interactive:
             raise ConfigIncompleteError(
@@ -164,8 +176,12 @@ class SysConfig:
                 f"--headless to complete setup."
             )
 
-        SetupScreen(self).show()
-        self.save_config()
+        # The screen writes the config itself when the user saves, so there is
+        # nothing to persist here -- and nothing *should* be persisted when they
+        # cancel. This used to call save_config() unconditionally, so dismissing
+        # the dialog still wrote a config and the run continued.
+        if not SetupScreen(self).show():
+            raise SetupCancelledError("Setup was cancelled; nothing was changed.")
 
     def set_path_vars(self):
         """Populate every path attribute from v_chk_paths.
@@ -416,14 +432,17 @@ class SysConfig:
         dirs = [d.strip() for d in skip_rel_str.split(',') if d.strip()]
         if not dirs:
             return True, ""
-        for dir_name in dirs:
-            found = False
-            for root, dirs_list, files in os.walk(dir_vault_obj):
-                if dir_name in dirs_list:
-                    found = True
-                    break
-            if not found:
-                return False, f"X"
+
+        # One walk for all of them. This runs on every keystroke in the setup
+        # screen, and it used to walk the whole vault once per name entered.
+        present = set()
+        for _, dirs_list, _ in os.walk(dir_vault_obj):
+            present.update(dirs_list)
+
+        missing = [d for d in dirs if d not in present]
+        if missing:
+            # Was "X", which told the user nothing about which name was wrong.
+            return False, f"No folder named {', '.join(repr(d) for d in missing)}"
         return True, ""
 
     @staticmethod

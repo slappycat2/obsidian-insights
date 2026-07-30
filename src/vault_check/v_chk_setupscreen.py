@@ -50,6 +50,10 @@ class SetupScreen:
         self.link_lim_vals_help = None
         self.link_lim_tags_help = None
         self.save_button = None
+        # Whether the user committed. show() returns this, so a caller can tell
+        # "Save & Run" apart from Cancel or closing the window -- previously it
+        # could not, and carried on building a workbook either way.
+        self.saved = False
         self.wb_col_max = 16300
         self.wb_col_help = f"0=Unlimited"
         logger.debug(f"setupscreen - {self.vault_name_var.get().strip()}")
@@ -116,7 +120,8 @@ class SetupScreen:
         self.link_lim_vals_var      = tk.StringVar(value=str(self.sys_obj.link_lim_vals))
         self.link_lim_tags_var      = tk.StringVar(value=str(self.sys_obj.link_lim_tags))
 
-    def show(self) -> None:
+    def show(self) -> bool:
+        """Run the setup screen. True if the user saved, False if they cancelled."""
         def upd_log() -> None:
             logger.debug(f"setupscreen:show:upd_log \n")
             logger.debug(f"sys_obj:\n"
@@ -384,6 +389,11 @@ class SetupScreen:
         self.sys_pn_wb_exec_var.trace('w', lambda *args: self.validate_all_fields())
         self.validate_all_fields()
 
+        # The window's close button must mean the same thing as Cancel. Without
+        # this, closing the window destroyed it without a word and the run
+        # carried on as though setup had been completed.
+        self.root.protocol("WM_DELETE_WINDOW", self.on_cancel)
+
         # Center window
         self.root.update_idletasks()
         logger.debug(f"setupscreen:show:pre-mainloop - vault_name_var:{self.vault_name_var.get().strip()}")
@@ -391,6 +401,8 @@ class SetupScreen:
         y = (self.root.winfo_screenheight() // 2) - (self.root.winfo_height() // 2)
         self.root.geometry(f"+{x}+{y}")
         self.root.mainloop()
+
+        return self.saved
 
     def browse_exec_path(self) -> None:
         file_path = filedialog.askopenfilename(
@@ -430,14 +442,19 @@ class SetupScreen:
             self.upd_all_sys_objs_with_tk_vars(self.sys_obj.vault_name)
             self.sys_obj.v_chk_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
-            if self.sys_obj.save_config(self.sys_obj.sys_pn_cfg):
+            # save_config() takes no arguments -- it writes to sys_pn_cfg
+            # itself. Passing one raised TypeError the moment the button was
+            # pressed, which is what made --setup unusable.
+            if self.sys_obj.save_config():
+                self.saved = True
                 self.root.quit()
                 self.root.destroy()
-                # subprocess.run(["python", "v_chk.py"])
             else:
                 messagebox.showerror("Error", "Failed to save configuration")
 
     def on_cancel(self) -> None:
+        """Cancel, or the window's close button. Leaves self.saved False."""
+        logger.info("setupscreen: setup cancelled by the user")
         self.root.quit()
         self.root.destroy()
 

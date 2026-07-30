@@ -107,6 +107,16 @@ until setup has been completed once. `SysConfig(interactive=False)` raises `Conf
 instead of opening a window. To create a config non-interactively (tests, CI), subclass `SysConfig`
 and override `run_setup_ui()` to call `self.save_config()`.
 
+**The user is allowed to say no.** `SetupScreen.show()` returns True only if "Save & Run" was
+pressed; Cancel and the window's close button both return False, and `run_setup_ui()` turns that
+into `SetupCancelledError`, which `cli()` reports before exiting 1. Nothing is written and no
+workbook is built. Keep that signal intact — the screen previously had no way to report which button
+was pressed, so `run_setup_ui()` saved the config and ran the pipeline whatever the user chose. The
+screen saves the config itself, so `run_setup_ui()` must **not** save again.
+
+`tests/test_setup_screen.py` covers this without needing a display: the button handlers are called
+on an instance built with `__new__`, so a stub stands in for Tk.
+
 ## Pipeline
 
 `run_pipeline(sys_cfg_obj, progress)` in `v_chk.py` drives the four stages and requires no GUI —

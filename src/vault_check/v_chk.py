@@ -22,7 +22,8 @@ from vault_check import v_chk_paths as paths
 from vault_check import v_chk_splash as v_splash
 from vault_check.v_chk_build import VaultHealthCheck
 from vault_check.v_chk_logger import DEFAULT_LOG_LEVEL, logger, make_logger
-from vault_check.v_chk_setup import ConfigIncompleteError, SysConfig, VaultNotFoundError
+from vault_check.v_chk_setup import (ConfigIncompleteError, SetupCancelledError,
+                                     SysConfig, VaultNotFoundError)
 from vault_check.v_chk_wb_tabs import NewWb
 from vault_check.v_chk_xl import ExcelExporter
 
@@ -185,6 +186,12 @@ def cli(do_init, force_setup, do_not_open, no_splash, headless, assume_yes,
             interactive=not headless,
             vault_path_override=str(vault_path) if vault_path else None,
         )
+    except SetupCancelledError:
+        # Not an error: the user closed the dialog on purpose. Say so plainly
+        # and stop, rather than reporting a failure or -- as before -- going on
+        # to build a workbook they never asked for.
+        click.echo("Setup cancelled. No workbook was created.")
+        raise SystemExit(1)
     except (ConfigIncompleteError, VaultNotFoundError) as exc:
         raise click.ClickException(str(exc)) from exc
 

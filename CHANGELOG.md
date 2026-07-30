@@ -39,6 +39,16 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ### Fixed
 
+- `--setup` no longer fails when "Save & Run" is pressed. The handler called
+  `save_config(sys_pn_cfg)`, but `save_config()` takes no arguments and writes to that path itself,
+  so every attempt to save raised `TypeError`.
+- Cancelling setup, or closing the setup window, now stops the run. `SetupScreen.show()` reports
+  whether the user saved, the window's close button is wired to Cancel, and `run_setup_ui()` raises
+  `SetupCancelledError` instead of saving the config and building a workbook regardless of what the
+  user chose. The CLI reports "Setup cancelled. No workbook was created." and exits 1.
+- The setup screen's skip-folders field said only "X" when a folder could not be found; it now names
+  the folder. It also walks the vault once per validation instead of once per folder name, which it
+  did on every keystroke.
 - Plugin-managed nested frontmatter no longer inflates the Files tab, and no longer swallows the
   note's real metadata ([#6]). Whether a value is plugin-managed is now decided by where it sits —
   inside a nested dict, which Obsidian does not permit — rather than by scanning the whole
