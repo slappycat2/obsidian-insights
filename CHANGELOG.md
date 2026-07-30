@@ -6,6 +6,15 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ## [Unreleased]
 
+Nothing yet.
+
+## [0.2.0] — 2026-07-29
+
+Correctness of what the workbook reports, and a setup screen that works. Every change below was
+found by using the tool or by reading the code around a reported bug — the Properties tab was
+counting wrongly, the Templates tab had never once rendered, plugin-managed notes were losing their
+metadata, and `--setup` could not save.
+
 ### Added
 
 - The Templates tab now has data ([#6]). Templates were skipped outright, and nothing populated
@@ -39,10 +48,10 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ### Fixed
 
-- `--setup` no longer fails when "Save & Run" is pressed. The handler called
+- `--setup` no longer fails when "Save & Run" is pressed ([#26]). The handler called
   `save_config(sys_pn_cfg)`, but `save_config()` takes no arguments and writes to that path itself,
   so every attempt to save raised `TypeError`.
-- Cancelling setup, or closing the setup window, now stops the run. `SetupScreen.show()` reports
+- Cancelling setup, or closing the setup window, now stops the run ([#27]). `SetupScreen.show()` reports
   whether the user saved, the window's close button is wired to Cancel, and `run_setup_ui()` raises
   `SetupCancelledError` instead of saving the config and building a workbook regardless of what the
   user chose. The CLI reports "Setup cancelled. No workbook was created." and exits 1.
@@ -67,6 +76,8 @@ Notable changes to Obsidian Vault Health Check. Format follows
 [#4]: https://github.com/slappycat2/obsidian-vault-health-check/issues/4
 [#5]: https://github.com/slappycat2/obsidian-vault-health-check/issues/5
 [#6]: https://github.com/slappycat2/obsidian-vault-health-check/issues/6
+[#26]: https://github.com/slappycat2/obsidian-vault-health-check/issues/26
+[#27]: https://github.com/slappycat2/obsidian-vault-health-check/issues/27
 
 ## [0.1.0] — 2026-07-29
 
@@ -105,5 +116,6 @@ are standing in the right directory" to an installable, tested, CI-covered packa
   the package from commits and producing wheels containing only metadata.
 - Two markdown parser bugs found by the new test suite.
 
-[Unreleased]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.1.0...HEAD
+[Unreleased]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.2.0...HEAD
+[0.2.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/slappycat2/obsidian-vault-health-check/releases/tag/v0.1.0
