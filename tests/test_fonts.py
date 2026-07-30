@@ -120,11 +120,17 @@ def workbook(make_vault, stub_config):
 
 def test_tab_titles_use_the_resolved_display_font(workbook):
     """Whatever the machine running the tests has: Impact where it is
-    installed, and the workbook default where it is not."""
+    installed, and the fallback where it is not.
+
+    Both branches are real -- Windows and macOS runners take the first, Linux
+    the second, since Impact is not an OS font there.
+    """
+    from vault_check.v_chk_xl import FALLBACK_FONT
+
     title = workbook["Properties"].cell(row=2, column=3)
 
     assert title.value == "Properties Analysis"
-    assert title.font.name == tabs.TITLE_FONT
+    assert title.font.name == (tabs.TITLE_FONT or FALLBACK_FONT)
 
 
 def test_no_cell_carries_an_empty_font_name(workbook):
