@@ -6,7 +6,24 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ## [Unreleased]
 
-Nothing yet.
+### Fixed
+
+- Selecting a vault from the setup screen's dropdown no longer raises `AttributeError`. A debug log
+  line read `self.sys.obj` for `self.sys_obj`; because the f-string is built before `logger.debug()`
+  is called, it raised at every log level. Tk swallowed the traceback, so the screen stayed open
+  showing the previous vault's settings while `sys_obj` and `cur_vlts` had already swapped to the
+  new one — whatever was saved next paired the wrong vault with the wrong settings. Nothing had
+  covered the three swap methods the dropdown calls; they now have tests.
+- Switching vaults no longer adds a duplicate of every field callback. `upd_tk_vars_with_sys_obj()`
+  rebound each `self.*_var` to a fresh `StringVar`/`BooleanVar` rather than calling `set()` on the
+  existing one. A widget and a trace both hold the variable *object*, so each swap orphaned every
+  widget and lost every callback, and the caller compensated by re-`configure`-ing each widget and
+  re-adding each trace — while the old variables stayed alive and stayed traced. One more copy of
+  `validate_all_fields()` and `update_links_help()` was registered per switch, so after four vaults
+  the vault directory was walked four times per keystroke in the skip-folders field. The same block
+  built a new "(Unlimited)" label on each swap and gridded it over its predecessor without
+  destroying it. Setting the variables updates the screen and fires the traces already attached, so
+  the re-wiring is gone.
 
 ## [0.2.0] — 2026-07-29
 

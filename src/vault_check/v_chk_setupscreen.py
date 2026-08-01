@@ -104,21 +104,33 @@ class SetupScreen:
     def upd_tk_vars_with_sys_obj(self) -> None:
         """
         Set tk "vars" variables for tkinter from sys_obj
+
+        These must ``set()`` the existing variables, never rebind ``self.*_var``
+        to a fresh StringVar/BooleanVar. A widget and a trace both hold the
+        variable *object*, so replacing it orphans every widget built from it
+        and every callback attached to it. That is why switching vaults used to
+        re-``configure`` each widget and re-add each trace afterwards -- and
+        because the old variables were still alive and still traced, every
+        switch left one more copy of validate_all_fields() and
+        update_links_help() registered, for the life of the window.
+
+        Setting them instead updates the screen directly and fires the traces
+        that are already there, so the caller has nothing to re-wire.
         :return: None
         """
-        logger.debug(f"setupscreen-upd_tk_vars<-sys_obj - {self.sys.obj.vault_name}  TO:")
+        logger.debug(f"setupscreen-upd_tk_vars<-sys_obj - {self.sys_obj.vault_name}  TO:")
         logger.debug(f"setupscreen-upd_tk_vars<-sys_obj - {self.vault_name_var.get().strip()}")
 
-        self.vault_name_var         = tk.StringVar(value=self.sys_obj.vault_name)
-        self.skip_rel_str_var       = tk.StringVar(value=self.sys_obj.skip_rel_str)
-        self.bool_shw_notes_var     = tk.BooleanVar(value=self.sys_obj.bool_shw_notes)
-        self.bool_rel_paths_var     = tk.BooleanVar(value=self.sys_obj.bool_rel_paths)
-        self.bool_summ_rows_var     = tk.BooleanVar(value=self.sys_obj.bool_summ_rows)
-        self.bool_unused_1_var      = tk.BooleanVar(value=self.sys_obj.bool_unused_1)
-        self.bool_unused_2_var      = tk.BooleanVar(value=self.sys_obj.bool_unused_2)
-        self.bool_unused_3_var      = tk.BooleanVar(value=self.sys_obj.bool_unused_3)
-        self.link_lim_vals_var      = tk.StringVar(value=str(self.sys_obj.link_lim_vals))
-        self.link_lim_tags_var      = tk.StringVar(value=str(self.sys_obj.link_lim_tags))
+        self.vault_name_var.set(self.sys_obj.vault_name)
+        self.skip_rel_str_var.set(self.sys_obj.skip_rel_str)
+        self.bool_shw_notes_var.set(self.sys_obj.bool_shw_notes)
+        self.bool_rel_paths_var.set(self.sys_obj.bool_rel_paths)
+        self.bool_summ_rows_var.set(self.sys_obj.bool_summ_rows)
+        self.bool_unused_1_var.set(self.sys_obj.bool_unused_1)
+        self.bool_unused_2_var.set(self.sys_obj.bool_unused_2)
+        self.bool_unused_3_var.set(self.sys_obj.bool_unused_3)
+        self.link_lim_vals_var.set(str(self.sys_obj.link_lim_vals))
+        self.link_lim_tags_var.set(str(self.sys_obj.link_lim_tags))
 
     def show(self) -> bool:
         """Run the setup screen. True if the user saved, False if they cancelled."""
@@ -175,35 +187,15 @@ class SetupScreen:
 
             self.last_vault_name = self.sys_obj.vault_name
 
-            logger.debug(f"setupscreen:show:vault_name_chgd  ------------------------------------------------------\n\n")
-            combx_vault_name.configure(textvariable=self.vault_name_var)
-            chekbx_notes.configure(variable=self.bool_shw_notes_var)
-            chekbx_fullp.configure(variable=self.bool_rel_paths_var)
-
-            entry_skip_rel_str.configure(textvariable=self.skip_rel_str_var)
-            self.skip_rel_str_status.config(
-                text=self.skip_rel_str_msg if not self.skip_rel_str_valid else
-                "✓" if self.skip_rel_str_var.get().strip() else "",
-                foreground="red" if not self.skip_rel_str_valid else "green"
-            )
-
-            spinbx_vals.configure(textvariable=self.link_lim_vals_var)
-            self.link_lim_vals_help = ttk.Label(lnks_frame,
-                                                text="(Unlimited)    " if self.sys_obj.link_lim_vals == 0 else self.wb_col_help)
-            self.link_lim_vals_help.grid(row=0, column=1, sticky="w", pady=5, padx=(80, 0))
-
-            spinbx_tags.configure(textvariable=self.link_lim_tags_var)
-            self.link_lim_tags_help = ttk.Label(lnks_frame,
-                                                text="(Unlimited)    " if self.sys_obj.link_lim_tags == 0 else self.wb_col_help)
-            self.link_lim_tags_help.grid(row=1, column=1, sticky="w", pady=5, padx=(80, 0))
-
-            self.link_lim_vals_var.trace('w', update_links_help)
-            self.link_lim_tags_var.trace('w', update_links_help)
-
-            # Bind validation
-            combx_vault_name.bind('<<ComboboxSelected>>', lambda event: vault_name_changed())
-            self.skip_rel_str_var.trace('w', lambda *args: self.validate_all_fields())
-            self.sys_pn_wb_exec_var.trace('w', lambda *args: self.validate_all_fields())
+            # Nothing is re-configured, re-bound or re-traced here. Step three
+            # sets the same variable objects the widgets were built from, so the
+            # screen has already followed and the existing traces have already
+            # fired. Re-adding them is what made every callback run one extra
+            # time per vault switch; recreating the help labels also leaked a
+            # Label per switch, stacked over its predecessor in the same cell.
+            # These two are called directly only because a value that happens to
+            # be unchanged still needs its status re-checked against the new
+            # vault's dir_vault.
             self.validate_all_fields()
             update_links_help()
 

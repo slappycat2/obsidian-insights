@@ -1,16 +1,18 @@
 """Tests for the setup screen and the configuration it produces.
 
-Two bugs prompted these, both reported from real use of ``--setup``:
+Three bugs prompted these, all reported from real use of ``--setup``:
 
 * Pressing "Save & Run" raised TypeError. The handler called
   ``save_config(sys_pn_cfg)``, but ``save_config()`` takes no arguments.
 * Cancelling, or closing the window, carried on and built a workbook anyway.
   The screen had no way to report which button was pressed, and
   ``run_setup_ui()`` saved the config regardless.
+* Choosing a vault from the dropdown raised AttributeError from a typo in a
+  debug log line -- ``self.sys.obj`` for ``self.sys_obj``.
 
-The button handlers are exercised with a stub ``self`` via ``__new__``, so they
-run for real without needing a display -- these are the same code paths a click
-takes, and they run in CI.
+The handlers are exercised with a stub ``self`` via ``__new__``, so they run for
+real without needing a display -- these are the same code paths a click takes,
+and they run in CI.
 """
 
 import os
@@ -144,6 +146,166 @@ def test_show_reports_whether_the_user_saved():
 
     screen.on_save_and_run()
     assert screen.saved is True
+
+
+# ---------------------------------------------------------------------------
+# Switching vaults with the dropdown
+# ---------------------------------------------------------------------------
+
+# The per-vault settings the screen swaps in and out. vault_id and dir_vault
+# come along too, but are never shown as editable fields.
+VAULT_FIELDS = {
+    "skip_rel_str": "Archive",
+    "bool_shw_notes": True,
+    "bool_rel_paths": False,
+    "bool_summ_rows": True,
+    "bool_unused_1": False,
+    "bool_unused_2": False,
+    "bool_unused_3": False,
+    "link_lim_vals": 5,
+    "link_lim_tags": 7,
+}
+
+
+class FakeVaultSysObj:
+    """Only what the vault-swap methods touch."""
+
+    def __init__(self):
+        self.vault_name = "First"
+        self.vault_id = "id-first"
+        self.dir_vault = r"F:\vaults\First"
+        self.sys_pn_wb_exec = "excel.exe"
+        for name, value in VAULT_FIELDS.items():
+            setattr(self, name, value)
+
+
+class RecordingVar:
+    """Stands in for tk.StringVar / tk.BooleanVar, with no display behind it.
+
+    Traces are modelled because their lifetime is the point: in Tk they belong
+    to the variable object, so they die with it and fire again for every copy
+    that is added back.
+    """
+
+    def __init__(self, value=None, master=None):
+        self.value = value
+        self.traces = []
+
+    def get(self):
+        return self.value
+
+    def set(self, value):
+        self.value = value
+        for callback in self.traces:
+            callback()
+
+    def trace(self, mode, callback):
+        self.traces.append(callback)
+
+
+def make_vault_screen(monkeypatch):
+    """A SetupScreen wired for the dropdown handlers, and its two vaults."""
+    import vault_check.v_chk_setupscreen as setupscreen
+
+    monkeypatch.setattr(setupscreen.tk, "StringVar", RecordingVar)
+    monkeypatch.setattr(setupscreen.tk, "BooleanVar", RecordingVar)
+
+    screen = SetupScreen.__new__(SetupScreen)
+    screen.sys_obj = FakeVaultSysObj()
+    screen.last_vault_name = "First"
+    screen.c_vlts = {
+        "First": dict(VAULT_FIELDS, vault_name="First", vault_id="id-first",
+                      dir_vault=r"F:\vaults\First"),
+        "Second": dict(VAULT_FIELDS, vault_name="Second", vault_id="id-second",
+                       dir_vault=r"F:\vaults\Second",
+                       skip_rel_str="Attachments", link_lim_vals=99),
+    }
+    screen.vault_name_var = RecordingVar("First")
+    screen.skip_rel_str_var = RecordingVar("Archive")
+    screen.link_lim_vals_var = RecordingVar("5")
+    screen.link_lim_tags_var = RecordingVar("7")
+    for name in ("bool_shw_notes", "bool_rel_paths", "bool_summ_rows",
+                 "bool_unused_1", "bool_unused_2", "bool_unused_3"):
+        setattr(screen, f"{name}_var", RecordingVar(VAULT_FIELDS[name]))
+    screen.sys_pn_wb_exec_var = RecordingVar("excel.exe")
+    return screen
+
+
+def test_reading_settings_back_into_the_tk_vars_does_not_raise(monkeypatch):
+    """Regression: ``self.sys.obj.vault_name`` in a debug log line. The f-string
+    is built before logger.debug() is called, so it raised AttributeError at
+    every log level, and choosing any vault from the dropdown blew up."""
+    screen = make_vault_screen(monkeypatch)
+    screen.sys_obj.vault_name = "Second"
+
+    screen.upd_tk_vars_with_sys_obj()
+
+    assert screen.vault_name_var.get() == "Second"
+
+
+def test_selecting_a_vault_loads_that_vaults_settings(monkeypatch):
+    """The three-step swap the dropdown performs: screen -> cur_vlts,
+    cur_vlts -> sys_obj, sys_obj -> screen."""
+    screen = make_vault_screen(monkeypatch)
+
+    screen.upd_all_sys_objs_with_tk_vars("First")
+    screen.sys_obj.vault_name = "Second"
+    screen.upd_sys_objs_with_vaults("Second")
+    screen.upd_tk_vars_with_sys_obj()
+
+    assert screen.skip_rel_str_var.get() == "Attachments"
+    assert screen.link_lim_vals_var.get() == "99"
+    assert screen.sys_obj.dir_vault == r"F:\vaults\Second"
+    assert screen.sys_obj.vault_id == "id-second"
+
+
+def test_switching_vaults_keeps_the_same_tk_var_objects(monkeypatch):
+    """Regression: the swap rebound self.*_var to fresh StringVars. A widget and
+    a trace both hold the variable *object*, so every widget was orphaned and
+    every callback lost -- which is why the caller re-configured each widget and
+    re-added each trace afterwards."""
+    screen = make_vault_screen(monkeypatch)
+    before = {name: value for name, value in vars(screen).items()
+              if name.endswith("_var")}
+    assert before, "the fixture built no tk vars"
+
+    screen.sys_obj.vault_name = "Second"
+    screen.upd_tk_vars_with_sys_obj()
+
+    for name, var in before.items():
+        assert getattr(screen, name) is var, f"{name} was replaced, not set"
+
+
+def test_traces_do_not_accumulate_across_vault_switches(monkeypatch):
+    """A trace must fire once per switch, no matter how many switches came
+    before it. Re-adding the traces on each swap left one more copy of
+    validate_all_fields() and update_links_help() registered every time, so by
+    the fourth vault the vault directory was being walked four times a
+    keystroke."""
+    screen = make_vault_screen(monkeypatch)
+    fired = []
+    screen.skip_rel_str_var.trace("w", lambda: fired.append(1))
+
+    for vault_name in ("Second", "First", "Second"):
+        screen.sys_obj.vault_name = vault_name
+        screen.upd_sys_objs_with_vaults(vault_name)
+        screen.upd_tk_vars_with_sys_obj()
+
+    assert len(fired) == 3, f"the trace fired {len(fired)} times over 3 switches"
+
+
+def test_leaving_a_vault_keeps_the_edits_made_to_it(monkeypatch):
+    """Step one of the swap: whatever was typed is written back to cur_vlts
+    under the vault being left, not the one being selected."""
+    screen = make_vault_screen(monkeypatch)
+    screen.skip_rel_str_var.set("  Edited  ")
+    screen.link_lim_tags_var.set("12")
+
+    screen.upd_all_sys_objs_with_tk_vars("First")
+
+    assert screen.c_vlts["First"]["skip_rel_str"] == "Edited"
+    assert screen.c_vlts["First"]["link_lim_tags"] == 12
+    assert screen.c_vlts["Second"]["skip_rel_str"] == "Attachments"
 
 
 # ---------------------------------------------------------------------------
