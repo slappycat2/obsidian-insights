@@ -6,6 +6,19 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ## [Unreleased]
 
+## [0.3.0] — 2026-08-03
+
+Generated files now say which vault they came from, plus the setup screen's vault dropdown fixes
+that had accumulated since 0.2.0.
+
+### Changed
+
+- Batch files and workbooks are now named for the vault they came from:
+  `v_chk_<vault name>_NNNN.yaml` and `v_chk_<vault name>_NNNN.xlsx`, instead of `v_chk_NNNN`. The
+  vault name is reduced to letters, digits, `.`, `-` and `_` first. The sequence number counts per
+  vault, so scanning a second vault starts at `_0000` rather than continuing the first one's
+  numbering. Existing `v_chk_NNNN` files are left alone; `--init` deletes them along with the rest.
+
 ### Fixed
 
 - Selecting a vault from the setup screen's dropdown no longer raises `AttributeError`. A debug log
@@ -133,6 +146,7 @@ are standing in the right directory" to an installable, tested, CI-covered packa
   the package from commits and producing wheels containing only metadata.
 - Two markdown parser bugs found by the new test suite.
 
-[Unreleased]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.2.0...HEAD
+[Unreleased]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.3.0...HEAD
+[0.3.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/slappycat2/obsidian-vault-health-check/releases/tag/v0.1.0
