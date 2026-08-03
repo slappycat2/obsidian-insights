@@ -145,10 +145,18 @@ as the progress callback; the splash owns the Tk mainloop, so the work happens i
 ### Stages talk through a YAML file, not objects
 
 Each stage re-reads `wb_def` from disk rather than passing it in memory. `WbDataDef` (`v_chk_wb_setup.py`)
-allocates the next sequential batch file `data/batch_files/v_chk_NNNN.yaml` (and the matching
-`data/workbooks/v_chk_NNNN.xlsx`), and `write_bat_data()` / `read_wb_data()` are the handoff. `NewWb` and
+allocates the next sequential batch file `data/batch_files/v_chk_<vault>_NNNN.yaml` (and the matching
+`data/workbooks/v_chk_<vault>_NNNN.xlsx`), and `write_bat_data()` / `read_wb_data()` are the handoff. `NewWb` and
 `ExcelExporter` both begin with `read_wb_data()`. Consequence: anything you add to `wb_def` must be
 `yaml.dump`-able, and stale batch files are the first thing to check when a run produces odd output.
+
+**Generated filenames name their vault.** `build_file_stub()` joins `sys_id` to the vault name run
+through `safe_name_part()`, which reduces it to `[A-Za-z0-9._-]` — both because the name is a folder
+on someone else's disk and because `get_last_bat()` feeds the same stub to `glob`, where `[`, `*` and
+`?` would be read as a pattern. The sequence number is therefore per-vault: scanning a second vault
+starts again at `_0000` rather than continuing the first one's count, and `get_last_bat()` only ever
+finds batch files belonging to the vault in hand. A name that sanitises away to nothing falls back to
+the bare `sys_id`. Pinned by `tests/test_output_naming.py`.
 
 `wb_def` has exactly three keys:
 

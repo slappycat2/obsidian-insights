@@ -1,10 +1,27 @@
 import glob
 import os
+import re
 
 from pathlib import Path, PurePath
 import yaml
 
 from vault_check.v_chk_logger import logger
+
+# Anything outside this set is replaced in the vault name before it goes into a
+# filename. Two reasons: the name comes from a folder on someone else's disk and
+# may legally hold characters this platform's filenames may not, and get_last_bat()
+# feeds the same stub to glob, where '[', '*' and '?' would be read as patterns.
+_UNSAFE_IN_FILENAME = re.compile(r'[^A-Za-z0-9._-]+')
+
+
+def safe_name_part(name: str) -> str:
+    """Reduce a vault name to something that can sit inside a filename.
+
+    Returns '' for a name that survives as nothing at all, which callers treat as
+    "no vault segment" rather than writing a file with a bare separator in it.
+    """
+    return _UNSAFE_IN_FILENAME.sub('_', (name or '').strip()).strip('._-')
+
 
 class WbDataDef:
     def __init__(self, sys_obj):
@@ -13,6 +30,7 @@ class WbDataDef:
         self.sys_pn_cfg     = self.sys_cfg['sys_pn_cfg']
 
         self.sys_id         = self.sys_cfg.get('sys_id','v_chk')
+        self.file_stub      = self.build_file_stub()
         self.sys_dir_bat    = self.sys_cfg['sys_dir_bat']
         self.sys_dir_wbs    = self.sys_cfg['sys_dir_wbs']
         self.sys_dir_img    = self.sys_cfg['sys_dir_img']
@@ -74,11 +92,32 @@ class WbDataDef:
             , 'wb_data': self.wb_data
         }
 
-    def get_last_bat(self):
-        """Sets the name of the latest (most recent) batch file"""
+    def build_file_stub(self) -> str:
+        """The leading part of every generated filename: '<sys_id>_<vault name>'.
 
-        latest_file = f'{PurePath(self.sys_dir_bat + "/" + self.sys_id + "_0000.yaml")}'
-        search_mask = f'{self.sys_dir_bat + "/" + self.sys_id + "_????.yaml"}'
+        Naming the vault keeps one vault's batch files and workbooks distinguishable
+        from another's, and makes the numbering per-vault rather than global.
+
+        The vault's *folder* name is what goes in, not sys_cfg['vault_name'] -- that
+        one is a display label built for the setup screen's dropdown, of the form
+        'work - (D:/Vaults)', and sanitising it produces a filename nobody wants to
+        read. Two vaults sharing a folder name therefore share a stub; they still get
+        their own sequence numbers, so nothing is overwritten. A vault that sanitises
+        away to nothing falls back to the bare sys_id.
+        """
+        dir_vault = self.sys_cfg.get('dir_vault') or ''
+        vault_part = safe_name_part(Path(dir_vault).name if dir_vault else '')
+
+        if not vault_part:
+            vault_part = safe_name_part(self.sys_cfg.get('vault_name', ''))
+
+        return f'{self.sys_id}_{vault_part}' if vault_part else self.sys_id
+
+    def get_last_bat(self):
+        """Sets the name of the latest (most recent) batch file for this vault"""
+
+        latest_file = f'{PurePath(self.sys_dir_bat + "/" + self.file_stub + "_0000.yaml")}'
+        search_mask = f'{self.sys_dir_bat + "/" + self.file_stub + "_????.yaml"}'
         try:
             list_of_files = glob.iglob(search_mask)
             if not list_of_files:
@@ -104,11 +143,11 @@ class WbDataDef:
         using the path filename stub_provided.
         """
         batch_num = 0
-        c_file = f"{self.sys_dir_bat}/{self.sys_id}_{batch_num:04d}.yaml"
+        c_file = f"{self.sys_dir_bat}/{self.file_stub}_{batch_num:04d}.yaml"
 
         while Path(c_file).exists():
             batch_num += 1
-            c_file = f"{self.sys_dir_bat}/{self.sys_id}_{batch_num:04d}.yaml"
+            c_file = f"{self.sys_dir_bat}/{self.file_stub}_{batch_num:04d}.yaml"
             logger.debug(f"ConfigData: Next Config file: {c_file}")
 
         self.sys_pn_batch = c_file

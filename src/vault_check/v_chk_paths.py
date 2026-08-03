@@ -19,8 +19,8 @@ Layout::
     <repo>/                      <- DATA_ROOT, for a source checkout
     |-- CONFIG.yaml              <- CONFIG_FILE
     |-- data/                    <- DATA_DIR
-    |   |-- batch_files/         <- BATCH_DIR    (v_chk_NNNN.yaml handoff)
-    |   +-- workbooks/           <- WORKBOOK_DIR (v_chk_NNNN.xlsx output)
+    |   |-- batch_files/         <- BATCH_DIR    (v_chk_<vault>_NNNN.yaml handoff)
+    |   +-- workbooks/           <- WORKBOOK_DIR (v_chk_<vault>_NNNN.xlsx output)
     |-- logs/                    <- LOG_DIR
     +-- src/vault_check/         <- PACKAGE_DIR
         |-- assets/              <- ASSETS_DIR
