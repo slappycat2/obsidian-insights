@@ -169,6 +169,169 @@ def test_valid_frontmatter_is_not_flagged(scan):
 
 
 # ---------------------------------------------------------------------------
+# Frontmatter boundaries -- a `---` that is not a frontmatter delimiter
+# ---------------------------------------------------------------------------
+
+def test_body_horizontal_rules_are_not_read_as_frontmatter(scan):
+    """The headline regression. split_file() took the first two `---` matches
+    wherever they fell, so a note with no frontmatter but two horizontal rules
+    had the text between them fed to yaml.safe_load and everything before the
+    second rule silently discarded -- 23 of 565 notes in one real vault."""
+    result = scan({"rules.md": """
+        intro:: alpha
+
+        ---
+
+        ## Middle
+
+        ---
+
+        Tail.
+    """})
+
+    assert "alpha" in result.obs_props["intro"]     # used to be thrown away
+    assert any("rules.md" in path for path in result.obs_xyaml["NoFm"])
+    assert "NonD" not in result.obs_xyaml           # "## Middle" was never YAML
+
+
+def test_setext_heading_underline_is_not_frontmatter(scan):
+    """A heading over `---` is a setext H2, not an opening delimiter."""
+    result = scan({"setext.md": """
+        My Heading
+        ---
+
+        note:: kept
+
+        ---
+
+        Tail.
+    """})
+
+    assert any("setext.md" in path for path in result.obs_xyaml["NoFm"])
+    assert "kept" in result.obs_props["note"]
+
+
+def test_unclosed_frontmatter_delimiter_is_not_frontmatter(scan):
+    """An opening `---` that is never closed leaves the whole file as body."""
+    result = scan({"orphan.md": """
+        ---
+        title: Orphan
+
+        rating:: 7
+    """})
+
+    assert any("orphan.md" in path for path in result.obs_xyaml["NoFm"])
+    assert "7" in result.obs_props["rating"]
+
+
+def test_a_leading_code_fence_does_not_shift_the_boundary(scan):
+    """Code fences are stripped after the split now. Stripping them first
+    promoted a body rule to the top of the file and defeated the anchor."""
+    result = scan({"fenced.md": """
+        ```dataview
+        LIST
+        ```
+
+        topic:: fences
+
+        ---
+
+        ## Section
+
+        ---
+
+        Tail.
+    """})
+
+    assert any("fenced.md" in path for path in result.obs_xyaml["NoFm"])
+    assert "fences" in result.obs_props["topic"]
+
+
+def test_split_file_ignores_a_rule_that_follows_text(scan):
+    """The anchor is the whole fix: the opening pattern may skip whitespace but
+    cannot cross real text, so no body rule can ever open a frontmatter block."""
+    result = scan({"any.md": "Body.\n"})
+
+    assert result.split_file("Intro.\n\n---\nnot: frontmatter\n---\n") == (
+        "", "Intro.\n\n---\nnot: frontmatter\n---\n")
+
+    # A blank line above the delimiter is still frontmatter: that is what a
+    # stripped Templater block leaves behind at the top of a template. The body
+    # opens with the newline that ends the closing delimiter's own line.
+    assert result.split_file("\n---\nis: frontmatter\n---\nBody.\n") == (
+        "is: frontmatter", "\nBody.\n")
+
+
+def test_the_closing_delimiter_is_not_left_in_the_body(scan):
+    """body_text started at the closing `---` rather than after it, so every
+    body carried a stray delimiter as its first line."""
+    result = scan({"any.md": "Body.\n"})
+
+    assert result.split_file("---\nauthor: Jane\n---\nBody.\n") == (
+        "author: Jane", "\nBody.\n")
+
+
+# ---------------------------------------------------------------------------
+# Empty notes
+# ---------------------------------------------------------------------------
+
+def test_an_empty_file_is_counted_and_recorded_once(scan):
+    """ctot[13] counts empty notes. NoFm used to be recorded twice for one --
+    in split_file and again in parse_file -- and upd_obs_props does not dedupe,
+    so the note picked up a second, identical hyperlink column."""
+    result = scan({"empty.md": "", "real.md": "Body.\n"})
+
+    assert result.ctot[13] == 1
+    assert any("empty.md" in path for path in result.obs_empty)
+
+    nofm = result.obs_xyaml["NoFm"]
+    empty_key = next(key for key in nofm if "empty.md" in key)
+    assert len(nofm[empty_key]) == 1
+
+
+def test_a_whitespace_only_file_counts_as_empty(make_vault, stub_config):
+    """All-whitespace is empty. The test reads the raw file rather than the
+    stripped text, so a template holding only `<% tp.date.now() %>` -- which
+    strips away to nothing -- is not mistaken for an empty note."""
+    from vault_check.v_chk_build import VaultHealthCheck
+
+    vault = make_vault({"real.md": "Body.\n"})
+    # written directly: make_vault lstrips, which would leave nothing to test
+    (vault / "blank.md").write_text("   \n\n\t\n", encoding="utf-8")
+
+    result = VaultHealthCheck(stub_config(vault))
+
+    assert result.ctot[13] == 1
+    assert any("blank.md" in path for path in result.obs_empty)
+
+
+def test_an_empty_template_is_not_listed_on_the_xyml_tab(make_vault, stub_config):
+    """split_file recorded NoFm itself, which bypassed record_yaml_issue() and
+    the template exemption inside it."""
+    from vault_check.v_chk_build import VaultHealthCheck
+
+    vault = make_vault({"Templates/Blank.md": "", "real.md": "Body.\n"})
+    result = VaultHealthCheck(
+        stub_config(vault, dir_templates=str(vault / "Templates")))
+
+    assert not any("Blank.md" in path
+                   for path in result.obs_xyaml.get("NoFm", {}))
+
+
+def test_ctot_10_counts_notes_without_frontmatter(scan):
+    """Slot 10 used to increment only for a wholly empty file, while both
+    CLAUDE.md and the Summary tab described it as something else."""
+    result = scan({
+        "none.md":  "Body.\n",
+        "rules.md": "a\n\n---\n\nb\n\n---\n\nc\n",
+        "yaml.md":  "---\nauthor: Jane\n---\nBody.\n",
+    })
+
+    assert result.ctot[10] == 2   # none.md and rules.md
+    assert result.ctot[5] == 1    # only yaml.md has frontmatter
+
+
+# ---------------------------------------------------------------------------
 # Duplicates, code blocks, skipping
 # ---------------------------------------------------------------------------
 

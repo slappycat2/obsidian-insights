@@ -78,8 +78,10 @@ class ExcelExporter:
         self.obs_codes = self.wb_data.get('obs_codes', [])
         self.obs_nests = self.wb_data.get('obs_nests', [])
         self.obs_nests = self.wb_data.get('obs_plugs', {})
+        # A list on the wire so it stays yaml.dump-able; a set here because the
+        # Xyml row builder does a membership test per row.
+        self.obs_empty = set(self.wb_data.get('obs_empty', []))
 
-        self.rgx_boundary = re.compile('^---\\s*$', re.MULTILINE)
         # noinspection RegExpRedundantEscape,RegExpSimplifiable
         self.rgx_body = re.compile('(^|(\\[))([)([A-Za-z0-9_]+)[:]{2}(.*?)(\\]?\\]?)($|\\])')
         self.rgx_tag_pattern = re.compile(r'#(\w+)')
@@ -298,9 +300,17 @@ class ExcelExporter:
                         , value_item_count
                             ]
                 elif tab_id == "xyml":
+                    # For an xyml row, value_item is the note's path. An empty note
+                    # has nothing for the Files tab to match, so the usual lookup
+                    # would just read "" -- say why instead.
+                    if value_item in self.obs_empty:
+                        fm_okay = '(empty file)'
+                    else:
+                        fm_okay = '=IFERROR(IF(VLOOKUP(tbl_xyml[Notes],tbl_file[Notes],1,FALSE)=tbl_xyml[Notes],TRUE,FALSE),"")'
+
                     vals = [int((row_idx - tbl_hdr_row))
                             , self.obs_hyperlink(Path(value_item).name)
-                            , '=IFERROR(IF(VLOOKUP(tbl_xyml[Notes],tbl_file[Notes],1,FALSE)=tbl_xyml[Notes],TRUE,FALSE),"")'
+                            , fm_okay
                             , self.xyml_descs[prop_name][0]
                             ]
                 elif tab_id == "file":

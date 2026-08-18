@@ -5,6 +5,7 @@ from typing import Any
 
 import yaml
 
+from vault_check import CTOT_SLOTS
 from vault_check.v_chk_wb_setup import WbDataDef
 from vault_check.v_chk_plugin_man import PluginMan
 from vault_check.v_chk_logger import logger
@@ -40,8 +41,18 @@ class VaultHealthCheck:   # WbConfig
         self.obs_codes = self.wb_data.get('obs_codes', {})
         self.obs_nests = self.wb_data.get('obs_nests', {})
         self.obs_plugs = self.wb_data.get('obs_plugs', {})
+        self.obs_empty = self.wb_data.get('obs_empty', [])
 
-        self.rgx_boundary = re.compile('^---\\s*$', re.MULTILINE)
+        # Frontmatter is only frontmatter at the top of the file. The leading
+        # \A ... \s* skips a BOM and any blank line a stripped Templater block
+        # left behind, but it cannot cross non-whitespace, so a '---' that follows
+        # real text can never be mistaken for an opening delimiter. Reading the
+        # first two matches wherever they fell is what made every horizontal rule
+        # and setext heading underline in the vault look like frontmatter.
+        self.rgx_fm_open = re.compile(r'\A\ufeff?\s*---[ \t]*$', re.MULTILINE)
+        # [ \t]* rather than \s*: MULTILINE $ already sits before the newline, so
+        # this matches the same lines without letting .end() swallow blank ones.
+        self.rgx_boundary = re.compile(r'^---[ \t]*$', re.MULTILINE)
         # re.MULTILINE is essential: the leading ^ is meant to anchor an inline
         # field to the start of a *line* ("rating:: 5"). Without the flag it
         # anchored to the start of the whole body, so the only inline fields
@@ -59,7 +70,7 @@ class VaultHealthCheck:   # WbConfig
         self.prop_loc_F_I = "F"
         self.actual_prop_key = ""
         self.plugin_id = ""
-        self.ctot = [0] * 13
+        self.ctot = [0] * CTOT_SLOTS
 
         plugin_lib = PluginMan(self.sys_cfg['dir_vault'])
         self.obs_plugs = plugin_lib.get_obs_plugs()
@@ -115,6 +126,7 @@ class VaultHealthCheck:   # WbConfig
         self.wb_def['wb_data']['obs_codes'] = self.obs_codes
         self.wb_def['wb_data']['obs_nests'] = self.obs_nests
         self.wb_def['wb_data']['obs_plugs'] = self.obs_plugs
+        self.wb_def['wb_data']['obs_empty'] = self.obs_empty
 
         self.ctot[11] = self.get_max_links(self.obs_props)
         self.ctot[12] = self.get_max_links(self.obs_atags)
@@ -158,14 +170,29 @@ class VaultHealthCheck:   # WbConfig
         with open(self.filepath, 'r', encoding='utf-8') as file:
             full_content = file.read()
 
-        content = self.rgx_code_blocks.sub('', full_content)
-        content = self.strip_inline_code(content)
-        content = self.strip_templater_strs(content)
+        # Templater tags come out before the split, because a template's opening
+        # <%* ... %> block sits above its frontmatter. Code fences come out after,
+        # because stripping one that opens the file would promote a body rule to
+        # the top and defeat the anchor in rgx_fm_open -- and frontmatter cannot
+        # contain a fence anyway.
+        content = self.strip_templater_strs(full_content)
 
         y_text, x_text = self.split_file(content)
-        if len(y_text) == 0 and len(x_text) == 0:
+        x_text = self.strip_inline_code(self.rgx_code_blocks.sub('', x_text))
+
+        if len(y_text) == 0:
+            # split_file used to record this itself, which bypassed
+            # record_yaml_issue() and put templates on the Issues tab, and
+            # double-recorded any file that reached the empty test below.
             self.ctot[10] += 1
             self.record_yaml_issue('NoFm')
+
+        if full_content.strip() == "":
+            # Whitespace only counts as empty. Tested against the raw file rather
+            # than the stripped text, or a template holding nothing but
+            # "<% tp.date.now() %>" would be called empty too.
+            self.ctot[13] += 1
+            self.obs_empty.append(self.filepath)
 
         if len(y_text) != 0:
             self.plugin_id = ''.join([pid for pid in self.plugin_id_def if pid in y_text])
@@ -485,16 +512,31 @@ class VaultHealthCheck:   # WbConfig
         return wlink
 
     def split_file(self, content):
-        file_text = "".join(content)
-        yaml_match = list(self.rgx_boundary.finditer(file_text))
+        """Split a note into (frontmatter, body).
 
-        if len(yaml_match) < 2:
-            self.upd_obs_props(self.obs_xyaml, 'NoFm', self.filepath, self.filepath)
+        Obsidian only recognises frontmatter when the file opens with `---`.
+        Anywhere else a lone `---` is a horizontal rule or a setext heading
+        underline, and a real vault is full of both. This used to take the first
+        two boundary matches wherever they fell, so a note with no frontmatter
+        but two body rules had the text between them fed to yaml.safe_load and
+        everything before the second rule silently thrown away -- inline fields,
+        tags and all.
+
+        Records nothing: the caller decides what a missing frontmatter means.
+        """
+        file_text = "".join(content)
+
+        opening = self.rgx_fm_open.match(file_text)
+        if opening is None:
             return "", file_text
 
-        start, end = yaml_match[0].end(), yaml_match[1].start()
-        yaml_text = file_text[start:end].strip()  # Extract YAML content only
-        body_text = file_text[end:]
+        closing = self.rgx_boundary.search(file_text, opening.end())
+        if closing is None:
+            # An opening delimiter that is never closed is not frontmatter.
+            return "", file_text
+
+        yaml_text = file_text[opening.end():closing.start()].strip()
+        body_text = file_text[closing.end():]  # .end(), so the delimiter is not left in the body
 
         return yaml_text, body_text
 

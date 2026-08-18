@@ -7,7 +7,7 @@ from datetime import datetime
 from tkinter import messagebox
 from dataclasses import dataclass, field
 
-from vault_check import __version__
+from vault_check import __version__, CTOT_SLOTS
 from vault_check import v_chk_paths as paths
 from vault_check.v_chk_obs_app import ObsidianApp
 from vault_check.v_chk_setupscreen import SetupScreen
@@ -390,7 +390,7 @@ class SysConfig:
         self.skip_rel_str       = self.sys_cfg.get('skip_rel_str',      '')
         self.skip_abs_lst       = self.sys_cfg.get('skip_abs_lst',      [])
         self.dirs_dot           = self.sys_cfg.get('dirs_dot',          [])
-        self.ctot               = self.sys_cfg.get('ctot',              [0] * 13)
+        self.ctot               = self.sys_cfg.get('ctot',              [0] * CTOT_SLOTS)
         self.bool_shw_notes     = self.sys_cfg.get('bool_shw_notes',    True)
         self.bool_rel_paths     = self.sys_cfg.get('bool_rel_paths',    True)
         self.bool_summ_rows     = self.sys_cfg.get('bool_summ_rows',    True)

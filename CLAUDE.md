@@ -133,9 +133,11 @@ as the progress callback; the splash owns the Tk mainloop, so the work happens i
    `~/Library/Application Support/obsidian/` macOS) to build `sys_vlts`/`cur_vlts` and pick the last-open
    vault as the default. If `CONFIG.yaml` is missing or `chk_fields_on_load()` fails, the Tk `SetupScreen`
    (`v_chk_setupscreen.py`) is shown before anything else runs.
-2. **`VaultHealthCheck`** (`v_chk_build.py`) — `rglob("*.md")` over the vault; per file it strips code
-   blocks / inline code / Templater tags, splits frontmatter from body on `^---$`, `yaml.safe_load`s the
-   frontmatter, regex-scans the body for `key:: value` and `#tags`, and accumulates into the `obs_*` dicts.
+2. **`VaultHealthCheck`** (`v_chk_build.py`) — `rglob("*.md")` over the vault; per file it strips
+   Templater tags, splits frontmatter from body on a delimiter anchored to the top of the file (see
+   "Frontmatter is only frontmatter at the top of the file" below), strips code blocks and inline code
+   from the body, `yaml.safe_load`s the frontmatter, regex-scans the body for `key:: value` and
+   `#tags`, and accumulates into the `obs_*` dicts.
 3. **`NewWb`** (`v_chk_wb_tabs.py`) — turns the harvested data plus per-tab layout metadata into a
    complete cell-level tab definition for each tab.
 4. **`ExcelExporter`** (`v_chk_xl.py`) — walks `sys_tab_seq` and renders each tab into an openpyxl
@@ -162,11 +164,13 @@ the bare `sys_id`. Pinned by `tests/test_output_naming.py`.
 
 - `sys_cfg` — the packed `SysConfig` dict (also carries `ctot`, `sys_pn_batch`, `sys_pn_wbs`).
 - `wb_data` — the harvested vault data: `obs_props`, `obs_atags`, `obs_xyaml`, `obs_dupfn`, `obs_files`,
-  `obs_tmplt`, `obs_codes`, `obs_nests`, `obs_plugs`.
+  `obs_tmplt`, `obs_codes`, `obs_nests`, `obs_plugs`, `obs_empty`.
 - `wb_tabs` — keyed by tab id; each value is a `tab_def` dict.
 
 The `obs_*` dicts are all shaped `{key: {value: [filepath, ...]}}` (see `upd_obs_props`); `obs_files` and
 `obs_nests` use `{filepath|F-or-I: {key: [values]}}` and `{plugin_id|filepath: {key: [values]}}`.
+`obs_empty` is the exception: a plain list of empty notes' paths, which `ExcelExporter` turns into a set
+so the Xyml tab can print `(empty file)` in its "Fm Okay" column instead of a lookup that reads blank.
 
 ## The tab system
 
@@ -215,11 +219,20 @@ Cells are plain 11-element lists shared between `v_chk_wb_tabs.py` and `v_chk_xl
 
 ### `ctot` counters
 
-`sys_cfg['ctot']` is a 13-slot list of counters incremented throughout `v_chk_build.py` and consumed by
-the Summary tab. Slots: `0` md files seen, `1` templates seen, `2` skip-dir files skipped, `3` files
+`sys_cfg['ctot']` is a list of counters incremented throughout `v_chk_build.py` and rendered on the
+**Area51** tab (not the Summary tab). Its length is `CTOT_SLOTS` in `src/vault_check/__init__.py` — the
+one place it is stated; `v_chk_build`, `v_chk_setup`, `v_chk_obs_app`, `v_chk_wb_tabs` and
+`tests/conftest.py` all import it, and they must agree or `DefAr51` indexes off the end.
+
+Slots: `0` md files seen, `1` templates seen, `2` skip-dir files skipped, `3` files
 processed, `4` NestedDictionary resets, `5` files with frontmatter, `6` files with body properties,
 `7` `upd_obs_files` calls, `8` `upd_obs_nests` calls, `9` `upd_obs_props` calls, `10` files with no
-frontmatter at all, `11` max links per property value, `12` max links per tag.
+frontmatter, `11` max links per property value, `12` max links per tag, `13` empty notes.
+
+Adding a slot means bumping `CTOT_SLOTS`, appending to `ctot_descs` **and** adding the matching
+`f-tot-NN`/`x-tot-NN` cell pair in `DefAr51.tab_cd_fixed_summ` — a desc without a cell is simply never
+rendered. Slot `13` counts notes whose raw text is whitespace only; it is a subset of slot `10`, since
+an empty note has no frontmatter either.
 
 ## Other conventions worth knowing
 
@@ -236,6 +249,16 @@ frontmatter at all, `11` max links per property value, `12` max links per tag.
   is a no-op for them, since Templater syntax isn't valid YAML). They count in `ctot[1]`, not `ctot[3]`. `PluginMan` (`v_chk_plugin_man.py`)
   separately reads `.obsidian/plugins/*/manifest.json` + `community-plugins.json` for the Plugins tab and
   maps code-block signatures (`dataview`, `button`, …) to plugin ids.
+- **Frontmatter is only frontmatter at the top of the file.** `split_file()` anchors the opening `---`
+  with `rgx_fm_open` (`\A\ufeff?\s*---[ \t]*$`); the leading `\s*` skips a BOM and the blank line a
+  stripped Templater block leaves behind, but it cannot cross non-whitespace, so a `---` following any
+  real text can never open a block. It previously took the first two matches of `^---$` wherever they
+  fell, which made every Markdown horizontal rule and setext heading underline look like a delimiter —
+  in one 565-note vault, 23 notes had the text between two body rules fed to `yaml.safe_load` while
+  everything before the second rule was silently discarded. An opening delimiter with no closing one is
+  not frontmatter. `split_file()` records nothing; `parse_file()` decides what a missing frontmatter
+  means, which is what keeps templates off the Issues tab. Code fences are stripped from the body
+  *after* the split — strip them first and a fence at the top of a note promotes a body rule to line 1.
 - **Bad frontmatter is classified, not dropped** — `obs_xyaml` codes `BadY` / `NoFm` / `MtFm` / `ErrY` /
   `NonD`, described in `WbDataDef.xyml_descs`.
 - **Everything is lowercased** for grouping; the original casing is preserved in `actual_prop_key` and

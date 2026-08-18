@@ -4,6 +4,7 @@ from datetime import  datetime
 from pathlib import Path
 from dataclasses import dataclass, field
 
+from vault_check import CTOT_SLOTS
 from vault_check.v_chk_json_file import JsonFile
 from vault_check.v_chk_logger import logger
 
@@ -97,7 +98,7 @@ class ObsidianApp:
         dst_v_dict['skip_rel_str']       = src_v_dict.get('skip_rel_str', '')
         dst_v_dict['skip_abs_lst']       = src_v_dict.get('skip_abs_lst', [])
         dst_v_dict['dirs_dot']           = src_v_dict.get('dirs_dot', [])
-        dst_v_dict['ctot']               = src_v_dict.get('ctot', [0] * 13)
+        dst_v_dict['ctot']               = src_v_dict.get('ctot', [0] * CTOT_SLOTS)
         dst_v_dict['bool_shw_notes']     = src_v_dict.get('bool_shw_notes', True)
         dst_v_dict['bool_rel_paths']     = src_v_dict.get('bool_rel_paths', True)
         dst_v_dict['bool_summ_rows']     = src_v_dict.get('bool_summ_rows', True)

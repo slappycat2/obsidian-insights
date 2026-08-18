@@ -20,6 +20,11 @@ from textwrap import dedent
 
 import pytest
 
+# Safe at module scope despite the V_CHK_DATA_DIR dance below: vault_check's
+# __init__ imports nothing, so this does not pull in v_chk_paths and does not
+# resolve DATA_ROOT before pytest_configure has redirected it.
+from vault_check import CTOT_SLOTS
+
 _TMP_DATA_ROOT: str | None = None
 
 
@@ -83,7 +88,7 @@ class StubSysConfig:
             "skip_rel_str": "",
             "skip_abs_lst": [],
             "dirs_dot": [],
-            "ctot": [0] * 13,
+            "ctot": [0] * CTOT_SLOTS,
             "bool_shw_notes": True,
             "bool_rel_paths": True,
             "bool_summ_rows": True,

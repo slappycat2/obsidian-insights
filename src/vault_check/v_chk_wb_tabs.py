@@ -7,7 +7,7 @@ import platform
 from functools import lru_cache
 from pathlib import Path
 
-from vault_check import __version__
+from vault_check import __version__, CTOT_SLOTS
 from vault_check.v_chk_colors import Colors
 from vault_check.v_chk_logger import logger
 
@@ -499,7 +499,7 @@ class NewTab:
         self.showGridLines  = wb_obj.tab_common[tab_id]['shw_grid']
         self.xyml_descs     = wb_obj.xyml_descs
 
-        ctot = self.sys_cfg.get('ctot', [0] * 13)
+        ctot = self.sys_cfg.get('ctot', [0] * CTOT_SLOTS)
 
         self.link_max_vals   = ctot[11]
         self.link_max_tags   = ctot[12]
@@ -1810,9 +1810,10 @@ class DefAr51(NewTab):
                 , '07-upd_obs_files'
                 , '08-upd_obs_nests'
                 , '09-upd_obs_props'
-                , '10-Empty Fm/Body in Markdown'
+                , '10-Files With No Frontmatter'
                 , '11-Max Props'
                 , '12-Max Tags'
+                , '13-Empty Notes (whitespace only)'
                 ]
 
         # f'=COUNTA(_xlfn.UNIQUE(_xlfn.FILTER({self.tbl_name}[{self.col_key1}],{self.tbl_name}[{self.hdr_IsVis}])))'
@@ -1911,6 +1912,8 @@ class DefAr51(NewTab):
             , 'x-tot-11':   [0, 37, '', 12,  0,   '',   '', False, False, 'right', ctot[11]]
             , 'f-tot-12':   [2, 38, '', 12,  0,   '',   '', False, False, 'left', ctot_descs[12]]
             , 'x-tot-12':   [0, 38, '', 12,  0,   '',   '', False, False, 'right', ctot[12]]
+            , 'f-tot-13':   [2, 39, '', 12,  0,   '',   '', False, False, 'left', ctot_descs[13]]
+            , 'x-tot-13':   [0, 39, '', 12,  0,   '',   '', False, False, 'right', ctot[13]]
 
             , 'cfg-keys':  [7, 1, '', 14, 0,   '', sea2, True, False, 'left', 'CFG Keys']
             , 'cfg-vals':  [8, 1, '', 14, 0,   '', sea2, True, False, 'left', 'Values']
