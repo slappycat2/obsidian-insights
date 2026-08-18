@@ -80,9 +80,28 @@ git push origin master --follow-tags
 > that require the owner to ask for them by name. Nothing in this checklist authorises them, and
 > neither has happened: no GitHub release, no PyPI package under either name.
 >
-> The repository is **public** (it was private when this document was written, and the checklist
-> still said so as late as v0.4.0). Pushing therefore publishes the code, even though it does not
-> publish a *release*. Confirm before pushing work the owner may not have meant to be visible.
+> This repository is **private for now**, by choice rather than necessity, and it is a *new* remote
+> created on 2026-08-18. The history in it is clean, and so is its object store.
+>
+> **Why there are two repositories.** The original repository's history held material that should not be published; a fresh repository was the clean answer.
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+>
+> If this repository is ever made public, remember that pushing then publishes the code even though
+> it does not publish a *release*. Confirm before pushing work the owner may not have meant to be
+> visible.
 
 > **Gotcha: `uv sync` alone is not enough.** The version is baked into the editable install's
 > metadata at install time, so bumping `__version__` leaves `importlib.metadata` reporting the old
