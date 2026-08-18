@@ -75,11 +75,14 @@ git tag -a v0.2.0 -m "v0.2.0"
 git push origin master --follow-tags
 ```
 
-> **Tagging is not publishing, and publishing needs explicit approval.** A tag is a pointer inside
-> the private repository. Creating a GitHub release (`gh release create`), uploading to PyPI, or
-> making the repository public are separate acts that require the owner to ask for them by name.
-> Nothing in this checklist authorises them, and none of it has happened: no release, no PyPI
-> package under either name, repository still private.
+> **Tagging is not releasing, and releasing needs explicit approval.** A tag is a pointer in the
+> repository. Creating a GitHub release (`gh release create`) or uploading to PyPI are separate acts
+> that require the owner to ask for them by name. Nothing in this checklist authorises them, and
+> neither has happened: no GitHub release, no PyPI package under either name.
+>
+> The repository is **public** (it was private when this document was written, and the checklist
+> still said so as late as v0.4.0). Pushing therefore publishes the code, even though it does not
+> publish a *release*. Confirm before pushing work the owner may not have meant to be visible.
 
 > **Gotcha: `uv sync` alone is not enough.** The version is baked into the editable install's
 > metadata at install time, so bumping `__version__` leaves `importlib.metadata` reporting the old
