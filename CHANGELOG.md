@@ -6,6 +6,8 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ## [Unreleased]
 
+## [0.4.1] — 2026-08-18
+
 Internal only — no change to the workbook or the CLI.
 
 ### Removed
