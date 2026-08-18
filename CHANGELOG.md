@@ -6,6 +6,42 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ## [Unreleased]
 
+## [0.4.0] — 2026-08-18
+
+Frontmatter detection no longer mistakes a Markdown horizontal rule for a frontmatter
+delimiter, which had been filling the Possible Issues tab with phantom YAML errors and
+silently discarding the body of notes that have no frontmatter at all.
+
+### Fixed
+
+- Frontmatter is now recognised only at the top of a note, the way Obsidian recognises it. The
+  boundary search took the first two `^---$` matches wherever they fell, so a note with **no**
+  frontmatter but two Markdown horizontal rules — or a setext heading underline — had the text
+  between them parsed as YAML, and everything before the second rule silently thrown away along with
+  any `key:: value` fields and `#tags` in it. On a 565-note vault this hit 23 notes and produced 19
+  phantom entries on the Possible Issues tab; those notes now report "No Properties", and three prose
+  sentences from an install README stop appearing as vault properties. An opening `---` that is never
+  closed is likewise no longer treated as frontmatter.
+- A note's body no longer begins with the stray `---` that closed its frontmatter.
+- Templates no longer appear on the Possible Issues tab when they have no frontmatter. `split_file()`
+  recorded that case itself, bypassing the template exemption in `record_yaml_issue()`.
+- An empty note is no longer listed twice on the Possible Issues tab, which gave it a duplicate
+  hyperlink column.
+
+### Added
+
+- Empty notes are counted separately (`ctot[13]`, "13-Empty Notes (whitespace only)" on the Area51
+  tab) and marked `(empty file)` in the Possible Issues tab's "Fm Okay" column, where the usual
+  lookup could only read blank. A note counts as empty when its raw text is whitespace only.
+
+### Changed
+
+- `ctot[10]` now counts notes with no frontmatter, as the code comments and CLAUDE.md always claimed
+  it did; it previously incremented only for a wholly empty note. The Area51 label changes from
+  "10-Empty Fm/Body in Markdown" to "10-Files With No Frontmatter". The counter list is now sized
+  from a single `CTOT_SLOTS` constant in `src/vault_check/__init__.py` rather than five separate
+  literals.
+
 ## [0.3.0] — 2026-08-03
 
 Generated files now say which vault they came from, plus the setup screen's vault dropdown fixes
