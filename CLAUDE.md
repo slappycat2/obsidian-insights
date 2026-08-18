@@ -24,12 +24,12 @@ tests/                       pytest suite
 CHANGELOG.md                 user-facing history; keep [Unreleased] current as work lands
 docs/VERSIONING.md           versioning protocol and release checklist
 docs/BACKLOG.md              historical record of the backlog now tracked as GitHub issues
-docs/WORKING-NOTES.md        repo/process to-dos and session working agreements
+docs/WORKING-NOTES.md        repo/process to-dos and working agreements -- untracked, see below
 img/                         README screenshot and brand source files (not runtime)
 data/, logs/, CONFIG.yaml    generated at runtime, gitignored
 ```
 
-Everything tracked is live — 63 files, 6 MB. The two directories that used to linger untracked on
+Everything tracked is live — 62 files, 6 MB. The two directories that used to linger untracked on
 disk (`vault_check/`, pre-Phase-2 generated output, and `xcluded/`, old scratch code removed from
 tracking in Phase 4) are both gone; `xcluded/` remains recoverable from commit `d24449d`.
 
@@ -282,3 +282,9 @@ an empty note has no frontmatter either.
   frozen historical record — file new work on the tracker, and do not reintroduce todo lists in
   source files. The one exception is `docs/WORKING-NOTES.md`, which tracks repo administration, CI
   upkeep and open decisions — things with no code to attach an issue to. Keep code defects out of it.
+  **It is untracked as of 2026-08-18** (`/docs/WORKING-NOTES.md` in `.gitignore`): the material is
+  for the owner rather than for anyone reading a published repository. Read it and edit it as
+  normal; just never `git add -f` it. Its numbering note matters — the issue tracker moved on
+  2026-08-18 from `the previous repository` to this repository, and issues #1–#27 were
+  recreated with their original numbers, so every `#NN` reference in the docs and commit history
+  still resolves.

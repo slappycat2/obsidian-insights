@@ -61,3 +61,13 @@ node_modules/
 # Old scratch code, untracked since Phase 4 and recoverable from commit
 # d24449d. The directory may still exist on disk; it is safe to delete.
 xcluded/
+
+# ---------------------------------------------------------------------------
+# Working notes: deliberately local
+#
+# Repo administration, open decisions and session working agreements. Tracked
+# from 2026-07-29 until 2026-08-18, so earlier revisions remain in history --
+# untracking it keeps future edits out of anything that could be published.
+# The file still lives on disk and is still the right place for that material.
+# ---------------------------------------------------------------------------
+/docs/WORKING-NOTES.md
