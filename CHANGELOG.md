@@ -6,6 +6,30 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ## [Unreleased]
 
+Internal only — no change to the workbook or the CLI.
+
+### Removed
+
+- `ExcelExporter` no longer copies the harvested `obs_*` sinks onto its own attributes. All nine were
+  written in `__init__` and never read again: every tab reads its data through
+  `wb_def['wb_data'][data_src]`. The copy had also drifted — `obs_nests` was assigned twice, the
+  second time from `obs_plugs`, so `self.obs_plugs` never existed at all. `obs_empty` stays, because
+  the Xyml row builder does need a per-row membership test.
+- Four unused regexes in `v_chk_xl.py`. Two were stale copies of `v_chk_build.py` patterns frozen in
+  their pre-fix form: `rgx_body` lacked the `re.MULTILINE` whose absence is pinned as a regression in
+  `tests/test_vault_parsing.py`, and `rgx_tag_pattern` lacked the guard that stops a wikilink pipe
+  reading as a tag. Anyone reaching for one would have picked up a known-broken version.
+
+### Changed
+
+- The timezone-stripping pattern in `v_chk_xl.py` is compiled once at startup rather than on every
+  string cell in the workbook.
+- `docs/VERSIONING.md` no longer claims the repository is private. It is public, and has been for
+  some time; the note drew its line around what needs the owner's approval in the wrong place, by
+  listing "making the repository public" as a future act while treating a push — which on a public
+  remote publishes the code — as routine. Creating a GitHub release and uploading to PyPI remain the
+  acts that need approval, and neither has happened.
+
 ## [0.4.0] — 2026-08-18
 
 Frontmatter detection no longer mistakes a Markdown horizontal rule for a frontmatter

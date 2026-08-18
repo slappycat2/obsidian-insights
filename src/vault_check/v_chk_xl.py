@@ -69,26 +69,21 @@ class ExcelExporter:
         self.sys_pn_wb_exec = self.sys_cfg['sys_pn_wb_exec']
 
         self.wb_data = self.wb_def.get('wb_data', {})
-        self.obs_props = self.wb_data.get('obs_props', {})
-        self.obs_atags = self.wb_data.get('obs_atags', {})
-        self.obs_xyaml = self.wb_data.get('obs_xyaml', {})
-        self.obs_dupfn = self.wb_data.get('obs_dupfn', [])
-        self.obs_files = self.wb_data.get('obs_files', [])
-        self.obs_tmplt = self.wb_data.get('obs_tmplt', [])
-        self.obs_codes = self.wb_data.get('obs_codes', [])
-        self.obs_nests = self.wb_data.get('obs_nests', [])
-        self.obs_nests = self.wb_data.get('obs_plugs', {})
-        # A list on the wire so it stays yaml.dump-able; a set here because the
-        # Xyml row builder does a membership test per row.
+        # Only obs_empty is mirrored onto an attribute, because the Xyml row
+        # builder needs a per-row membership test. Every tab reads its own data
+        # through wb_def['wb_data'][data_src] instead, so the other nine sinks
+        # used to be copied here and never read again -- and the copy had drifted:
+        # obs_nests was assigned twice, the second time from obs_plugs, so
+        # self.obs_plugs was never created at all. Do not reinstate them.
+        #
+        # A list on the wire so it stays yaml.dump-able; a set here for the test.
         self.obs_empty = set(self.wb_data.get('obs_empty', []))
 
-        # noinspection RegExpRedundantEscape,RegExpSimplifiable
-        self.rgx_body = re.compile('(^|(\\[))([)([A-Za-z0-9_]+)[:]{2}(.*?)(\\]?\\]?)($|\\])')
-        self.rgx_tag_pattern = re.compile(r'#(\w+)')
-        self.rgx_noTZdatePattern = r"([0-9]{4})[-\/]([0-1]?[0-9]{1})[-\/]([0-3])?([0-9]{1})(\s+)([0-9]{2}:[0-9]{2}:[0-9]{2})(.*)"
+        # Compiled once: export_cell() runs this over every string cell in the
+        # workbook, and re.compile() on each was the only reason it was a str.
+        self.rgx_noTZdatePattern = re.compile(
+            r"([0-9]{4})[-\/]([0-1]?[0-9]{1})[-\/]([0-3])?([0-9]{1})(\s+)([0-9]{2}:[0-9]{2}:[0-9]{2})(.*)")
         self.rgx_noTZdateReplace = r"\1-\2-\3\4 \6"
-        self.rgx_sub_strip_code_blocks = r'```[\s\S]*?```'
-        self.rgx_sub_strip_inline_code = r'`[^`]*`'
 
         # self.code_q_types = ['TABLE', 'LIST', 'TASK', 'CALENDAR']
         self.plugin_lib = PluginMan(self.dir_vault)
@@ -748,8 +743,8 @@ class ExcelExporter:
         # Process strings for illegal characters
         if isinstance(cell_value, str):
             # Strip TZ from dates in string format if applicable
-            if re.compile(self.rgx_noTZdatePattern).search(cell_value):
-                cell_value = re.sub(self.rgx_noTZdatePattern, self.rgx_noTZdateReplace, cell_value)
+            if self.rgx_noTZdatePattern.search(cell_value):
+                cell_value = self.rgx_noTZdatePattern.sub(self.rgx_noTZdateReplace, cell_value)
             return ILLEGAL_CHARACTERS_RE.sub("z", cell_value)
 
         return cell_value
