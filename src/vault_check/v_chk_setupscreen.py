@@ -334,7 +334,12 @@ class SetupScreen:
         # Executable Path Frame ---------------------------------------------------------------------
         wbex_frame = ttk.LabelFrame(main_frame, text="Workbook Executable ",
                                     padding="20", borderwidth=1, relief="ridge")
-        wbex_frame.grid(row=mf_row, column=0, sticky="nsew", pady=5, padx=(10, 10))
+        # columnspan=3 puts this frame across the logo/button column as well, which
+        # is the whole point: the Full Path entry sits in the frame's only weighted
+        # column, so every pixel gained here goes to the entry. It was 268px wide
+        # and could not show the executable it held. Nothing may share row mf_row
+        # in another column now -- see the button frame below.
+        wbex_frame.grid(row=mf_row, column=0, columnspan=3, sticky="nsew", pady=5, padx=(10, 10))
         wbex_frame.columnconfigure(1, weight=1)
 
         # label
@@ -365,14 +370,18 @@ class SetupScreen:
 
         # Buttons - Save & Run, Cancel
         button_frame = ttk.Frame(main_frame)
-        button_frame.grid(row=6, column=mf_col, rowspan=2, pady=(5, 30))
+        # Row 5 -- beside the Link Columns frame, under the logo. This must stay
+        # ABOVE the executable frame's row: that frame now spans all three columns,
+        # so anything left down there would sit on top of it. rowspan is gone for
+        # the same reason (it used to reach into row 6). These row numbers are
+        # literals rather than mf_row, so the two are coupled by hand.
+        button_frame.grid(row=5, column=mf_col, sticky="n", pady=(5, 0))
         self.save_button = ttk.Button(button_frame, text="Save & Run", command=self.on_save_and_run)
         self.save_button.pack(side="top", pady=(5, 10))
         cancel_button = ttk.Button(button_frame, text="Cancel", command=self.on_cancel)
         cancel_button.pack(side="top")
         # clear_hist_button = ttk.Button(button_frame, text="Clear History", command=self.on_clear_hist)
         # clear_hist_button.pack(side="top")
-        button_frame.columnconfigure(1, weight=1)
         # button_frame.pack(side=tk.TOP, pady=(5, 30))
 
         # Bind validation

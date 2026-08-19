@@ -71,3 +71,7 @@ xcluded/
 # The file still lives on disk and is still the right place for that material.
 # ---------------------------------------------------------------------------
 /docs/WORKING-NOTES.md
+
+# Screenshots and widget dumps from tools/ui_shot.py. Regenerated on demand and
+# specific to one machine's display scaling, so they are not worth tracking.
+/tools/_shots/

@@ -6,6 +6,23 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ## [Unreleased]
 
+### Changed
+
+- The setup screen's **Full Path** field now shows the whole executable path. It was 268px wide and
+  cut `C:/Program Files/Microsoft Office/root/Office16/EXCEL.EXE` off around `Office16/`, so the
+  value being saved could not be read. The field was never the problem: the Save & Run and Cancel
+  buttons sat in the same grid row as the Workbook Executable frame, which stopped that frame
+  extending past the first column. Moving the buttons up one row — beside Workbook Link Columns,
+  under the logo — lets the frame span the window, and the entry, which is the only weighted column
+  in it, takes all of the gain: 268px to 474px, and it now grows further when the window is widened.
+
+### Added
+
+- `tools/ui_shot.py`, a development aid that opens the real setup screen, photographs it, and dumps
+  every widget's class, geometry, text and state. It redirects `V_CHK_DATA_DIR` to a scratch copy of
+  `CONFIG.yaml` and dismisses the screen with `on_cancel()`, so it cannot write your configuration.
+  Not packaged — `tools/` sits outside `src/`.
+
 ## [0.4.1] — 2026-08-18
 
 Internal only — no change to the workbook or the CLI.
