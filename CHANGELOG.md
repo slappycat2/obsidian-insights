@@ -6,6 +6,11 @@ Notable changes to Obsidian Vault Health Check. Format follows
 
 ## [Unreleased]
 
+## [1.0.0] — 2026-08-20
+
+First release of the 1.x series. The version number says the tool is finished and in daily use; it is
+**not** a promise that the workbook format is frozen — see `docs/VERSIONING.md`.
+
 ### Changed
 
 - The setup screen's **Full Path** field now shows the whole executable path. It was 268px wide and

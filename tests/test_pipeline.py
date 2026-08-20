@@ -176,7 +176,16 @@ def test_summary_tab_shows_the_running_version(workbook_path):
     """Regression: the Summary tab used to announce two hardcoded versions --
     'v1.0' in the title and 'v.0.9 (beta)' in the hyperlink -- while the package
     said 0.3.0 and CONFIG.yaml said 0.2.9. This asserts the rendered workbook,
-    which is the only place a user ever sees the number."""
+    which is the only place a user ever sees the number.
+
+    Written first as ``assert "v1.0" not in text``, naming the literal that was
+    wrong at the time. That sentinel expired the day the package really did reach
+    1.0.0, and failed on a workbook that was entirely correct. Every version
+    string eventually becomes someone's real version, so the assertion is now the
+    property actually wanted: whatever version-shaped tokens the tab contains,
+    there is exactly one distinct value and it is the running one."""
+    import re
+
     from vault_check import __version__
 
     wb = openpyxl.load_workbook(workbook_path)
@@ -188,8 +197,13 @@ def test_summary_tab_shows_the_running_version(workbook_path):
     )
 
     assert f"v{__version__}" in text
-    assert "v1.0" not in text
-    assert "0.9 (beta)" not in text
+
+    # v1.2.3, v1.2, and the old "v.0.9" spelling with its stray dot.
+    found = set(re.findall(r"\bv\.?\d+(?:\.\d+)*", text))
+    assert found == {f"v{__version__}"}, (
+        f"the Summary tab shows {sorted(found)}; only v{__version__} should appear"
+    )
+    assert "beta" not in text.lower(), "'beta' is not a version string"
 
 
 def test_duplicate_filenames_reach_the_workbook(workbook_path):
