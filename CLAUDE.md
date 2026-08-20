@@ -26,11 +26,13 @@ docs/VERSIONING.md           versioning protocol and release checklist
 docs/BACKLOG.md              historical record of the backlog now tracked as GitHub issues
 docs/WORKING-NOTES.md        repo/process to-dos and working agreements -- untracked, see below
 tools/ui_shot.py             dev-only: photographs the Tk setup screen and dumps its widget tree
+tools/var_dictionary.py      dev-only: ast-walks the package into a variable-dictionary workbook
+tools/var_purposes.py            the hand-written descriptions that workbook uses
 img/                         README screenshot and brand source files (not runtime)
 data/, logs/, CONFIG.yaml    generated at runtime, gitignored
 ```
 
-Everything tracked is live — 69 files, 6 MB. The two directories that used to linger untracked on
+Everything tracked is live — 71 files, 6 MB. The two directories that used to linger untracked on
 disk (`vault_check/`, pre-Phase-2 generated output, and `xcluded/`, old scratch code removed from
 tracking in Phase 4) are both gone; `xcluded/` remains recoverable from commit `d24449d`.
 

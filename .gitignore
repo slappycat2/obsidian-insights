@@ -75,3 +75,7 @@ xcluded/
 # Screenshots and widget dumps from tools/ui_shot.py. Regenerated on demand and
 # specific to one machine's display scaling, so they are not worth tracking.
 /tools/_shots/
+
+# Workbooks from tools/var_dictionary.py. Regenerated from the source on demand;
+# a checked-in copy would start drifting from the code immediately.
+/tools/_out/
