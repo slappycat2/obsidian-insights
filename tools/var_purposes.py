@@ -75,7 +75,7 @@ AUTHORED = {
 "SysConfig.sys_pn_bnr": "Path to the workbook banner image.",
 "SysConfig.sys_pn_a51": "Path to the Area51 tab image.",
 "SysConfig.sys_splash_bg": "Splash screen background colour (#800000, maroon).",
-"SysConfig.sys_init": "Set by -i/--init: delete CONFIG.yaml, batch files and workbooks. Prompts first.",
+"SysConfig.sys_init": "True when CONFIG.yaml already existed and was loaded at startup, False when this run had to build one from the setup screen. Nothing reads it yet, and it is not persisted. Unrelated to the -i/--init flag, which is handled entirely by v_chk.reset_generated_files() before SysConfig is ever constructed.",
 "SysConfig.interactive": "False under --headless. Makes run_setup_ui() raise ConfigIncompleteError rather than block on a window nobody can answer.",
 "SysConfig.force_setup": "Set by -s/--setup: show the setup screen even when CONFIG.yaml already validates.",
 "SysConfig.vault_path_override": "A vault path given on the command line, which wins over the one in CONFIG.yaml.",

@@ -97,6 +97,16 @@ class PluginMan:
         v_path_obj = Path(v_path)
         cp_json = f"{o_path}community-plugins.json"
         enabled_plugins = []
+
+        # A vault folder Obsidian has never opened has no .obsidian directory at
+        # all, which is expected rather than broken -- it just means no plugins,
+        # and the Plugins tab is dropped as empty. Reporting the missing
+        # community-plugins.json as an ERROR made every such scan look like a
+        # failure. A .obsidian that exists but cannot be read still does.
+        if not Path(o_path).is_dir():
+            logger.debug(f"PluginMan: no .obsidian folder under {self.v_path}; no plugins to read")
+            return
+
         # First, load the the list of enabled plugins from community_plugins.json
         enabled_plugins_obj = JsonFile(cp_json)
         if enabled_plugins_obj.err_msg:

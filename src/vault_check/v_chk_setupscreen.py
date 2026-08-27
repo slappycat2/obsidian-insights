@@ -21,7 +21,7 @@ class SetupScreen:
         self.root = tk.Tk()
         self.root.title("Obsidian Vault Health Check")
 
-        self.root.geometry("720x540")
+        self.root.geometry("780x620")
         self.root.resizable(True, False)
         self.root.attributes('-topmost', 1)
         self.root.iconbitmap(self.icon)
@@ -29,6 +29,7 @@ class SetupScreen:
 
         # Tkinter variables
         self.vault_name_var        = tk.StringVar(value=self.sys_obj.vault_name)
+        self.dir_vault_var         = tk.StringVar(value=self.sys_obj.dir_vault)
         self.sys_pn_wb_exec_var    = tk.StringVar(value=self.sys_obj.sys_pn_wb_exec)
         self.skip_rel_str_var      = tk.StringVar(value=self.sys_obj.skip_rel_str)
         self.bool_shw_notes_var    = tk.BooleanVar(value=self.sys_obj.bool_shw_notes)
@@ -41,6 +42,9 @@ class SetupScreen:
         self.link_lim_tags_var     = tk.StringVar(value=str(self.sys_obj.link_lim_tags))
 
         # self.vault_name_status = None
+        self.combx_vault_name = None
+        self.dir_vault_status = None
+        self.vault_warn_label = None
         self.wb_exec_status = None
         self.skip_rel_str_status = None
         self.skip_rel_str_valid = None
@@ -56,6 +60,10 @@ class SetupScreen:
         self.saved = False
         self.wb_col_max = 16300
         self.wb_col_help = f"0=Unlimited"
+        # The screen's colour vocabulary is red and green, and red means "Save
+        # is disabled". A missing .obsidian folder must not say that, so it
+        # needs a third colour of its own.
+        self.warn_clr = "#B36B00"
         logger.debug(f"setupscreen - {self.vault_name_var.get().strip()}")
 
     # End of __init__ ==========================================================================================
@@ -122,6 +130,7 @@ class SetupScreen:
         logger.debug(f"setupscreen-upd_tk_vars<-sys_obj - {self.vault_name_var.get().strip()}")
 
         self.vault_name_var.set(self.sys_obj.vault_name)
+        self.dir_vault_var.set(self.sys_obj.dir_vault)
         self.skip_rel_str_var.set(self.sys_obj.skip_rel_str)
         self.bool_shw_notes_var.set(self.sys_obj.bool_shw_notes)
         self.bool_rel_paths_var.set(self.sys_obj.bool_rel_paths)
@@ -248,6 +257,47 @@ class SetupScreen:
         # combx_vault_name.current(0)
         combx_vault_name.columnconfigure(f1_col, minsize=30, weight=2)
         combx_vault_name.grid(row=f1_row, column=f1_col, sticky="ew", padx=(0, 5))
+
+        # The combobox is the only thing that can present a newly registered
+        # vault, and v_list is a snapshot taken in __init__, so commit_vault_dir()
+        # needs a handle on it. It was a local until now.
+        self.combx_vault_name = combx_vault_name
+
+        # Vault Folder (dir_vault) -- any directory, whether or not Obsidian has
+        # ever opened it. Same shape as the Workbook Executable row below:
+        # label, entry, status marker, Browse.
+        # label
+        f1_row += 1
+        f1_col = f1_1st_col
+        ttk.Label(obs_frame, text="Vault Folder:", width=15).grid(row=f1_row, column=f1_col,
+                            sticky="w", padx=5, pady=5)
+
+        # entry Vault Folder (dir_vault)
+        f1_col += 1
+        # Narrower than the combobox's 50 so the status marker and the Browse
+        # button fit beside it: obs_frame sits in main_frame column 0 and cannot
+        # span past the logo, so this row only ever has that column to share.
+        # It is the weighted column, so the entry takes any width the user adds.
+        entry_dir_vault = ttk.Entry(obs_frame, textvariable=self.dir_vault_var, width=38)
+        entry_dir_vault.grid(row=f1_row, column=f1_col, sticky="ew", padx=(0, 5))
+
+        # status Vault Folder (dir_vault)
+        f1_col += 3
+        self.dir_vault_status = ttk.Label(obs_frame, text="", foreground="red")
+        self.dir_vault_status.grid(row=f1_row, column=f1_col, sticky="w", padx=10)
+
+        # browse button
+        ttk.Button(obs_frame, text="Browse", command=self.browse_vault_dir).grid(
+                            row=f1_row, column=6, padx=(15, 0))
+
+        # A missing .obsidian folder is a warning, not an error -- the folder is
+        # still scanned and Save stays enabled -- so it cannot be a red marker
+        # beside the field, and it needs a line of its own to say what is lost.
+        f1_row += 1
+        self.vault_warn_label = ttk.Label(obs_frame, text="", foreground=self.warn_clr,
+                                          justify="left")
+        self.vault_warn_label.grid(row=f1_row, column=0, columnspan=7, sticky="w",
+                                   padx=5, pady=(2, 0))
 
         # Ignore Directories (dir_skip_rel)
         # label
@@ -386,6 +436,13 @@ class SetupScreen:
 
         # Bind validation
         combx_vault_name.bind('<<ComboboxSelected>>', lambda event: vault_name_changed())
+        # Committing on every keystroke would register half-typed paths, and
+        # upd_tk_vars_with_sys_obj() setting dir_vault_var would re-enter the
+        # swap. The trace only repaints the status labels, which changes no
+        # state, so there is nothing to guard against.
+        entry_dir_vault.bind('<Return>', self.commit_vault_dir)
+        entry_dir_vault.bind('<FocusOut>', self.commit_vault_dir)
+        self.dir_vault_var.trace('w', lambda *args: self.validate_all_fields())
         self.skip_rel_str_var.trace('w', lambda *args: self.validate_all_fields())
         self.sys_pn_wb_exec_var.trace('w', lambda *args: self.validate_all_fields())
         self.validate_all_fields()
@@ -405,6 +462,60 @@ class SetupScreen:
 
         return self.saved
 
+    def browse_vault_dir(self) -> None:
+        """Pick a vault folder. Any directory will do, Obsidian's or not."""
+        dir_path = filedialog.askdirectory(
+            title="Select Vault Folder",
+            initialdir=self.dir_vault_var.get() or "/",
+            mustexist=True
+        )
+        if dir_path:
+            self.dir_vault_var.set(dir_path)
+            self.commit_vault_dir()
+
+    def commit_vault_dir(self, *_args) -> None:
+        """Point the screen at the folder now in the Vault Folder field.
+
+        The folder is registered first if Obsidian has never opened it, so that
+        a record exists under the name being displayed: on_save_and_run() calls
+        upd_all_sys_objs_with_tk_vars(), which indexes cur_vlts[vault_name] and
+        would otherwise raise KeyError.
+
+        Bound to <Return> and <FocusOut> rather than to a trace, so it only ever
+        sees whole paths. Idempotent, so the <FocusOut> that fires on the way to
+        Browse or to Save is harmless whichever order Tk delivers it in.
+        """
+        raw = self.dir_vault_var.get().strip()
+        if not self.sys_obj.validate_dir_vault(raw)[0]:
+            return                          # the status label already says why
+
+        vault_name = self.sys_obj.register_vault_dir(raw)
+
+        # find_vault_by_path() searches sys_vlts, which can hold vaults that
+        # cur_vlts does not; the screen only ever indexes cur_vlts.
+        if vault_name not in self.c_vlts:
+            self.c_vlts[vault_name] = self.sys_obj.sys_vlts[vault_name]
+
+        if vault_name == self.last_vault_name:
+            # The same vault. Show the stored spelling anyway -- the folder
+            # picker hands back forward slashes on Windows.
+            self.dir_vault_var.set(self.c_vlts[vault_name]['dir_vault'])
+            return
+
+        # The same three-step swap the combobox does; see vault_name_changed().
+        self.upd_all_sys_objs_with_tk_vars(self.last_vault_name)
+        self.sys_obj.vault_name = vault_name
+        self.upd_sys_objs_with_vaults(vault_name)
+        self.upd_tk_vars_with_sys_obj()
+        self.last_vault_name = vault_name
+
+        logger.debug(f"setupscreen:commit_vault_dir - now on {vault_name}")
+
+        self.v_list = list(self.c_vlts.keys())
+        self.combx_vault_name['values'] = self.v_list
+
+        self.validate_all_fields()
+
     def browse_exec_path(self) -> None:
         file_path = filedialog.askopenfilename(
             title="Select Spreadsheet Executable",
@@ -418,13 +529,27 @@ class SetupScreen:
             self.sys_pn_wb_exec_var.set(file_path)
             self.validate_all_fields()
 
-    def validate_all_fields(self) -> None:
+    def validate_all_fields(self) -> bool:
+        dir_vault_valid, dir_vault_msg = self.sys_obj.validate_dir_vault(self.dir_vault_var.get())
         wb_exec_valid, wb_exec_msg = self.sys_obj.validate_sys_pn_wb_exec(self.sys_pn_wb_exec_var.get())
 
+        # Checked against the committed vault, not against the text sitting in
+        # the folder field: this validator walks the whole tree and this method
+        # runs on every keystroke, so a half-typed "C:/" would walk the drive.
         self.skip_rel_str_valid, self.skip_rel_str_msg = self.sys_obj.validate_skip_rel_str(
                                                       self.skip_rel_str_var.get()
                                                     , self.sys_obj.dir_vault
                                                     )
+        self.dir_vault_status.config(
+            text=dir_vault_msg if not dir_vault_valid else "✓",
+            foreground="red" if not dir_vault_valid else "green"
+            )
+        # Never joins all_valid: a folder with no .obsidian is scannable, and
+        # the user is allowed to go ahead. Cleared when the path itself is bad,
+        # because the red message above has already said so.
+        _, obs_warn_msg = self.sys_obj.check_obsidian_dir(self.dir_vault_var.get())
+        self.vault_warn_label.config(text=obs_warn_msg if dir_vault_valid else "")
+
         self.wb_exec_status.config(
             text=wb_exec_msg if not wb_exec_valid else "✓",
             foreground="red" if not wb_exec_valid else "green"
@@ -434,7 +559,7 @@ class SetupScreen:
                                         "✓" if self.skip_rel_str_var.get().strip() else "",
             foreground="red" if not self.skip_rel_str_valid else "green"
             )
-        all_valid = wb_exec_valid and self.skip_rel_str_valid
+        all_valid = dir_vault_valid and wb_exec_valid and self.skip_rel_str_valid
         self.save_button.config(state="normal" if all_valid else "disabled")
         return all_valid
 

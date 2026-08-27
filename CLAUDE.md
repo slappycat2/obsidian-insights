@@ -136,6 +136,16 @@ as the progress callback; the splash owns the Tk mainloop, so the work happens i
    `~/Library/Application Support/obsidian/` macOS) to build `sys_vlts`/`cur_vlts` and pick the last-open
    vault as the default. If `CONFIG.yaml` is missing or `chk_fields_on_load()` fails, the Tk `SetupScreen`
    (`v_chk_setupscreen.py`) is shown before anything else runs.
+
+   **obsidian.json is not the only way in.** `register_vault_dir()` builds a vault record for any
+   directory, so a folder Obsidian has never opened can still be scanned — the setup screen's Vault
+   Folder field and the CLI's `VAULT_PATH` argument both go through it. Such a record carries the
+   folder's *name* as its `vault_id`, because `obs_hyperlink()` interpolates that into
+   `obsidian://open?vault=…` and an empty id would make every link in the workbook dead; Obsidian
+   accepts a name there, so the links start working once the folder is opened in Obsidian. A missing
+   `.obsidian` folder is reported by `check_obsidian_dir()`, which is a **warning only** and must
+   stay out of `validate_dir_vault()` — that one gates whether the setup screen opens at all, and
+   `tests/test_setup_screen.py` pins a bare directory as valid.
 2. **`VaultHealthCheck`** (`v_chk_build.py`) — `rglob("*.md")` over the vault; per file it strips
    Templater tags, splits frontmatter from body on a delimiter anchored to the top of the file (see
    "Frontmatter is only frontmatter at the top of the file" below), strips code blocks and inline code
@@ -157,11 +167,22 @@ allocates the next sequential batch file `data/batch_files/v_chk_<vault>_NNNN.ya
 
 **Generated filenames name their vault.** `build_file_stub()` joins `sys_id` to the vault name run
 through `safe_name_part()`, which reduces it to `[A-Za-z0-9._-]` — both because the name is a folder
-on someone else's disk and because `get_last_bat()` feeds the same stub to `glob`, where `[`, `*` and
+on someone else's disk and because `seq_nums()` feeds the same stub to `glob`, where `[`, `*` and
 `?` would be read as a pattern. The sequence number is therefore per-vault: scanning a second vault
 starts again at `_0000` rather than continuing the first one's count, and `get_last_bat()` only ever
 finds batch files belonging to the vault in hand. A name that sanitises away to nothing falls back to
-the bare `sys_id`. Pinned by `tests/test_output_naming.py`.
+the bare `sys_id` — which makes that stub a *prefix* of every other stub, so `seq_nums()` anchors its
+match with `fullmatch` rather than trusting the glob. Pinned by `tests/test_output_naming.py`.
+
+**The number is one past the highest still on disk in *both* generated directories.** `seq_nums()`
+reads `data/batch_files/*.yaml` **and** `data/workbooks/*.xlsx`, and `get_next_bat()` takes
+`max(...) + 1`; `get_last_bat()` takes `max(...)` over the batch files, so "last" and "next" cannot
+disagree. The two directories fall out of step whenever `--init` deletes a batch file but cannot
+delete the workbook beside it, which is what happens while Excel has that workbook open — a legal
+outcome that `reset_generated_files()` reports and exits 0 on. Numbering from the batch files alone
+then reused the survivor's number, and `ExcelExporter.save_workbook()` answers a locked target with a
+modal Tk retry dialog that fires even under `--headless`. For the same reason gaps are **not**
+refilled: a missing `_0001` stays missing rather than overwriting `v_chk_<vault>_0001.xlsx`.
 
 `wb_def` has exactly three keys:
 

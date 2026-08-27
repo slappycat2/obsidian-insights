@@ -1,5 +1,3 @@
-import glob
-import os
 import re
 
 from pathlib import Path, PurePath
@@ -9,7 +7,7 @@ from vault_check.v_chk_logger import logger
 
 # Anything outside this set is replaced in the vault name before it goes into a
 # filename. Two reasons: the name comes from a folder on someone else's disk and
-# may legally hold characters this platform's filenames may not, and get_last_bat()
+# may legally hold characters this platform's filenames may not, and seq_nums()
 # feeds the same stub to glob, where '[', '*' and '?' would be read as patterns.
 _UNSAFE_IN_FILENAME = re.compile(r'[^A-Za-z0-9._-]+')
 
@@ -113,21 +111,34 @@ class WbDataDef:
 
         return f'{self.sys_id}_{vault_part}' if vault_part else self.sys_id
 
-    def get_last_bat(self):
-        """Sets the name of the latest (most recent) batch file for this vault"""
+    def seq_nums(self, directory: str, ext: str) -> list[int]:
+        r"""Every sequence number this vault's <ext> files in <directory> carry.
 
-        latest_file = f'{PurePath(self.sys_dir_bat + "/" + self.file_stub + "_0000.yaml")}'
-        search_mask = f'{self.sys_dir_bat + "/" + self.file_stub + "_????.yaml"}'
-        try:
-            list_of_files = glob.iglob(search_mask)
-            if not list_of_files:
-                return
-            latest_file = max(list_of_files, key=os.path.getctime)
-        except ValueError:
-            # no files in dir (latest file is empty)
-            pass
-        except Exception as e:
-            raise Exception(f"ConfigData: Error reading config file ({self.sys_pn_batch}) Error : {e}")
+        The glob can be built from file_stub because safe_name_part() has already
+        reduced it to [A-Za-z0-9._-], but the glob alone is not enough: a vault
+        whose name sanitises away to nothing falls back to the bare sys_id (see
+        build_file_stub), and that stub is a prefix of every other stub. The
+        fullmatch is what keeps another vault's v_chk_work_0000.yaml from
+        donating its 0000 to plain v_chk. \d{4,} rather than four digits so the
+        count survives run 10000.
+        """
+        pattern = re.compile(rf'{re.escape(self.file_stub)}_(\d{{4,}})')
+        matches = (pattern.fullmatch(p.stem)
+                   for p in Path(directory).glob(f'{self.file_stub}_*{ext}'))
+
+        return [int(m.group(1)) for m in matches if m]
+
+    def get_last_bat(self):
+        """Sets the name of the latest (most recent) batch file for this vault.
+
+        "Latest" is the highest sequence number rather than the newest timestamp,
+        so it agrees with get_next_bat() by construction -- a batch file restored
+        from a backup no longer outranks a genuinely later one on ctime. With no
+        batch files at all the name falls back to _0000, a path that need not
+        exist; read_wb_data() is what reports it if it does not.
+        """
+        last_num = max(self.seq_nums(self.sys_dir_bat, '.yaml'), default=0)
+        latest_file = f'{PurePath(f"{self.sys_dir_bat}/{self.file_stub}_{last_num:04d}.yaml")}'
 
         self.sys_pn_batch = latest_file
         self.sys_pn_wbs = f"{self.sys_dir_wbs}/{Path(latest_file).stem}.xlsx"
@@ -141,14 +152,19 @@ class WbDataDef:
     def get_next_bat(self):
         """Returns the name of the next available yaml config file
         using the path filename stub_provided.
-        """
-        batch_num = 0
-        c_file = f"{self.sys_dir_bat}/{self.file_stub}_{batch_num:04d}.yaml"
 
-        while Path(c_file).exists():
-            batch_num += 1
-            c_file = f"{self.sys_dir_bat}/{self.file_stub}_{batch_num:04d}.yaml"
-            logger.debug(f"ConfigData: Next Config file: {c_file}")
+        One past the highest number still on disk in *either* generated
+        directory. The workbooks are consulted because the two can fall out of
+        step: --init deletes the batch file but cannot delete a workbook Excel
+        is holding open, and numbering from the batch files alone would then
+        hand the next run a number whose .xlsx already exists -- which
+        save_workbook() answers with a modal retry dialog, even under
+        --headless. Gaps are deliberately not refilled, for the same reason.
+        """
+        batch_num = max([-1] + self.seq_nums(self.sys_dir_bat, '.yaml')
+                             + self.seq_nums(self.sys_dir_wbs, '.xlsx')) + 1
+        c_file = f"{self.sys_dir_bat}/{self.file_stub}_{batch_num:04d}.yaml"
+        logger.debug(f"ConfigData: Next Config file: {c_file}")
 
         self.sys_pn_batch = c_file
         self.sys_pn_wbs = f"{self.sys_dir_wbs}/{Path(c_file).stem}.xlsx"

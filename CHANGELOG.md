@@ -4,7 +4,53 @@ Notable changes to Obsidian Vault Health Check. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [docs/VERSIONING.md](docs/VERSIONING.md).
 
-## [Unreleased]
+## [1.1.0] — 2026-08-27
+
+### Added
+
+- **A vault no longer has to be one Obsidian has opened.** The setup screen has a new **Vault
+  Folder** field beside the vault dropdown -- an editable path with a Browse button, in the same
+  shape as the Workbook Executable row below it. Type or browse to any directory and it is
+  registered as a vault: the dropdown gains it, and Save & Run keeps it, so it is there on the next
+  run. `v-chk <path>` accepts the same folders; it used to raise `VaultNotFoundError` for anything
+  outside obsidian.json, which is why a copied vault, a backup, or a machine whose Obsidian had been
+  reset could not be scanned at all. Both routes go through one new `SysConfig.register_vault_dir()`.
+- A folder with no `.obsidian` subfolder is called out in an amber warning under the field, and is
+  scanned anyway -- Save stays enabled. Nothing in the harvesting needs Obsidian (the test suite's
+  own vaults have never had a `.obsidian`), so the warning says what is actually lost: the Plugins
+  and Templates tabs come out empty and are dropped, and the workbook's links may not open. The
+  check is `SysConfig.check_obsidian_dir()`, deliberately separate from `validate_dir_vault()` --
+  that one gates whether setup opens at all, so folding the test into it would have forced the setup
+  screen for every plain folder and disabled Save on exactly the vaults this feature exists to allow.
+
+### Changed
+
+- A vault registered by folder carries the folder's name as its `vault_id`. `obs_hyperlink()` builds
+  `obsidian://open?vault={vault_id}`, and Obsidian's URI scheme takes a vault name there as well as
+  an id, so this leaves the workbook's links inert only while Obsidian does not know the folder --
+  they start working the moment it is opened there. The empty id the record would otherwise have
+  carried made every link `vault=&file=...`, dead for good.
+- `PluginMan.get_plugs_lib()` no longer logs an ERROR when a vault has no `.obsidian` folder. It
+  reported the missing `community-plugins.json` twice per run, which was noise for the folders this
+  release makes scannable. A `.obsidian` that exists but cannot be read still reports.
+
+### Fixed
+
+- **`--init` no longer leaves the next run pointing at a workbook it could not delete.** A workbook
+  open in Excel cannot be unlinked; `--init` reported that and moved on, but the batch file beside it
+  *was* deleted, and `get_next_bat()` derived the sequence number from `data/batch_files/` alone. The
+  next run therefore chose `_0000` again and aimed straight at the locked `.xlsx`, where
+  `save_workbook()` met it with a modal Tk retry dialog -- one that fires even under `--headless`.
+  The number now comes from the highest still on disk in **either** generated directory, plus one, so
+  a surviving workbook reserves its own number. Gaps are no longer refilled either: deleting `_0001`
+  out of `0000..0005` used to make the next run silently overwrite `v_chk_<vault>_0001.xlsx`.
+- A failed delete is still an allowed outcome and still exits 0, but `--init` now counts it --
+  `Reset complete -- 2 file(s) deleted, 1 in use and kept.` -- and says the survivors keep their
+  numbers. A reset in which nothing could be deleted used to read as a clean success.
+- `--init` no longer tries to delete Excel's `~$<name>.xlsx` owner files. They are Excel's, not
+  v_chk's, and listing one only to fail on it put a second confusing line in the report.
+- `get_last_bat()` picks the highest-numbered batch file rather than the newest by creation time, so
+  it cannot disagree with the number `get_next_bat()` would hand out. Both now share `seq_nums()`.
 
 ## [1.0.0] — 2026-08-20
 
@@ -230,7 +276,8 @@ are standing in the right directory" to an installable, tested, CI-covered packa
   the package from commits and producing wheels containing only metadata.
 - Two markdown parser bugs found by the new test suite.
 
-[Unreleased]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.3.0...HEAD
+[Unreleased]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v1.1.0...HEAD
+[1.1.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v1.0.0...v1.1.0
 [0.3.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.2.0...v0.3.0
 [0.2.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.1.0...v0.2.0
 [0.1.0]: https://github.com/slappycat2/obsidian-vault-health-check/releases/tag/v0.1.0

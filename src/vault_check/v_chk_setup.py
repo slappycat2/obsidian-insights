@@ -25,7 +25,12 @@ class ConfigIncompleteError(RuntimeError):
 
 
 class VaultNotFoundError(ValueError):
-    """Raised when a requested vault path is not registered with Obsidian."""
+    """Raised when a requested vault path is not a usable directory.
+
+    It no longer means "Obsidian does not know this folder" -- any directory can
+    be scanned now, and register_vault_dir() builds the record for one Obsidian
+    has never opened.
+    """
 
 
 class SetupCancelledError(RuntimeError):
@@ -134,31 +139,89 @@ class SysConfig:
         self.skip_abs_lst  = vault_rec['skip_abs_lst']
         self.dirs_dot      = vault_rec['dirs_dot']
 
-    def select_vault_by_path(self, vault_path) -> None:
-        """Select a vault by filesystem path, as passed on the command line.
+    def find_vault_by_path(self, vault_path) -> str | None:
+        """Return the name of the vault stored at ``vault_path``, or None.
 
-        :raises VaultNotFoundError: if the path is not a vault Obsidian knows
-            about. v_chk reads its vault list from obsidian.json, so a folder
-            that has never been opened in Obsidian cannot be selected.
+        Vault records are keyed by display name, but the same folder can be
+        spelled several ways -- forward slashes from the folder picker, a
+        different case, a relative path -- so the match is made on the resolved
+        path rather than on the key.
         """
         target = Path(vault_path).expanduser().resolve()
 
         for vault_name, vault_rec in self.sys_vlts.items():
             known = vault_rec.get('dir_vault', '')
             if known and Path(known).expanduser().resolve() == target:
-                logger.info("Vault selected from command line: %s", vault_name)
-                self.apply_vault(vault_name)
-                # Every downstream stage reads the packed sys_cfg dict rather
-                # than these attributes, so it has to be rebuilt or the run
-                # would silently analyse whatever vault CONFIG.yaml names.
-                self.cfg_pack()
-                return
+                return vault_name
 
-        known_vaults = "\n  ".join(sorted(self.sys_vlts)) or "(none found)"
-        raise VaultNotFoundError(
-            f"{target} is not a vault registered with Obsidian.\n"
-            f"Vaults known from obsidian.json:\n  {known_vaults}"
-        )
+        return None
+
+    def register_vault_dir(self, vault_path) -> str:
+        """Add a folder to the vault lists, whether or not Obsidian knows it.
+
+        The vault list is read from obsidian.json, so a folder that has never
+        been opened in Obsidian has no record to select -- which used to make it
+        unscannable. This builds the missing record, and is what lets both the
+        setup screen and the command line accept any directory.
+
+        Idempotent: a folder already known under any name is returned unchanged
+        rather than duplicated.
+
+        :return: the display name the vault is registered under.
+        :raises VaultNotFoundError: the path is not an existing directory.
+        """
+        valid, msg = self.validate_dir_vault(str(vault_path))
+        if not valid:
+            raise VaultNotFoundError(f"{vault_path}: {msg}")
+
+        known_name = self.find_vault_by_path(vault_path)
+        if known_name:
+            return known_name
+
+        v_dir = Path(vault_path).expanduser().resolve()
+        # The same formula ObsidianApp uses, so a folder registered here is
+        # indistinguishable in the dropdown from one Obsidian reported -- and
+        # collision-free, since one folder can only ever produce one name.
+        v_name = f'{v_dir.name} - ({v_dir.parent})'
+
+        v_rec_dict = ObsidianApp.vault_pack(vlt_name=v_name, src_v_dict={}, dst_v_dict={})
+        # Obsidian's URI scheme takes either the vault id or the vault name, so
+        # the folder name is the one usable stand-in for an id we do not have.
+        # An empty vault_id would leave every hyperlink in the workbook dead for
+        # good; the folder name makes them inert only while Obsidian does not
+        # know this folder, and they start working the moment it is opened there.
+        v_rec_dict['vault_id']  = v_dir.name
+        v_rec_dict['dir_vault'] = str(v_dir)
+
+        # apply_vault() reads sys_vlts and the setup screen reads cur_vlts, so
+        # the record has to be in both -- as one object, which is how
+        # ObsidianApp leaves them too.
+        self.sys_vlts[v_name] = v_rec_dict
+        self.cur_vlts[v_name] = v_rec_dict
+
+        has_obs_dir, _ = self.check_obsidian_dir(str(v_dir))
+        if not has_obs_dir:
+            logger.warning("%s has no .obsidian folder; scanning it anyway", v_dir)
+
+        logger.info("Vault registered by folder: %s", v_name)
+        return v_name
+
+    def select_vault_by_path(self, vault_path) -> None:
+        """Select a vault by filesystem path, as passed on the command line.
+
+        A folder Obsidian has never opened is registered on the spot, so the
+        path does not have to name a vault from obsidian.json.
+
+        :raises VaultNotFoundError: if the path is not an existing directory.
+        """
+        vault_name = self.find_vault_by_path(vault_path) or self.register_vault_dir(vault_path)
+
+        logger.info("Vault selected from command line: %s", vault_name)
+        self.apply_vault(vault_name)
+        # Every downstream stage reads the packed sys_cfg dict rather than these
+        # attributes, so it has to be rebuilt or the run would silently analyse
+        # whatever vault CONFIG.yaml names.
+        self.cfg_pack()
 
     def run_setup_ui(self):
         """Show the Tk setup screen, and let the user decline.
@@ -419,6 +482,29 @@ class SysConfig:
         if not path.is_dir():
             return False, "Vault path must be a directory"
         return True, ""
+
+    @staticmethod
+    def check_obsidian_dir(dir_vault):
+        """Report whether a folder holds a .obsidian directory. Never an error.
+
+        A folder without one analyses perfectly well -- every vault the test
+        suite builds lacks it -- so this must stay out of validate_dir_vault(),
+        which gates whether the setup screen opens at all. What is actually lost
+        is named in the message: get_templates_dir() finds no Templater config
+        and PluginMan finds no manifests, so both of those tabs come out empty
+        and are dropped, and obsidian:// links need Obsidian to know the folder.
+
+        :return: (True, "") when .obsidian is there, else (False, warning text).
+            A blank path returns (False, "") -- validate_dir_vault() is already
+            saying it is unusable, and a second complaint would be noise.
+        """
+        if not dir_vault or not dir_vault.strip():
+            return False, ""
+        if (Path(dir_vault.strip()) / ".obsidian").is_dir():
+            return True, ""
+        return False, ("⚠ No .obsidian folder here — this may not be an Obsidian vault.\n"
+                       "    It will still be scanned, but the Plugins and Templates tabs\n"
+                       "    will be empty and the workbook's links may not open.")
 
     @staticmethod
     def validate_skip_rel_str(skip_rel_str, dir_vault):

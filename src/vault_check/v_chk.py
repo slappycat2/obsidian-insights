@@ -112,10 +112,18 @@ def reset_generated_files(assume_yes: bool = False) -> None:
     Log files are deliberately left alone -- they are the only record of what
     happened on previous runs. Deleting CONFIG.yaml means the setup screen will
     appear on the next run.
+
+    A workbook open in Excel cannot be deleted, and that is an allowed outcome
+    rather than an error: it is reported, the exit code stays 0, and the file
+    keeps its sequence number -- WbDataDef.get_next_bat() numbers past whatever
+    survives, so the next run does not aim at a workbook that is still locked.
     """
     targets = [p for p in (paths.CONFIG_FILE,) if p.exists()]
     targets += sorted(paths.BATCH_DIR.glob("*.yaml"))
-    targets += sorted(paths.WORKBOOK_DIR.glob("*.xlsx"))
+    # '~$name.xlsx' is Excel's owner file for an open workbook, not v_chk output.
+    # Listing one only to fail on it puts a second, confusing line in the report.
+    targets += sorted(p for p in paths.WORKBOOK_DIR.glob("*.xlsx")
+                      if not p.name.startswith("~$"))
 
     if not targets:
         click.echo("Nothing to reset -- no config, batch files or workbooks found.")
@@ -132,14 +140,23 @@ def reset_generated_files(assume_yes: bool = False) -> None:
         return
 
     deleted = 0
+    kept = 0
     for target in targets:
         try:
             target.unlink()
             deleted += 1
         except OSError as exc:
+            kept += 1
             click.echo(f"Could not delete {target}: {exc}")
 
-    click.echo(f"Reset complete -- {deleted} file(s) deleted.")
+    summary = f"Reset complete -- {deleted} file(s) deleted"
+    if kept:
+        summary += f", {kept} in use and kept"
+    click.echo(f"{summary}.")
+
+    if kept:
+        click.echo("The file(s) left behind keep their sequence numbers; "
+                   "the next run will number past them.")
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
@@ -169,8 +186,9 @@ def cli(do_init, force_setup, do_not_open, no_splash, headless, assume_yes,
     values and tags.
 
     VAULT_PATH is optional. When omitted, the vault last opened in Obsidian is
-    used. It must be a vault Obsidian knows about, because the vault list is
-    read from obsidian.json.
+    used. It does not have to be a vault Obsidian knows about: any directory is
+    accepted, and one that is missing a .obsidian folder is scanned anyway, with
+    a warning in the log.
 
     The vault is only ever read -- v_chk never writes to it.
     """

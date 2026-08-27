@@ -22,7 +22,7 @@ import pytest
 
 from vault_check import v_chk_setup
 from vault_check.v_chk_setup import (ConfigIncompleteError, SetupCancelledError,
-                                     SysConfig)
+                                     SysConfig, VaultNotFoundError)
 from vault_check.v_chk_setupscreen import SetupScreen
 
 
@@ -221,6 +221,7 @@ def make_vault_screen(monkeypatch):
                        skip_rel_str="Attachments", link_lim_vals=99),
     }
     screen.vault_name_var = RecordingVar("First")
+    screen.dir_vault_var = RecordingVar(r"F:\vaults\First")
     screen.skip_rel_str_var = RecordingVar("Archive")
     screen.link_lim_vals_var = RecordingVar("5")
     screen.link_lim_tags_var = RecordingVar("7")
@@ -513,3 +514,254 @@ def test_empty_vault_id_is_rejected(value):
 
     assert not valid
     assert "empty" in message.lower()
+
+
+# ---------------------------------------------------------------------------
+# Vaults Obsidian has never opened -- registering a bare folder
+# ---------------------------------------------------------------------------
+
+def test_a_vault_folder_has_an_obsidian_dir(tmp_path):
+    (tmp_path / ".obsidian").mkdir()
+
+    has_obs_dir, message = SysConfig.check_obsidian_dir(str(tmp_path))
+
+    assert has_obs_dir
+    assert message == ""
+
+
+def test_a_folder_without_obsidian_dir_warns(tmp_path):
+    has_obs_dir, message = SysConfig.check_obsidian_dir(str(tmp_path))
+
+    assert not has_obs_dir
+    assert ".obsidian" in message
+    # The point of the warning is that the scan still happens.
+    assert "still be scanned" in message
+
+
+@pytest.mark.parametrize("value", ["", "   ", None])
+def test_a_blank_path_gets_no_obsidian_warning(value):
+    """validate_dir_vault() is already rejecting it; two complaints is noise."""
+    has_obs_dir, message = SysConfig.check_obsidian_dir(value)
+
+    assert not has_obs_dir
+    assert message == ""
+
+
+def test_the_obsidian_check_is_not_part_of_path_validation(tmp_path):
+    """Regression: a missing .obsidian must stay a warning.
+
+    validate_dir_vault() gates chk_fields_on_load(), which decides whether the
+    setup screen opens at all. Fold the .obsidian test into it and every plain
+    folder forces setup, and Save is disabled for the very folders this feature
+    exists to allow.
+    """
+    assert not SysConfig.check_obsidian_dir(str(tmp_path))[0]
+    assert SysConfig.validate_dir_vault(str(tmp_path))[0]
+
+
+def make_config():
+    """A SysConfig with just the two vault dicts -- no obsidian.json needed."""
+    cfg = SysConfig.__new__(SysConfig)
+    cfg.sys_vlts = {}
+    cfg.cur_vlts = {}
+    return cfg
+
+
+def test_registering_a_folder_obsidian_never_opened(tmp_path):
+    vault = tmp_path / "Copied"
+    vault.mkdir()
+    cfg = make_config()
+
+    vault_name = cfg.register_vault_dir(str(vault))
+
+    assert vault_name == f"Copied - ({tmp_path})"
+    # apply_vault() reads sys_vlts, the setup screen reads cur_vlts.
+    assert vault_name in cfg.sys_vlts
+    assert vault_name in cfg.cur_vlts
+    assert cfg.cur_vlts[vault_name] is cfg.sys_vlts[vault_name]
+    assert cfg.sys_vlts[vault_name]["dir_vault"] == str(vault)
+
+
+def test_a_registered_vault_carries_the_folder_name_as_its_id(tmp_path):
+    """obs_hyperlink() builds obsidian://open?vault=<vault_id>.
+
+    An empty id makes every link in the workbook permanently dead. Obsidian's
+    URI scheme takes a vault name here as well as an id, so the folder name
+    leaves the links inert only until the folder is opened in Obsidian.
+    """
+    vault = tmp_path / "Copied"
+    vault.mkdir()
+    cfg = make_config()
+
+    vault_name = cfg.register_vault_dir(str(vault))
+
+    assert cfg.sys_vlts[vault_name]["vault_id"] == "Copied"
+
+
+def test_registering_the_same_folder_twice_adds_one_vault(tmp_path):
+    vault = tmp_path / "Copied"
+    vault.mkdir()
+    cfg = make_config()
+
+    first = cfg.register_vault_dir(str(vault))
+    second = cfg.register_vault_dir(str(vault).replace(chr(92), "/"))
+
+    assert first == second, "the folder picker's forward slashes are the same folder"
+    assert len(cfg.sys_vlts) == 1
+
+
+def test_a_folder_already_known_keeps_its_own_name(tmp_path):
+    """Browsing to a vault Obsidian did report must select it, not shadow it."""
+    vault = tmp_path / "Known"
+    vault.mkdir()
+    cfg = make_config()
+    cfg.sys_vlts["A Name Of Its Own"] = {"vault_id": "abc123", "dir_vault": str(vault)}
+
+    vault_name = cfg.register_vault_dir(str(vault))
+
+    assert vault_name == "A Name Of Its Own"
+    assert len(cfg.sys_vlts) == 1
+
+
+def test_registering_a_path_that_is_not_a_directory(tmp_path):
+    cfg = make_config()
+
+    with pytest.raises(VaultNotFoundError):
+        cfg.register_vault_dir(str(tmp_path / "nope"))
+
+
+def test_a_command_line_path_obsidian_never_opened_is_accepted(tmp_path):
+    """Regression: this used to raise VaultNotFoundError.
+
+    The vault list comes from obsidian.json, so v-chk <folder> refused any
+    folder that had never been opened in Obsidian -- a copied vault, a backup,
+    a machine whose Obsidian had been reset.
+    """
+    vault = tmp_path / "Copied"
+    vault.mkdir()
+    cfg = make_config()
+    applied = []
+    cfg.apply_vault = applied.append
+    cfg.cfg_pack = lambda: None
+
+    cfg.select_vault_by_path(str(vault))
+
+    assert applied == [f"Copied - ({tmp_path})"]
+
+
+def test_a_command_line_path_prefers_the_vault_already_known(tmp_path):
+    vault = tmp_path / "Known"
+    vault.mkdir()
+    cfg = make_config()
+    cfg.sys_vlts["A Name Of Its Own"] = {"vault_id": "abc123", "dir_vault": str(vault)}
+    applied = []
+    cfg.apply_vault = applied.append
+    cfg.cfg_pack = lambda: None
+
+    cfg.select_vault_by_path(str(vault))
+
+    assert applied == ["A Name Of Its Own"]
+    assert len(cfg.sys_vlts) == 1
+
+
+# ---------------------------------------------------------------------------
+# The Vault Folder field -- committing a typed or browsed path
+# ---------------------------------------------------------------------------
+
+def make_commit_screen(monkeypatch, tmp_path):
+    """A vault-swap screen whose sys_obj is a real SysConfig.
+
+    commit_vault_dir() leans on register_vault_dir() and validate_dir_vault(),
+    so the stub sys_obj the dropdown tests use is not enough here. A SysConfig
+    built with __new__ has the real methods and needs no obsidian.json.
+    """
+    screen = make_vault_screen(monkeypatch)
+
+    cfg = make_config()
+    cfg.cur_vlts = screen.c_vlts            # the screen aliases this dict, as the real one does
+    cfg.sys_vlts = dict(screen.c_vlts)
+    cfg.vault_name = "First"
+    cfg.vault_id = "id-first"
+    cfg.dir_vault = str(tmp_path / "First")
+    cfg.sys_pn_wb_exec = "excel.exe"
+    for name, value in VAULT_FIELDS.items():
+        setattr(cfg, name, value)
+
+    screen.sys_obj = cfg
+    screen.combx_vault_name = {"values": list(screen.c_vlts)}
+    screen.validate_all_fields = lambda: True
+    return screen
+
+
+def test_typing_a_folder_registers_it_and_switches_to_it(monkeypatch, tmp_path):
+    vault = tmp_path / "Copied"
+    vault.mkdir()
+    screen = make_commit_screen(monkeypatch, tmp_path)
+
+    screen.dir_vault_var.set(str(vault))
+    screen.commit_vault_dir()
+
+    vault_name = f"Copied - ({tmp_path})"
+    assert screen.last_vault_name == vault_name
+    assert screen.sys_obj.vault_name == vault_name
+    assert screen.sys_obj.dir_vault == str(vault)
+    # Save indexes cur_vlts[vault_name]; without a record it raises KeyError.
+    assert vault_name in screen.c_vlts
+    # The dropdown is the only thing that can show the new vault, and its
+    # values were a snapshot taken in __init__.
+    assert vault_name in screen.combx_vault_name["values"]
+
+
+def test_committing_the_folder_already_shown_changes_nothing(monkeypatch, tmp_path):
+    first = tmp_path / "First"
+    first.mkdir()
+    screen = make_commit_screen(monkeypatch, tmp_path)
+    screen.c_vlts["First"]["dir_vault"] = str(first)
+
+    screen.dir_vault_var.set(str(first))
+    screen.commit_vault_dir()
+
+    assert screen.last_vault_name == "First"
+    assert len(screen.c_vlts) == 2, "no second record for the vault already selected"
+
+
+def test_the_folder_pickers_forward_slashes_are_normalised(monkeypatch, tmp_path):
+    """askdirectory() hands back forward slashes on Windows."""
+    first = tmp_path / "First"
+    first.mkdir()
+    screen = make_commit_screen(monkeypatch, tmp_path)
+    screen.c_vlts["First"]["dir_vault"] = str(first)
+
+    screen.dir_vault_var.set(str(first).replace(chr(92), "/"))
+    screen.commit_vault_dir()
+
+    assert screen.dir_vault_var.get() == str(first)
+
+
+def test_an_unusable_folder_neither_registers_nor_switches(monkeypatch, tmp_path):
+    screen = make_commit_screen(monkeypatch, tmp_path)
+
+    screen.dir_vault_var.set(str(tmp_path / "nope"))
+    screen.commit_vault_dir()
+
+    assert screen.last_vault_name == "First"
+    assert len(screen.c_vlts) == 2
+
+
+def test_a_vault_missing_from_cur_vlts_is_put_back(monkeypatch, tmp_path):
+    """sys_vlts can hold vaults cur_vlts does not; the screen only reads cur_vlts.
+
+    Regression guard: upd_sys_objs_with_vaults() indexes cur_vlts, so a vault
+    found in sys_vlts alone would raise KeyError halfway through the swap.
+    """
+    vault = tmp_path / "OnlyInSys"
+    vault.mkdir()
+    screen = make_commit_screen(monkeypatch, tmp_path)
+    vault_name = screen.sys_obj.register_vault_dir(str(vault))
+    del screen.c_vlts[vault_name]
+
+    screen.dir_vault_var.set(str(vault))
+    screen.commit_vault_dir()
+
+    assert vault_name in screen.c_vlts
+    assert screen.last_vault_name == vault_name
