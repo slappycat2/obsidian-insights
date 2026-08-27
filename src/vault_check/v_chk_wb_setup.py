@@ -61,6 +61,7 @@ class WbDataDef:
         self.code = {}
         self.nest = {}
         self.plug = {}
+        self.qadd = {}
         self.ar51 = {}
         self.plugin_id_def = {
                   'mapWithTag': 'Metadata Menu'
@@ -185,6 +186,7 @@ class WbDataDef:
         self.code = {'tab_def': self.tab_def}
         self.nest = {'tab_def': self.tab_def}
         self.plug = {'tab_def': self.tab_def}
+        self.qadd = {'tab_def': self.tab_def}
         self.summ = {'tab_def': self.tab_def}
         self.ar51 = {'tab_def': self.tab_def}
 
@@ -199,6 +201,9 @@ class WbDataDef:
             , 'code': self.code
             , 'nest': self.nest
             , 'plug': self.plug
+            # 'summ' must stay last but one: DefSumm reads the other tabs'
+            # finished tab_cd_fixed_summ, so every tab has to be built before it.
+            , 'qadd': self.qadd
             , 'summ': self.summ
             , 'ar51': self.ar51
             , 'init': {}

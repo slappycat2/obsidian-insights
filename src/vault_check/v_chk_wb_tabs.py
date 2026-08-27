@@ -372,6 +372,40 @@ class NewWb():
                     }
                     , 'data_src': ['obs_plugs']
                     }
+            , 'qadd': {
+                      'tab_name': "QuickAdd"
+                    , 'shw_grid': False
+                    , 'tab_titl': 'QuickAdd Configuration'
+                    , 'hdr_clrs': True  #  True=Force Tab Colors; False=Use TableStyle Colors
+                    , 'col_key1': "Section"
+                    , 'col_key2': "Name"
+                    , 'col_val1': "Type"
+                    , 'col_val2': ""
+                    , 'col_lnks': ""
+                    , 'help_txt': {
+                          'subtitle': [
+                              "Everything the QuickAdd plugin is configured to do, read"
+                            , "straight out of its own data.json."
+                          ]
+                        , 'notes': [
+                              'This tab appears only when QuickAdd is installed AND enabled.'
+                            , 'QuickAdd stores a tree; a worksheet is a table. So the tree is'
+                            , 'flattened to one row per setting, and two columns put it back:'
+                            , 'Parent repeats the name of whatever a row belongs to, and Seq'
+                            , 'numbers every row in QuickAdd\'s own order -- sort or filter'
+                            , 'however you like, Seq still says what came first.'
+                            , 'Section says what a row is: a Choice (something on the QuickAdd'
+                            , 'menu), a Step (one command inside a Macro, in the order it runs),'
+                            , 'a Config key belonging to the record above it, or a plugin-wide'
+                            , 'Setting.'
+                            , 'A Step that hands off to another choice shows that choice by name.'
+                            , "QuickAdd's internal ids are not shown -- they identify nothing you"
+                            , 'can see in the app.'
+                            , 'READ-ONLY, as always. Edit QuickAdd through QuickAdd.'
+                        ]
+                    }
+                    , 'data_src': ['obs_qadd']
+                    }
             , 'code': {
                 'tab_name': "Code"
                 , 'shw_grid': False
@@ -465,6 +499,8 @@ class NewWb():
                 self.tab_def_obj = DefNest(self)
             elif tab_id_key == 'plug':
                 self.tab_def_obj = DefPlug(self)
+            elif tab_id_key == 'qadd':
+                self.tab_def_obj = DefQadd(self)
             elif tab_id_key == 'summ':
                 self.tab_def_obj = DefSumm(self)
             elif tab_id_key == 'ar51':
@@ -1511,6 +1547,103 @@ class DefPlug(NewTab):
             
               # This one is for the IVisible Column, not the totals
             , 'isVisible': [16, 0, '', sz, 0, clr2, clr2, False, False, 'right', self.f_isVisible]
+        }
+
+        self.tab_def_post()
+
+class DefQadd(NewTab):
+    def __init__(self, wb_obj):
+        self.tab_id = 'qadd'
+        self.tab_common = wb_obj.tab_common
+        super().__init__(self.tab_id, wb_obj)
+
+        clr1, txt1, clr2, txt2, table_style = self.colors.get_tab_clrs(self.tab_id)
+        self.tab_def['tab_table_style'] = table_style
+        # clr1 = tab color,
+        # clr2 = secondary "highlights" color, headings
+        # clr1 = fill color on cells that use color fills
+        # txt1 = text color on cells that use color fills
+
+        sz = self.tab_txt_sz
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst = [TITLE_FONT, 14, txt1]
+        self.font_body_lst = ['Calibri', sz, txt1]
+        self.tab_def['tab_color'] = clr1
+
+        self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
+        self.tab_def['tab_txt_sz'] = sz
+        self.tab_def['showGridLines'] = self.showGridLines
+
+        self.tab_def['hdr_links_pfx'] = "File"
+        self.tab_def['tab_table_links_cols'] = 0
+        self.tab_def['tab_has_isVisible_col'] = True
+
+        self.tab_def['tab_cd_title_def'] = [3, 2, TITLE_FONT, 24, 0, clr1, '', True, False, 'left',
+                                            self.tab_title]
+        self.tab_def['tab_cd_subtitle_def'] = [3,  3, '', sz, 0, '', '', False, False, 'left', '']
+        self.tab_def['tab_cd_notes_def']    = [3, 12, '', sz, 0, '', '', False, False, 'left', '']
+        self.tab_def['tab_help_txt'] = self.help_txt
+
+        # Columns 10..19. calc_col_pointers() derives tbl_end_col as
+        # (0 links) + (10 cols - 1) + 10 = 19, and IsVisible is declared there
+        # because it must sit at the end of the table or that method raises.
+        # 'Value' is deliberately NOT 'wrap': QuickAdd's AI prompt settings run to
+        # ~700 characters, and wrapping those two cells would stretch their rows
+        # far enough to bury everything around them. The full text is still in the
+        # cell, and readable in the formula bar.
+        self.tab_def['tab_cd_table_hdr'] = {
+            # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
+              "RowId":      [10, 10, '', sz,  8, txt1, clr1, True,  False, 'center', self.hdr_RowId]
+            , "Seq":        [11, 10, '', sz,  8, txt1, clr1, True,  False, 'center', 'Seq']
+            , "Section":    [12, 10, '', sz, 10, txt1, clr1, True,  False, 'left',   self.col_key1]
+            , "Level":      [13, 10, '', sz,  7, txt1, clr1, True,  False, 'center', 'Level']
+            , "Parent":     [14, 10, '', sz, 34, txt1, clr1, True,  False, 'left',   'Parent']
+            , "Name":       [15, 10, '', sz, 34, txt1, clr1, True,  False, 'left',   self.col_key2]
+            , "Type":       [16, 10, '', sz, 14, txt1, clr1, True,  False, 'left',   self.col_val1]
+            , "Key":        [17, 10, '', sz, 34, txt1, clr1, True,  False, 'left',   'Setting']
+            , "Value":      [18, 10, '', sz, 60, txt1, clr1, True,  False, 'left',   'Value']
+            , 'isVisible':  [19,  0, '', sz,  1, txt1, clr1, False, False, 'right',  self.hdr_IsVis]
+        }
+        self.tab_def['tab_cd_table_dtl'] = {
+            # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
+              "rowId":      [10, 0, '', sz, 0, "", "", False, False, 'center', '']
+            , "seq":        [11, 0, '', sz, 0, "", "", False, False, 'center', '']
+            , "section":    [12, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , "level":      [13, 0, '', sz, 0, "", "", False, False, 'center', '']
+            , "parent":     [14, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , "name":       [15, 0, '', sz, 0, "", "", True,  False, 'left',   '']
+            , "type":       [16, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , "key":        [17, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , "value":      [18, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , 'isVisible':  [19, 0, '', sz, 0, "", "", False, False, 'right', self.f_isVisible]
+        }
+        self.tab_def['tab_cd_table_links']  = [20, 0, '', sz, 25, txt1, clr1, False, False, 'left', '']
+        self.tab_def['tab_cd_table_spacer'] = [21, 0, '', sz,  1, txt1, clr1, False, False, 'right', '']
+        self.tab_def['tab_cd_fixed_summ']   = {  # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
+            # totals headers (across and down)
+
+              'summ-title':    [3,  5, '', 14, 21, txt1, clr1, True,  False, 'left',   'Analysis']
+            , 'Totals':      [0,  0, '', sz, 15, txt1, clr1, True,  False, 'center', 'Totals']
+            , 'Rows':        [3,  6, '', sz,  0, txt2, clr2, True,  False, 'right',  "Rows"]
+            , 'x-uniq-rows': [0,  0, '', sz,  0, "", "",     False, False, 'center', self.f_txt_rows]
+            , 'Sections':    [3,  7, '', sz,  0, txt2, clr2, True,  False, 'right',  self.col_key1]
+            , 'x-ctot-key1': [0,  0, '', sz,  0, "", "",     False, False, 'center', self.f_uniq_key1]
+            , 'Names':       [3,  8, '', sz,  0, txt2, clr2, True,  False, 'right',  self.col_key2]
+            , 'x-ctot-key2': [0,  0, '', sz,  0, "", "",     False, False, 'center', self.f_uniq_key2]
+            , 'Types':       [3,  9, '', sz,  0, txt2, clr2, True,  False, 'right',  self.col_val1]
+            , 'x-ctot-val1': [0,  0, '', sz,  0, "", "",     False, False, 'center', self.f_uniq_val1]
+        }
+        # No 'x-null-values' here, deliberately. That warning fires when col_val1
+        # has fewer non-blank cells than there are visible rows, which on every
+        # other tab means a property with no value. Here Type is blank on every
+        # Config and Setting row by design, so the warning would fire on every
+        # run and mean nothing.
+        self.tab_def['tab_cd_fixed_grid'] = {
+            # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
+              'Notes-hdr':   [3, 11, '', sz,  0, txt1, clr1, True,  False, 'left', 'Notes: ']
+            , 'x-filters-on':   [ 5,  6, '', 12, 0, self.colors.clr_red, "", True, True, 'left', self.f_filters_on]
+            # This one is for the IsVisible Column, not the totals
+            , 'isVisible':      [19, 0, '', sz, 0, clr2, clr2, False, False, 'right', self.f_isVisible]
         }
 
         self.tab_def_post()

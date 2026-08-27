@@ -192,6 +192,7 @@ class Colors:
             , 'code': ['ora', self.dflt_shade]    # , self.clr_grnio]
             , 'nest': ['yel', self.dflt_shade]    # , self.clr_grnio]
             , 'plug': ['yel', self.dflt_shade]    # , self.clr_grnio]
+            , 'qadd': ['yel', self.dflt_shade]    # deliberately the same yellow as plug
             , 'summ': ['red', self.dflt_shade]    # , self.clr_yelio]
             , 'ar51': ['red', self.dflt_shade]    # , self.clr_yelio]
         }

@@ -188,7 +188,7 @@ refilled: a missing `_0001` stays missing rather than overwriting `v_chk_<vault>
 
 - `sys_cfg` — the packed `SysConfig` dict (also carries `ctot`, `sys_pn_batch`, `sys_pn_wbs`).
 - `wb_data` — the harvested vault data: `obs_props`, `obs_atags`, `obs_xyaml`, `obs_dupfn`, `obs_files`,
-  `obs_tmplt`, `obs_codes`, `obs_nests`, `obs_plugs`, `obs_empty`.
+  `obs_tmplt`, `obs_codes`, `obs_nests`, `obs_plugs`, `obs_qadd`, `obs_empty`.
 - `wb_tabs` — keyed by tab id; each value is a `tab_def` dict.
 
 The `obs_*` dicts are all shaped `{key: {value: [filepath, ...]}}` (see `upd_obs_props`); `obs_files` and
@@ -198,17 +198,35 @@ so the Xyml tab can print `(empty file)` in its "Fm Okay" column instead of a lo
 
 ## The tab system
 
-Tabs are identified by 4-character ids: `pros vals tags file code xyml dups tmpl nest plug summ ar51`.
-Adding or renaming one touches **five** places, and a mismatch raises or silently drops the tab:
+Tabs are identified by 4-character ids: `pros vals tags file code xyml dups tmpl nest plug qadd summ
+ar51`. Adding or renaming one touches **eight** places. Most mismatches raise; two do not:
 
-1. `NewWb.tab_common` (`v_chk_wb_tabs.py`) — display name, titles, help text, `data_src`.
+1. `NewWb.tab_common` (`v_chk_wb_tabs.py`) — display name, titles, help text, `data_src`. Every key
+   is read with `[...]`, not `.get()`, and each `help_txt` sub-key needs a matching
+   `tab_cd_<key>_def`.
 2. A `DefXxxx(NewTab)` subclass in the same file, which fills in `tab_def` and calls `tab_def_post()`.
 3. The `if/elif` dispatch chain in `NewWb.__init__` — an unknown key raises `Unexpected key`.
-4. `WbDataDef.get_next_bat()`'s `wb_tabs` dict (`v_chk_wb_setup.py`).
+4. `WbDataDef.get_next_bat()`'s `wb_tabs` dict (`v_chk_wb_setup.py`). **Insert before `summ`** —
+   `DefSumm` reads the other tabs' finished `tab_cd_fixed_summ`, so it has to be built last.
 5. `Colors.init_tab_clrs()` (`v_chk_colors.py`) — keyed by tab id; a missing entry is a `KeyError`.
+6. **`ExcelExporter.export_tab()`'s per-tab `vals` branch** (`v_chk_xl.py`) — the `if/elif tab_id`
+   chain that turns harvested data into a row. **This is the one that fails silently:** with no
+   branch, `vals` stays `[]`, and the tab renders its title, headers, totals and an empty table
+   without raising or logging anything. `vals[i]` lands in absolute column `tbl_beg_col + i`, so the
+   list must be flat and in table-column order.
+7. `DEFAULT_TAB_SEQ` (`v_chk_setup.py`) — nothing renders without it.
+8. The sink in `wb_data` (`v_chk_build.py`) — `initialize_all_tabs()` raises `KeyError` on a
+   `data_src` key that is absent, so it must always be assigned, `{}` included. `{}` is what makes
+   the tab drop.
+
+Optional ninth: `DefSumm.tab_summ_map`. Its nine grid slots are full, so a new tab gets no coloured
+box on the Summary tab — silent and harmless.
 
 Render order and inclusion come from `sys_cfg['sys_tab_seq']`, defaulting to `DEFAULT_TAB_SEQ` in
-`v_chk_setup.py`.
+`v_chk_setup.py`. **`sys_tab_seq` is persisted in `CONFIG.yaml`**, so adding an id to
+`DEFAULT_TAB_SEQ` does nothing on a machine that already has a config — `cfg_unpack()` restores the
+saved list and the new tab silently never renders. Expect to need `-i/--init`, a hand-edited
+`CONFIG.yaml`, or a scratch `V_CHK_DATA_DIR` to see it.
 
 `NewTab` is the base class: it defines table naming (`tbl_<tab_id>`), the header row/column origin, the
 `RowId` / `IsVisible` / `P-V Index` helper columns, and the Excel formula strings (`f_uniq_*`, `f_txt_*`,
@@ -273,6 +291,16 @@ an empty note has no frontmatter either.
   is a no-op for them, since Templater syntax isn't valid YAML). They count in `ctot[1]`, not `ctot[3]`. `PluginMan` (`v_chk_plugin_man.py`)
   separately reads `.obsidian/plugins/*/manifest.json` + `community-plugins.json` for the Plugins tab and
   maps code-block signatures (`dataview`, `button`, …) to plugin ids.
+- **One plugin's own settings are read: QuickAdd's.** `QuickAddData` (`v_chk_quick_add.py`) reads
+  `.obsidian/plugins/<dir>/data.json` for the `qadd` tab, gated on `PluginMan` saying QuickAdd is
+  both installed *and* enabled; anything else yields `{}` and the tab drops. It takes the
+  already-built `PluginMan` rather than constructing its own, and finds the folder through that
+  entry's `plugin_dir` — the folder name and the manifest `id` are recorded separately because they
+  need not match. QuickAdd stores a tree, so it is flattened to one row per setting: `Parent` repeats
+  the owning record's *name* and `Seq` carries traversal order, which together are what let a sorted
+  or filtered sheet be put back together. Ids are deliberately not surfaced — a step referencing
+  another choice is resolved to that choice's name. Read it with `encoding="utf-8"`; choice names
+  are routinely emoji.
 - **Frontmatter is only frontmatter at the top of the file.** `split_file()` anchors the opening `---`
   with `rgx_fm_open` (`\A\ufeff?\s*---[ \t]*$`); the leading `\s*` skips a BOM and the blank line a
   stripped Templater block leaves behind, but it cannot cross non-whitespace, so a `---` following any

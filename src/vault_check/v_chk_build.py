@@ -8,6 +8,7 @@ import yaml
 from vault_check import CTOT_SLOTS
 from vault_check.v_chk_wb_setup import WbDataDef
 from vault_check.v_chk_plugin_man import PluginMan
+from vault_check.v_chk_quick_add import QuickAddData
 from vault_check.v_chk_logger import logger
 
 class VaultHealthCheck:   # WbConfig
@@ -41,6 +42,7 @@ class VaultHealthCheck:   # WbConfig
         self.obs_codes = self.wb_data.get('obs_codes', {})
         self.obs_nests = self.wb_data.get('obs_nests', {})
         self.obs_plugs = self.wb_data.get('obs_plugs', {})
+        self.obs_qadd = self.wb_data.get('obs_qadd', {})
         self.obs_empty = self.wb_data.get('obs_empty', [])
 
         # Frontmatter is only frontmatter at the top of the file. The leading
@@ -74,6 +76,11 @@ class VaultHealthCheck:   # WbConfig
 
         plugin_lib = PluginMan(self.sys_cfg['dir_vault'])
         self.obs_plugs = plugin_lib.get_obs_plugs()
+
+        # Reuses plugin_lib rather than building its own: it has just read every
+        # manifest in the vault, and that is what says whether QuickAdd is both
+        # installed and enabled. Empty for any vault where it is not.
+        self.obs_qadd = QuickAddData(self.sys_cfg['dir_vault'], plugin_lib).obs_qadd
 
         self.process_vault()
 
@@ -126,6 +133,7 @@ class VaultHealthCheck:   # WbConfig
         self.wb_def['wb_data']['obs_codes'] = self.obs_codes
         self.wb_def['wb_data']['obs_nests'] = self.obs_nests
         self.wb_def['wb_data']['obs_plugs'] = self.obs_plugs
+        self.wb_def['wb_data']['obs_qadd'] = self.obs_qadd
         self.wb_def['wb_data']['obs_empty'] = self.obs_empty
 
         self.ctot[11] = self.get_max_links(self.obs_props)

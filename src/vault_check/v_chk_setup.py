@@ -17,7 +17,7 @@ from vault_check.v_chk_logger import logger, make_logger
 #: previously duplicated between __post_init__ and cfg_unpack.
 DEFAULT_TAB_SEQ = ('pros', 'vals', 'tags', 'file',
                    'code', 'xyml', 'dups', 'tmpl',
-                   'nest', 'plug', 'summ', 'ar51')
+                   'nest', 'plug', 'qadd', 'summ', 'ar51')
 
 
 class ConfigIncompleteError(RuntimeError):

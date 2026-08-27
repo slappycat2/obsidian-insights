@@ -4,6 +4,32 @@ Notable changes to Obsidian Vault Health Check. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [docs/VERSIONING.md](docs/VERSIONING.md).
 
+## [1.2.0] — 2026-08-27
+
+### Added
+
+- **A QuickAdd tab**, rendered after Plugins and sharing its yellow. The workbook could say which
+  plugins were installed but nothing about what any of them was configured to *do*; QuickAdd's
+  `data.json` is where a vault's capture, template and macro automation actually lives, and it is
+  otherwise only readable through QuickAdd's own modal UI, one choice at a time. The tab appears
+  only when QuickAdd is both installed and enabled — otherwise the sink is empty and the existing
+  empty-tab drop removes the sheet, exactly as the Plugins tab already does for a vault with no
+  `.obsidian`.
+- QuickAdd stores a tree and a worksheet is a table, so the tree is flattened to one row per
+  setting, and two columns put it back together. **Parent** repeats the name of whatever a row
+  belongs to; **Seq** numbers every row in QuickAdd's own traversal order, so sorting or filtering
+  the sheet never loses the order children were defined in. **Section** says what a row is — a
+  `Choice` (something on the QuickAdd menu), a `Step` (one command inside a macro, in the order it
+  runs), a `Config` key belonging to the record above it, or a plugin-wide `Setting`. Three
+  nestings survive the flattening: a `Multi` choice's child choices, a `Macro`'s ordered command
+  list, and the choice a `NestedChoice` command embeds.
+- **QuickAdd's internal ids are not shown** — they identify nothing visible in the app. A macro step
+  that hands off to another choice is resolved to that choice's *name*, so a row reads
+  `Add a Person` rather than `3e7fd7de-4ae3-466f-880b-548f606092c0`.
+- Nested settings become dotted keys (`folder.enabled`, `fileNameFormat.format`), list items carry
+  an index, and a setting that is configured but empty prints `(empty)` rather than reading as
+  unconfigured. On the vault this was built against that is 1,086 rows from a 79 KB file.
+
 ## [1.1.0] — 2026-08-27
 
 ### Added
@@ -276,7 +302,8 @@ are standing in the right directory" to an installable, tested, CI-covered packa
   the package from commits and producing wheels containing only metadata.
 - Two markdown parser bugs found by the new test suite.
 
-[Unreleased]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v1.1.0...HEAD
+[Unreleased]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v1.0.0...v1.1.0
 [1.0.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.4.1...v1.0.0
 [0.4.1]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.4.0...v0.4.1

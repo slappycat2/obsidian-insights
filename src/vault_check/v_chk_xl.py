@@ -379,6 +379,20 @@ class ExcelExporter:
                     else:
                         vals[9] = "".join(map(str, vals[9]))
 
+                elif tab_id == 'qadd':
+                    # QuickAddData already built the row in column order:
+                    # [RowId, Seq, Section, Level, Parent, Name, Type, Key, Value]
+                    # Slot 0 is a placeholder, like the plug tab's plugin id.
+                    # The IsVisible column past the end of this list is written by
+                    # export_grid(), not here -- same as the nest tab.
+                    vals = list(value_files_list)
+                    vals[0] = int(row_idx - tbl_hdr_row)
+
+                    # A bool reaches Excel as TRUE/FALSE, which reads oddly next to
+                    # the string settings beside it. QuickAdd's own UI says true/false.
+                    if isinstance(vals[8], bool):
+                        vals[8] = str(vals[8]).lower()
+
                 elif tab_id == "tmpl":
                     vals = [int((row_idx - tbl_hdr_row))
                         , prop_name

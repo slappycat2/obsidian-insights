@@ -93,6 +93,55 @@ def test_workbook_has_the_expected_tabs(workbook_path):
     for expected in ("Summary", "Properties", "Values", "Tags", "Files"):
         assert expected in wb.sheetnames
 
+    # This vault has no .obsidian at all, so QuickAdd has nothing to report and
+    # its tab is dropped rather than rendered empty.
+    assert "QuickAdd" not in wb.sheetnames
+
+
+def test_the_quickadd_tab_renders_when_the_plugin_is_present(make_vault, stub_config):
+    """The whole pipeline, for a vault that does have QuickAdd enabled.
+
+    Worth running end to end rather than trusting the harvester alone: a tab id
+    with no branch in ExcelExporter.export_tab() renders its title, headers and
+    totals with no data rows at all, and raises nothing while doing it.
+    """
+    import json
+
+    from vault_check.v_chk_build import VaultHealthCheck
+    from vault_check.v_chk_wb_tabs import NewWb
+    from vault_check.v_chk_xl import ExcelExporter
+
+    files = dict(VAULT)
+    files[".obsidian/community-plugins.json"] = json.dumps(["quickadd"])
+    files[".obsidian/plugins/quickadd/manifest.json"] = json.dumps(
+        {"id": "quickadd", "name": "QuickAdd", "version": "2.12.3",
+         "minAppVersion": "1.0.0", "author": "cbb", "isDesktopOnly": False,
+         "description": "Quickly add content."})
+    files[".obsidian/plugins/quickadd/data.json"] = json.dumps({
+        "choices": [{"id": "c1", "name": "Add a Person", "type": "Template",
+                     "command": True, "templatePath": "t/person.md"}],
+        "version": "2.12.3",
+    })
+
+    vault = make_vault(files, name="QuickAddPipelineVault")
+    exporter = ExcelExporter(NewWb(VaultHealthCheck(stub_config(vault))).wbd_obj)
+    exporter.export()
+
+    ws = openpyxl.load_workbook(exporter.sys_pn_wbs)["QuickAdd"]
+
+    headers = [ws.cell(row=10, column=col).value for col in range(10, 20)]
+    assert headers == ["RowId", "Seq", "Section", "Level", "Parent", "Name",
+                       "Type", "Setting", "Value", "IsVisible"]
+
+    rows = [[ws.cell(row=r, column=c).value for c in range(10, 19)]
+            for r in range(11, ws.max_row + 1)
+            if ws.cell(row=r, column=11).value is not None]
+
+    assert rows, "the tab rendered with no data rows -- export_tab has no 'qadd' branch"
+    assert rows[0][2] == "Choice" and rows[0][5] == "Add a Person"
+    assert [r[1] for r in rows] == list(range(1, len(rows) + 1))
+    assert any(r[7] == "templatePath" and r[8] == "t/person.md" for r in rows)
+
 
 def test_properties_reach_the_workbook(workbook_path):
     wb = openpyxl.load_workbook(workbook_path)
