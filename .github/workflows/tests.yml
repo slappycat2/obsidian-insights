@@ -6,6 +6,16 @@ on:
   pull_request:
   workflow_dispatch:
 
+# The workflow only reads the checkout; a public repo gets fork PRs, and the
+# default token should be able to do nothing else.
+permissions:
+  contents: read
+
+# A newer push to the same branch supersedes the run in flight.
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
 jobs:
   pytest:
     # The suite is pure filesystem work -- it builds throwaway vaults in a

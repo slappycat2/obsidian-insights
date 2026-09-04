@@ -411,11 +411,13 @@ def test_cli_stops_cleanly_when_setup_is_cancelled(monkeypatch):
 # ---------------------------------------------------------------------------
 
 @pytest.mark.parametrize("value", ["", "   ", None])
-def test_empty_executable_path_is_rejected(value):
+def test_empty_executable_path_means_the_system_default(value):
+    """Blank used to be rejected, which on macOS and Linux -- where a fresh
+    install finds no recognisable program to fill in -- reopened the setup
+    screen on every run. Blank now means "open with the system default"."""
     valid, message = SysConfig.validate_sys_pn_wb_exec(value)
 
-    assert not valid
-    assert "empty" in message.lower()
+    assert valid, message
 
 
 def test_nonexistent_executable_path_is_rejected(tmp_path):

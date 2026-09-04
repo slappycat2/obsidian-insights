@@ -175,7 +175,10 @@ class VaultScan:   # WbConfig
 
     def parse_file(self):
         self.plugin_id = ""
-        with open(self.filepath, 'r', encoding='utf-8') as file:
+        # utf-8-sig strips a BOM, which Windows editors write and str.strip()
+        # does not treat as whitespace -- a BOM-only note would otherwise not
+        # count as empty.
+        with open(self.filepath, 'r', encoding='utf-8-sig') as file:
             full_content = file.read()
 
         # Templater tags come out before the split, because a template's opening

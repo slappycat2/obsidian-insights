@@ -13,19 +13,18 @@ Each stage hands off to the next through a YAML batch file under
 
 import time
 from pathlib import Path
-from subprocess import Popen
 
 import click
 
 from ovi import __version__
+from ovi import ovi_launch as launch
 from ovi import ovi_paths as paths
-from ovi import ovi_splash as v_splash
 from ovi.ovi_build import VaultScan
 from ovi.ovi_logger import DEFAULT_LOG_LEVEL, logger, make_logger
 from ovi.ovi_setup import (ConfigIncompleteError, SetupCancelledError,
                                      SysConfig, VaultNotFoundError)
 from ovi.ovi_wb_tabs import NewWb
-from ovi.ovi_xl import ExcelExporter
+from ovi.ovi_xl import ExcelExporter, WorkbookLockedError
 
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
@@ -44,7 +43,8 @@ def log_progress(text: str, percent: int) -> None:
     logger.info("[%3d%%] %s", percent, text)
 
 
-def run_pipeline(sys_cfg_obj: SysConfig, progress=log_progress) -> ExcelExporter:
+def run_pipeline(sys_cfg_obj: SysConfig, progress=log_progress,
+                 interactive: bool = False) -> ExcelExporter:
     """Run all four processing stages and return the exporter.
 
     Requires no GUI, which is what makes this callable from tests.
@@ -52,6 +52,8 @@ def run_pipeline(sys_cfg_obj: SysConfig, progress=log_progress) -> ExcelExporter
     :param sys_cfg_obj: a fully configured SysConfig.
     :param progress: callable(text, percent) -- SplashScreen.update_status or
         log_progress.
+    :param interactive: True when a user is present to answer a Retry/Cancel
+        prompt for a locked workbook; False raises WorkbookLockedError instead.
     """
     progress(*PHASES[0])
 
@@ -62,7 +64,7 @@ def run_pipeline(sys_cfg_obj: SysConfig, progress=log_progress) -> ExcelExporter
     nwb_obj = NewWb(scan_obj)
 
     progress(*PHASES[3])
-    exporter = ExcelExporter(nwb_obj.wbd_obj)
+    exporter = ExcelExporter(nwb_obj.wbd_obj, interactive=interactive)
     exporter.export()
 
     progress(*PHASES[4])
@@ -76,12 +78,17 @@ def run_with_splash(sys_cfg_obj: SysConfig) -> ExcelExporter:
     callback. Any exception is captured and re-raised once the loop exits --
     otherwise a failure would leave the splash on screen forever.
     """
-    splash = v_splash.SplashScreen(sys_cfg_obj.sys_pn_lg2, sys_cfg_obj.sys_splash_bg)
+    # Imported here, not at module scope: this is the only path that needs
+    # Tk, and a --headless run must work on a Python built without it.
+    from ovi.ovi_splash import SplashScreen
+
+    splash = SplashScreen(sys_cfg_obj.sys_pn_lg2, sys_cfg_obj.sys_splash_bg)
     outcome = {}
 
     def work():
         try:
-            outcome["exporter"] = run_pipeline(sys_cfg_obj, progress=splash.update_status)
+            outcome["exporter"] = run_pipeline(sys_cfg_obj, progress=splash.update_status,
+                                               interactive=True)
             time.sleep(1)  # let the user register the final status line
         except Exception as exc:  # noqa: BLE001 -- re-raised below
             outcome["error"] = exc
@@ -99,10 +106,22 @@ def run_with_splash(sys_cfg_obj: SysConfig) -> ExcelExporter:
 
 
 def open_workbook(exporter: ExcelExporter) -> None:
-    """Launch the configured spreadsheet application on the new workbook."""
+    """Launch the configured spreadsheet application on the new workbook.
+
+    A blank application means the system default handler. Failure to launch
+    is reported, not raised: the workbook is already on disk, and that is the
+    result the user asked for.
+    """
+    app = exporter.sys_pn_wb_exec or ""
     logger.info('Opening workbook "%s" in %s...',
-                exporter.sys_pn_wbs, exporter.sys_pn_wb_exec)
-    pid = Popen([exporter.sys_pn_wb_exec, exporter.sys_pn_wbs]).pid
+                exporter.sys_pn_wbs, app or "the system default application")
+    try:
+        pid = launch.open_workbook(app, exporter.sys_pn_wbs)
+    except OSError as exc:
+        logger.error("Could not open the workbook with %r: %s", app, exc)
+        click.echo(f"Could not open the workbook with {app or 'the system default'}: {exc}\n"
+                   f"Open it yourself, or fix the application path with `ovi --setup`.")
+        return
     logger.info("Opened workbook. Process id: %s", pid)
 
 
@@ -213,10 +232,13 @@ def cli(do_init, force_setup, do_not_open, no_splash, headless, assume_yes,
     except (ConfigIncompleteError, VaultNotFoundError) as exc:
         raise click.ClickException(str(exc)) from exc
 
-    if no_splash or headless:
-        exporter = run_pipeline(sys_cfg_obj)
-    else:
-        exporter = run_with_splash(sys_cfg_obj)
+    try:
+        if no_splash or headless:
+            exporter = run_pipeline(sys_cfg_obj, interactive=not headless)
+        else:
+            exporter = run_with_splash(sys_cfg_obj)
+    except WorkbookLockedError as exc:
+        raise click.ClickException(str(exc)) from exc
 
     click.echo(f"Workbook written to {exporter.sys_pn_wbs}")
 

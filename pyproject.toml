@@ -9,12 +9,18 @@ license-files = ["LICENSE"]
 authors = [{ name = "Swen Larsen" }]
 keywords = ["obsidian", "markdown", "yaml", "frontmatter", "spreadsheet", "vault"]
 classifiers = [
-    "Development Status :: 4 - Beta",
+    "Development Status :: 5 - Production/Stable",
     "Environment :: Console",
+    "Environment :: MacOS X",
+    "Environment :: Win32 (MS Windows)",
+    "Environment :: X11 Applications",
     "Intended Audience :: End Users/Desktop",
-    "Operating System :: OS Independent",
+    "Operating System :: Microsoft :: Windows",
+    "Operating System :: MacOS",
+    "Operating System :: POSIX :: Linux",
     "Programming Language :: Python :: 3.13",
     "Topic :: Text Processing :: Markup :: Markdown",
+    "Topic :: Utilities",
 ]
 dependencies = [
     "click>=8.2.1",
@@ -25,6 +31,8 @@ dependencies = [
 
 [project.urls]
 Homepage = "https://github.com/slappycat2/obsidian-insights"
+Source = "https://github.com/slappycat2/obsidian-insights"
+Changelog = "https://github.com/slappycat2/obsidian-insights/blob/master/CHANGELOG.md"
 Issues = "https://github.com/slappycat2/obsidian-insights/issues"
 
 [project.scripts]
@@ -42,6 +50,11 @@ path = "src/ovi/__init__.py"
 
 [tool.hatch.build.targets.wheel]
 packages = ["src/ovi"]
+
+# The sdist otherwise takes everything .gitignore does not exclude, which
+# means 3.6 MB of brand art under img/ and the owner-only tools/.
+[tool.hatch.build.targets.sdist]
+exclude = ["img/", "tools/", ".github/", ".claude/", "CLAUDE.md", "uv.lock"]
 
 [dependency-groups]
 dev = [

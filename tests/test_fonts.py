@@ -100,6 +100,9 @@ def test_no_tab_hardcodes_a_font_name():
 
     assert "Berlin Sans" not in body
     assert "'Impact'" not in body and '"Impact"' not in body
+    # Calibri is an Office font with no metric-compatible substitute on a
+    # stock Linux; body text names no font and lands on FALLBACK_FONT.
+    assert "Calibri" not in body
 
 
 # ---------------------------------------------------------------------------

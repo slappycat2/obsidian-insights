@@ -8,6 +8,53 @@ from ovi import CTOT_SLOTS
 from ovi.ovi_json_file import JsonFile
 from ovi.ovi_logger import logger
 
+
+def candidate_config_dirs(system: str | None = None, home: Path | None = None,
+                          env=None) -> list[Path]:
+    """Where Obsidian keeps ``obsidian.json`` on this platform, most likely first.
+
+    Linux has three common installs that each keep their own config: the .deb
+    and AppImage under ``~/.config``, Flatpak under ``~/.var/app``, Snap under
+    ``~/snap``. ``$XDG_CONFIG_HOME`` is honoured when set. Any system that is
+    not Windows or macOS takes the Linux list.
+
+    Pure function -- pass ``system``, ``home`` and ``env`` to drive another
+    platform's branch from a test.
+    """
+    system = system or platform.system()
+    home = Path(home) if home else Path.home()
+    env = os.environ if env is None else env
+
+    if system == "Windows":
+        appdata = env.get("APPDATA")
+        base = Path(appdata) if appdata else home / "AppData" / "Roaming"
+        return [base / "obsidian"]
+
+    if system == "Darwin":
+        return [home / "Library" / "Application Support" / "obsidian"]
+
+    dirs = []
+    xdg = env.get("XDG_CONFIG_HOME")
+    if xdg:
+        dirs.append(Path(xdg) / "obsidian")
+    dirs += [
+        home / ".config" / "obsidian",
+        home / ".var" / "app" / "md.obsidian.Obsidian" / "config" / "obsidian",
+        home / "snap" / "obsidian" / "current" / ".config" / "obsidian",
+    ]
+    return dirs
+
+
+def find_obsidian_json(system: str | None = None, home: Path | None = None,
+                       env=None) -> Path | None:
+    """The first ``obsidian.json`` that exists, or None when Obsidian has never run here."""
+    for directory in candidate_config_dirs(system, home, env):
+        candidate = directory / "obsidian.json"
+        if candidate.is_file():
+            return candidate
+    return None
+
+
 @dataclass
 class ObsidianApp:
     """
@@ -28,64 +75,72 @@ class ObsidianApp:
     # sys_obs_vaults_open : list = field(default_factory=list)
 
     def load_current_obs_vaults(self):
-        dir_obs_cfg = Path.home()
-        dir_obs_cfg_str = str(dir_obs_cfg)
+        """Read the vaults Obsidian knows about into ``cur_vlts``.
+
+        Never raises. A machine where Obsidian has not run (or keeps its config
+        somewhere unexpected) simply yields no vaults and no default, and the
+        caller falls through to CONFIG.yaml, a VAULT_PATH on the command line,
+        or the setup screen's folder picker. Raising here used to kill the app
+        before setup could open, even with an explicit vault path given.
+        """
         self.cur_vlts = {}
+        self.dflt_vault_name = ""
 
-        if self.obs_os == 'Windows':
-            dir_obs_cfg_str = os.getenv('APPDATA', '')
+        json_path = find_obsidian_json(self.obs_os)
+        if json_path is None:
+            searched = ", ".join(str(d) for d in candidate_config_dirs(self.obs_os))
+            logger.warning("obsidian.json not found (looked in: %s); no vaults are "
+                           "known from Obsidian. Pick a folder in setup or pass a "
+                           "vault path on the command line.", searched)
+            self.pn_obs_json = ""
+            return
 
-        obs_json_locs = {
-              'Linux':   f'{dir_obs_cfg_str}/.config/obsidian/'
-            , 'Darwin':  f'{dir_obs_cfg_str}/Library/Application Support/obsidian/'
-            , 'Windows': f'{dir_obs_cfg_str}/obsidian/'
-        }
-
-        # load obsidian json file
-        dir_obs_json = obs_json_locs[self.obs_os]
-        self.pn_obs_json = f"{dir_obs_json}obsidian.json"
+        self.pn_obs_json = str(json_path)
         obs_json_obj = JsonFile(self.pn_obs_json)
         if obs_json_obj.err_msg:
-            raise Exception(f"ObsidianApp: {obs_json_obj.err_msg}")
+            logger.warning("ObsidianApp: %s", obs_json_obj.err_msg)
+            return
 
-        obs_json_dict = obs_json_obj.json_data
-        if 'vaults' not in obs_json_dict:
-            raise Exception(f"ObsidianApp: No vaults found in obsidian.json at {dir_obs_json}")
+        vaults_dict = (obs_json_obj.json_data or {}).get('vaults') or {}
+        if not vaults_dict:
+            logger.warning("ObsidianApp: no vaults listed in %s", json_path)
+            return
 
-        vaults_dict = obs_json_dict['vaults']
-
-        self.dflt_vault_name = ""
         any_valid_vault_name = ""
         for vault_id, vault_dict in vaults_dict.items():
-            if 'path' in vault_dict:
-                v_dir = Path(vault_dict['path'])
+            if 'path' not in vault_dict:
+                continue
+            v_dir = Path(vault_dict['path']).expanduser()
 
-                if not v_dir.is_dir():
-                    continue                    # if the vault dir doesn't exist, skip it
-                v_name = f'{v_dir.name} - ({v_dir.parent})'
-                # v_record = [vault_id, str(v_dir)]
-                if v_name not in self.sys_vlts:
-                    v_rec_dict = self.vault_pack(vlt_name=v_name, src_v_dict={}, dst_v_dict={})
-                    v_rec_dict['vault_id']  = vault_id
-                    v_rec_dict['dir_vault'] = str(v_dir)
-                    self.cur_vlts[v_name] = v_rec_dict
-                else:
-                    self.cur_vlts[v_name].deepcopy(self.sys_vlts[v_name])
+            if not v_dir.is_dir():
+                # Unmounted drive, stale entry, another machine's path.
+                logger.info("ObsidianApp: skipping vault %s -- folder not found: %s",
+                            vault_id, v_dir)
+                continue
+            v_name = f'{v_dir.name} - ({v_dir.parent})'
+            if v_name in self.sys_vlts:
+                self.cur_vlts[v_name] = self.sys_vlts[v_name]
+            else:
+                v_rec_dict = self.vault_pack(vlt_name=v_name, src_v_dict={}, dst_v_dict={})
+                v_rec_dict['vault_id']  = vault_id
+                v_rec_dict['dir_vault'] = str(v_dir)
+                self.cur_vlts[v_name] = v_rec_dict
 
-                any_valid_vault_name = v_name
+            any_valid_vault_name = v_name
 
-                # The last 'open' vault will be True, even if Obsidian is not currently open.
-                if 'open' in vault_dict and vault_dict['open']:
-                    self.dflt_vault_name = v_name
-                    # self.sys_vlts_open.append(v_name)
+            # The last 'open' vault will be True, even if Obsidian is not currently open.
+            if vault_dict.get('open'):
+                self.dflt_vault_name = v_name
 
         if not self.dflt_vault_name:
             self.dflt_vault_name = any_valid_vault_name  # force a default, in case one isn't OPEN
 
         if not self.cur_vlts:
-            raise Exception(f"ObsidianApp: No Vaults with a 'path' key in obsidian.json")
-        else:
-            self.sys_vlts.update(self.cur_vlts)
+            logger.warning("ObsidianApp: none of the vaults in %s exist on this machine",
+                           json_path)
+            return
+
+        self.sys_vlts.update(self.cur_vlts)
 
     @staticmethod
     def vault_pack(vlt_name: str, src_v_dict: dict, dst_v_dict: dict) -> dict:

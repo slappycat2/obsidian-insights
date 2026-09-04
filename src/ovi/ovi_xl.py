@@ -7,7 +7,6 @@ Outstanding bugs and enhancements live in docs/BACKLOG.md, and on GitHub once
 the repository is published -- not in comments here.
 """
 
-import sys
 import os
 import time
 import copy
@@ -23,8 +22,6 @@ from openpyxl.styles import Alignment, Font, Border, Side, PatternFill
 from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.drawing.image import Image
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
-import tkinter as tk
-from tkinter import messagebox
 
 from ovi.ovi_colors import Colors
 from ovi.ovi_plugin_man import PluginMan
@@ -34,8 +31,21 @@ from ovi.ovi_logger import logger
 FALLBACK_FONT = "Arial"
 
 
+class WorkbookLockedError(OSError):
+    """The target .xlsx is open in another program and cannot be replaced.
+
+    Windows takes an exclusive lock on an open workbook, so the old file cannot
+    be removed. (POSIX unlinks it regardless; there the open program simply
+    keeps its stale copy.)
+    """
+
+
 class ExcelExporter:
-    def __init__(self, wbd_obj):
+    def __init__(self, wbd_obj, interactive=False):
+        #: When True a locked workbook prompts Retry/Cancel; otherwise it
+        #: raises WorkbookLockedError. Tk is only ever imported for the prompt,
+        #: so a headless run never needs it.
+        self.interactive = interactive
         self.tab_def = {}
         self.wb_tabs_open = {}
         self.ovi_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -89,8 +99,6 @@ class ExcelExporter:
         self.plugin_lib = PluginMan(self.dir_vault)
 
         logger.debug(f"ExcelExport - cfg.sys_pn_wb_exec: {self.sys_pn_wb_exec}")
-
-        self.exl_file = Path(self.sys_pn_wb_exec)
 
     def export(self):
     # =================================================================================
@@ -410,8 +418,9 @@ class ExcelExporter:
 
                     obs_link = file
                     if tab_id == "dups":
-                        # Need qualified relative path w/o vault path
-                        obs_link = self.obs_hyperlink(file.replace(self.dir_vault, ""))
+                        # Duplicates share a filename, so the link needs the
+                        # vault-relative path to tell them apart.
+                        obs_link = self.obs_hyperlink(self.vault_relative(file))
                     else:
                         # Just need the MD filename
                         if isinstance(file, str) and file.endswith('.md') and Path(file).is_file():
@@ -682,50 +691,68 @@ class ExcelExporter:
                 try:
                     os.remove(self.sys_pn_wbs)
                     try_again = False
-                except PermissionError:
-                    msg = f"Unable to save workbook {self.sys_pn_wbs}."
+                except PermissionError as exc:
+                    msg = (f"Unable to save workbook {self.sys_pn_wbs}: it is open in "
+                           f"another program. Close it and run again.")
                     logger.warning(msg)
+                    if not self.interactive:
+                        raise WorkbookLockedError(msg) from exc
                     try_again = self.retry_file_removal(msg)
                     if not try_again:
-                        msg += " User Canceled on Retry."
-                        logger.critical(msg)
-                        raise SystemExit(msg)
+                        logger.critical("%s User cancelled on retry.", msg)
+                        raise WorkbookLockedError(msg) from exc
 
                 except Exception as e:
                     raise Exception(f"Error removing file {self.sys_pn_wbs}: {e}")
 
         wb.save(self.sys_pn_wbs)
 
-    def retry_file_removal(self, msg):
-        # returns True on Retry
-        result = messagebox.askretrycancel("Warning! File in use", msg)
-        return result
+    @staticmethod
+    def retry_file_removal(msg):
+        """Ask Retry/Cancel. Imported here so a headless run never loads Tk."""
+        from tkinter import messagebox
+        return messagebox.askretrycancel("Warning! File in use", msg)
 
-    def obs_hyperlink(self, file):
-    # vault can be either the vault name, or the vault ID.
-    # The vault name is simply the name of the vault folder.
-    # The vault ID is the random 16-character code assigned to the vault.
-        # This ID is unique per folder on your computer. Example: ef6ca3e3b524d22f.
-        # There isn't an easy way to find this ID yet, one will be offered at a
-        # later date in the vault switcher. Currently it can be found in
-        # %appdata%/obsidian/obsidian.json for Windows.
-        # For MacOS, replace
-        #   %appdata% with ~/Library/Application Support/.
-        # For Linux, replace
-        #   %appdata% with ~/.config/.
-        file_link = f"{urllib.parse.quote(file, safe=':/')}"
-        obs_link_text = file.replace(".md", "")
-        obs_link = f'=hyperlink("obsidian://open?vault={self.vault_id}&file={file_link}","{obs_link_text}")'
+    def vault_relative(self, file) -> str:
+        """``file`` as a vault-relative, forward-slash path for an obsidian:// link.
 
-        return obs_link
+        Resolved on both sides so a difference in case or in symlink spelling
+        between the vault path and the scanned path does not defeat the match.
+        A file outside the vault (it should never happen) is returned whole.
+        """
+        try:
+            relative = Path(file).resolve().relative_to(Path(self.dir_vault).resolve())
+        except (ValueError, OSError):
+            return str(file).replace("\\", "/")
+        return relative.as_posix()
 
     @staticmethod
-    def web_hyperlink(file):
-        file_link = f"{urllib.parse.quote(file, safe=':/')}"
-        web_link_text = file
-        web_link = f'=hyperlink("{file_link}","{web_link_text}")'
+    def formula_text(text) -> str:
+        """Escape ``text`` for use inside a double-quoted Excel formula string."""
+        return str(text).replace('"', '""')
 
-        return web_link
+    def obs_hyperlink(self, file):
+        """An Excel HYPERLINK formula that opens ``file`` in Obsidian.
+
+        ``vault`` takes either the vault id (the 16-hex-character code in
+        obsidian.json) or the vault name; ``file`` is a vault-relative path
+        with forward slashes and no leading slash, or a bare note name.
+        Both are percent-encoded: a vault folder named ``Work & Home`` would
+        otherwise end the vault parameter at the ampersand, and note names
+        carry spaces, emoji and accents as a matter of course.
+        """
+        file = str(file).replace("\\", "/")
+        file_link = urllib.parse.quote(file, safe="/")
+        vault_link = urllib.parse.quote(str(self.vault_id), safe="")
+        obs_link_text = self.formula_text(file.removesuffix(".md"))
+        return (f'=hyperlink("obsidian://open?vault={vault_link}&file={file_link}",'
+                f'"{obs_link_text}")')
+
+    @classmethod
+    def web_hyperlink(cls, file):
+        file_link = urllib.parse.quote(file, safe=':/')
+        web_link_text = cls.formula_text(file)
+        return f'=hyperlink("{file_link}","{web_link_text}")'
 
     def format_as_table(self, tab, tbl_nm, tab_tbl_style, tot_rows):
         tbl_beg_col   = self.tab_def['tbl_beg_col']

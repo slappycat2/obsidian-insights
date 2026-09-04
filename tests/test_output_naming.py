@@ -67,7 +67,7 @@ def test_numbering_is_per_vault(make_vault, stub_config):
 
 
 def test_the_vault_folder_wins_over_the_display_label(make_vault, stub_config):
-    """sys_cfg['vault_name'] is the setup screen's dropdown label -- 'work -
+    """sys_cfg['vault_name'] is the setup screen's dropdown label -- 'Work -
     (D:/Vaults)' -- so the folder name is what goes into the filename."""
     vault = make_vault({"note.md": "Body.\n"}, name="LabelVault")
 

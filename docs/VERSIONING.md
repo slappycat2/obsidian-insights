@@ -17,9 +17,8 @@ treat any pre-2026-07-29 version string as a label, not a version.
 
 Restarting below the previous number (0.3.0 → 0.1.0) is normally forbidden, because packaging tools
 order versions and would treat it as a downgrade. It was safe exactly once, here, because nothing
-had ever been published: no PyPI release under either `obsidian-insights` or `ovi`, no
-git tags, no GitHub releases. **That escape hatch is now closed** — from 0.1.0 on, the number only
-goes up.
+had ever been published: no PyPI release, no git tags, no GitHub releases. **That escape hatch is
+now closed** — from 0.1.0 on, the number only goes up, and every version since has a tag.
 
 ## Scheme
 
@@ -91,31 +90,16 @@ git push origin master --follow-tags
 
 > **Tagging is not releasing, and releasing needs explicit approval.** A tag is a pointer in the
 > repository. Creating a GitHub release (`gh release create`) or uploading to PyPI are separate acts
-> that require the owner to ask for them by name. Nothing in this checklist authorises them, and
-> neither has happened: no GitHub release, no PyPI package under either name.
+> that require the owner to ask for them by name. Nothing in this checklist authorises them. There
+> is no PyPI package.
 >
-> This repository is **private for now**, by choice rather than necessity, and it is a *new* remote
-> created on 2026-08-18. The history in it is clean, and so is its object store.
+> **History.** This repository was created fresh on 2026-08-18, and again on 2026-09-04 with a
+> rewritten history, each time so that nothing from the project's earlier scratch work would be
+> carried into a published repository. Earlier history is not available and is not needed; the
+> tags from `v0.1.0` onward are all present.
 >
-> **Why there are two repositories.** The original repository's history held material that should not be published; a fresh repository was the clean answer.
->
->
->
->
->
->
->
->
->
->
->
->
->
->
->
-> If this repository is ever made public, remember that pushing then publishes the code even though
-> it does not publish a *release*. Confirm before pushing work the owner may not have meant to be
-> visible.
+> Pushing to a public repository publishes the code even though it does not publish a *release*.
+> Confirm before pushing work the owner may not have meant to be visible.
 
 > **Gotcha: `uv sync` alone is not enough.** The version is baked into the editable install's
 > metadata at install time, so bumping `__version__` leaves `importlib.metadata` reporting the old

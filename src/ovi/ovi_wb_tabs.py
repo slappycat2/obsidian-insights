@@ -564,7 +564,7 @@ class NewTab:
         self.tab_fill_clr = ''
         self.font_title_lst = [TITLE_FONT, 24, '']
         self.font_subs_lst = [TITLE_FONT, 14, '']
-        self.font_body_lst = ['Calibri'    , 11, '']
+        self.font_body_lst = [''           , 11, '']
         self.cell_width = 8
         self.tbl_name = f"tbl_{self.tab_id}"
         self.tbl_hdr_row = 10
@@ -808,7 +808,7 @@ class DefPros(NewTab):
 
         self.font_title_lst = [TITLE_FONT, 24, clr1]
         self.font_subs_lst = [TITLE_FONT, 14, txt1]
-        self.font_body_lst = ['Calibri', sz, txt1]
+        self.font_body_lst = ['', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
         self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
@@ -892,7 +892,7 @@ class DefVals(NewTab):
 
         self.font_title_lst = [TITLE_FONT, 24, clr1]
         self.font_subs_lst = [TITLE_FONT, 14, txt1]
-        self.font_body_lst = ['Calibri', sz, txt1]
+        self.font_body_lst = ['', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
         self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
@@ -977,7 +977,7 @@ class DefTags(NewTab):
 
         self.font_title_lst = [TITLE_FONT, 24, clr1]
         self.font_subs_lst = [TITLE_FONT, 14, txt1]
-        self.font_body_lst = ['Calibri', sz, txt1]
+        self.font_body_lst = ['', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
         self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
@@ -1051,7 +1051,7 @@ class DefFile(NewTab):
 
         self.font_title_lst = [TITLE_FONT, 24, clr1]
         self.font_subs_lst  = [TITLE_FONT, 14, txt1]
-        self.font_body_lst  = ['Calibri', sz, txt1]
+        self.font_body_lst  = ['', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
         self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
@@ -1139,7 +1139,7 @@ class DefCode(NewTab):
         sz = self.tab_txt_sz
         self.font_title_lst = [TITLE_FONT, 24, clr1]
         self.font_subs_lst  = [TITLE_FONT, 14, txt1]
-        self.font_body_lst  = ['Calibri', sz, txt1]
+        self.font_body_lst  = ['', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
         self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
@@ -1217,7 +1217,7 @@ class DefXyml(NewTab):
         sz = self.tab_txt_sz
         self.font_title_lst = [TITLE_FONT, 24, clr1]
         self.font_subs_lst =  [TITLE_FONT, 14, txt1]
-        self.font_body_lst =  ['Calibri', sz, txt1]
+        self.font_body_lst =  ['', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
         # self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
@@ -1315,7 +1315,7 @@ class DefDups(NewTab):
 
         self.font_title_lst = [TITLE_FONT, 24, clr1]
         self.font_subs_lst = [TITLE_FONT, 14, txt1]
-        self.font_body_lst = ['Calibri', sz, txt1]
+        self.font_body_lst = ['', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
         self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
@@ -1380,7 +1380,7 @@ class DefNest(NewTab):
         sz = self.tab_txt_sz
         self.font_title_lst = [TITLE_FONT, 24, clr1]
         self.font_subs_lst = [TITLE_FONT, 14, txt1]
-        self.font_body_lst = ['Calibri', sz, txt1]
+        self.font_body_lst = ['', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
         self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
@@ -1474,7 +1474,7 @@ class DefPlug(NewTab):
         sz = self.tab_txt_sz
         self.font_title_lst = [TITLE_FONT, 24, clr1]
         self.font_subs_lst = [TITLE_FONT, 14, txt1]
-        self.font_body_lst = ['Calibri', sz, txt1]
+        self.font_body_lst = ['', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
         self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
@@ -1567,7 +1567,7 @@ class DefQadd(NewTab):
         sz = self.tab_txt_sz
         self.font_title_lst = [TITLE_FONT, 24, clr1]
         self.font_subs_lst = [TITLE_FONT, 14, txt1]
-        self.font_body_lst = ['Calibri', sz, txt1]
+        self.font_body_lst = ['', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
         self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
@@ -1665,7 +1665,7 @@ class DefTmpl(NewTab):
 
         self.font_title_lst = [TITLE_FONT, 24, clr1]
         self.font_subs_lst = [TITLE_FONT, 14, txt1]
-        self.font_body_lst = ['Calibri', sz, txt1]
+        self.font_body_lst = ['', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
         self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
@@ -1755,7 +1755,7 @@ class DefSumm(NewTab):
 
         self.font_title_lst = [TITLE_FONT, 24, clr1]
         self.font_subs_lst = [TITLE_FONT, 14, txt1]
-        self.font_body_lst = ['Calibri', sz, txt1]
+        self.font_body_lst = ['', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
         self.tab_def['tab_table_link_spcrs']    = True  # Always, TRUE for now
@@ -1967,7 +1967,7 @@ class DefAr51(NewTab):
 
         self.font_title_lst = [TITLE_FONT, 24, clr1]
         self.font_subs_lst = [TITLE_FONT, 14, txt1]
-        self.font_body_lst = ['Calibri', sz, txt1]
+        self.font_body_lst = ['', sz, txt1]
         self.tab_def['tab_color'] = clr1
 
         self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now

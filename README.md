@@ -1,78 +1,113 @@
-# Obsidian Insights (beta)
-[![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Z8Z71B3VAA)
+# Obsidian Insights
 
-![image](img/summ_screen.png)
+[![tests](https://github.com/slappycat2/obsidian-insights/actions/workflows/tests.yml/badge.svg)](https://github.com/slappycat2/obsidian-insights/actions/workflows/tests.yml)
+[![license: MIT](https://img.shields.io/badge/license-MIT-blue.svg)](LICENSE)
+![python 3.13](https://img.shields.io/badge/python-3.13-blue.svg)
 
-## Produces a Spreadsheet/Workbook of all **Properties**, their **Values**, and **Tags**
-This system will run a set of python scripts and read[^1] through all Markdown files in a given vault and gather statistics on all **Properties**, their **Values**, and **Tags** (both frontmatter and inline), producing a spreadsheet for further user analysis. It will also document all duplicates filenames found in the vault, as well as any possibly corrupt YAML[^2]
+Turn an [Obsidian](https://obsidian.md) vault into a spreadsheet of everything that is in it:
+every **property**, every **value**, every **tag**, plus duplicate notes, broken frontmatter, code
+blocks, installed plugins and more, each row linked back to the note it came from.
 
-### Features
-- Uses Python to run locally without use of Obsidian or it's API. In this way, it's capable of finding lost tags and misspelled properties.
-- All Tags, Properties and their Values are grouped and listed for easy isolation of where they are used in the vault.
-- Common issues, such as properties ending with a colon, use of uppercase and deprecated properties, are highlighted.
-- Links back to the vault are provided to make it easy for you to review and manually update your vault as you see fit.
-- Duplicate notes (same name, in different directories) are also listed in a separate tab.
-- Notes with Invalid Properties are also tracked w/likely reasons as to why they may have failed to be processed.
-- A detailed list of All Notes (Files) is also maintained that allows tracking of whether the item was frontmatter or in-line, and if uppercase was used.
-- Emojii in Note names, Tags, Properties and their Values are supported.
-- All codeblocks are listed, with related plugins (if any) and links back to their respective notes.
-- Installed plugins are listed with details and whether or not they are enabled.
-- Some tracking of *notes maintained by plugins* is supported. (proof of concept)
-- A Summary tab of vault statistics is also provided.
+**Read-only, and nothing leaves your machine.** Obsidian Insights reads your `.md` files, writes an
+`.xlsx` workbook next to itself, and does nothing else. It never modifies the vault, installs
+nothing into it, and makes no network connection of any kind.
 
-### Installation & Setup
+![The Summary tab of a generated workbook](https://raw.githubusercontent.com/slappycat2/obsidian-insights/master/img/summ_screen.png)
 
-Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
+## What you get
+
+A workbook with one tab per subject, each a filterable table:
+
+| Tab | What it lists |
+|---|---|
+| **Summary** | Vault statistics at a glance |
+| **Properties** / **Values** | Every property, every value, how often each is used, and links to the notes that use it |
+| **Tags** | Every tag, frontmatter and inline, with usage counts and links |
+| **Files** | Every note, with whether each property was frontmatter or inline and whether it was upper-cased |
+| **Xyml** | Notes whose frontmatter did not parse, with a likely reason |
+| **Duplicates** | Notes that share a name in different folders |
+| **Code** | Every code block, with the plugin it belongs to |
+| **Plugins** / **QuickAdd** | Installed plugins, enabled or not, and QuickAdd's configuration |
+| **Templates** / **Nests** | Templater templates and plugin-managed nested data |
+
+Because it reads the files directly rather than through Obsidian, it finds what Obsidian's own
+views hide: mistyped property names, tags that exist in one note only, properties ending in a
+colon, emoji in names. Common issues are highlighted.
+
+## Requirements
+
+- **Python 3.13** and [uv](https://docs.astral.sh/uv/). `uv` installs Python for you if needed.
+- **tkinter**, for the setup screen and progress splash. A uv-managed Python has it. If you use the
+  system Python on Linux install `python3-tk` (Debian/Ubuntu) or `python3-tkinter` (Fedora); on
+  Homebrew, `brew install python-tk@3.13`.
+- **A spreadsheet application** to open the result, or none: leave the application blank in setup
+  and the workbook opens with whatever your desktop associates with `.xlsx`. Tested targets are
+  Excel (Windows and Mac), LibreOffice Calc (24.8 or newer for the Summary tab's dynamic-array
+  formulas) and Numbers.
+- **A desktop session for the first run.** Setup is a small window. After that, `--headless` works
+  from a script or over SSH.
+
+## Install and run
 
 ```bash
 git clone https://github.com/slappycat2/obsidian-insights.git
 cd obsidian-insights
 uv sync
-```
-
-Then run it:
-
-```bash
 uv run ovi
 ```
 
-On the very first run a setup screen appears. Fill in:
+On the first run a setup screen appears:
 
-1. The full path of the Obsidian Vault you wish to analyze
-2. The full pathname of your spreadsheet executable (auto-detected where possible)
-3. All other options can be left as-is
+1. Pick a vault. The dropdown lists the vaults Obsidian knows about, or browse to any folder.
+2. Confirm the spreadsheet application, or leave it blank for the system default.
+3. Leave everything else as it is.
 
-Click **Save and Run** and give it a few seconds to gather statistics. When it finishes, a new,
-sequentially named spreadsheet is created and loads automatically. Afterwards the setup screen is
-skipped -- just run `uv run ovi` again.
+Click **Save & Run**. The vault is scanned, a new sequentially numbered workbook is written, and it
+opens. From then on `uv run ovi` skips setup; `uv run ovi --setup` brings it back.
 
-Lastly, please consider buying me, a poor coder (steady there!), a coffee.
+`python main.py [...]` works identically if you would rather not use the installed command.
 
-#### Usage
+### Usage
 
 ```bash
 uv run ovi                          # the vault last opened in Obsidian
-uv run ovi "D:/Vaults/MyVault"      # a specific vault
+uv run ovi "D:/Vaults/MyVault"      # a specific vault, whether or not Obsidian knows it
 uv run ovi --setup                  # change settings
-uv run ovi --do-not-open            # build the workbook but don't launch the spreadsheet
-uv run ovi --headless --do-not-open # no windows at all; for scripting
+uv run ovi --do-not-open            # build the workbook but do not launch the spreadsheet
+uv run ovi --headless --do-not-open # no windows at all, for scripting
 uv run ovi --init                   # delete generated config, batch files and workbooks
 uv run ovi --help                   # all options
 ```
 
-`python main.py [...]` works identically if you'd rather not use the installed command.
+### Where things land
 
-Generated workbooks land in `data/workbooks/`, and logs in `logs/`. Set the `OVI_DATA_DIR`
-environment variable to put them somewhere else.
+Running from a checkout, workbooks go to `data/workbooks/`, the handoff files to
+`data/batch_files/`, logs to `logs/` and the configuration to `CONFIG.yaml`, all inside the
+checkout. An installed copy uses `~/.ovi/` instead. Set `OVI_DATA_DIR` to put them anywhere else.
 
-### Development
+### Platform notes
+
+- **Windows.** Excel is found automatically when it is installed in the usual place.
+- **macOS.** Pick an application bundle (`Microsoft Excel.app`, `Numbers.app`) with Browse, or
+  leave the field blank. Numbers does not support the `UNIQUE`/`FILTER` formulas the Summary tab
+  uses, so those counts show as errors there; every other tab is fine.
+- **Linux.** Obsidian's vault list is read from the .deb/AppImage, Flatpak and Snap locations.
+  `libreoffice`, `soffice` or `localc` on `PATH` is found automatically. `obsidian://` links from
+  the workbook need the Obsidian URL handler registered, which the Flatpak and .deb do.
+
+## Development
 
 ```bash
 uv sync              # install the project plus dev dependencies
-uv run pytest        # run the test suite (~2s, no Obsidian install needed)
+uv run pytest        # run the test suite (~10s, no Obsidian install needed)
 ```
 
-The tests build throwaway vaults in a temp directory, so they never touch a real vault.
+The tests build throwaway vaults in a temp directory, so they never touch a real vault. CI runs
+them on Windows, macOS and Linux, then builds the wheel and checks its contents. A manual checklist
+for the parts only a real desktop can exercise is in `docs/PLATFORM-CHECKLIST.md`.
+
+Bugs and ideas go on the [issue tracker](https://github.com/slappycat2/obsidian-insights/issues).
+`CHANGELOG.md` records what changed in each version.
 
 <details>
 <summary>Running from PyCharm</summary>
@@ -80,25 +115,26 @@ The tests build throwaway vaults in a temp directory, so they never touch a real
 Point the project interpreter at the `.venv` that `uv sync` creates
 (*Settings → Project → Python Interpreter*).
 
-Two things to know:
-
-- **PyCharm never calls uv.** The Run button executes `.venv\Scripts\python.exe` directly, so after
-  changing `pyproject.toml` you must run `uv sync` yourself or you'll get an `ImportError`.
-- Set your run configuration's **Script** to `main.py` in the project root. The working directory no
-  longer matters — all paths resolve from the package location, not the current directory.
+- **PyCharm never calls uv.** The Run button executes the venv's Python directly, so after changing
+  `pyproject.toml` you must run `uv sync` yourself or you will get an `ImportError`.
+- Set your run configuration's **Script** to `main.py` in the project root. The working directory
+  does not matter: all paths resolve from the package location.
 
 </details>
 
-Note: I am in the process of learning how OOP works, as well as Python, so if you want to read/analyze the code, please be kind ;-). My background in coding is limited and primarily functional. That having been said, this tool works surprisingly well! And hopefully, it's not just me!
+## About
 
-Also, if you are new to Obsidian, you may wish to download my one-page, [Obsidan Markdown Cheat Sheet](https://github.com/slappycat2/Obsidian-Markdown-Cheat-Sheet). Again, it's free, open-source, and I hope it helps!
+I wrote this while learning Python and object-oriented design, coming from a functional
+background, so if you read the code, please be kind. It works surprisingly well, and I hope it is
+not just me.
 
+If you are new to Obsidian, you may also like my one-page
+[Obsidian Markdown Cheat Sheet](https://github.com/slappycat2/Obsidian-Markdown-Cheat-Sheet).
 
+If it saves you an afternoon, consider buying me a coffee:
 
----
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Z8Z71B3VAA)
 
-[^1]:  As written, theses scripts are "READ-ONLY" as far as your Obsidian Vault is concerned. No changes are written to the vault, no plugins are added and nothing is uploaded to the internet. All data that is gathered is stored locally in the spreadsheets created, and some supporting YAML files. These files will reside in a directory called "data", under the directory where you installed the scripts. 
+## License
 
-[^2]: Corrupt is defined as whatever PyYAML 6.0.2 is unable to safe_load.
-
+[MIT](LICENSE). "Corrupt" frontmatter, throughout, means whatever PyYAML 6.0.2 cannot `safe_load`.

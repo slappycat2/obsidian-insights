@@ -4,14 +4,24 @@ import json
 import platform
 from pathlib import Path
 from datetime import datetime
-from tkinter import messagebox
 from dataclasses import dataclass, field
 
 from ovi import __version__, CTOT_SLOTS
 from ovi import ovi_paths as paths
+from ovi import ovi_launch as launch
 from ovi.ovi_obs_app import ObsidianApp
-from ovi.ovi_setupscreen import SetupScreen
 from ovi.ovi_logger import logger, make_logger
+
+try:
+    from ovi.ovi_setupscreen import SetupScreen
+except ImportError as _tk_missing:      # no tkinter on this Python build
+    # Debian/Ubuntu split it into python3-tk, Homebrew into python-tk@3.x.
+    # A --headless run with a valid CONFIG.yaml never needs it, so the
+    # import must not be fatal; run_setup_ui() says what to install.
+    SetupScreen = None
+    TK_IMPORT_ERROR = _tk_missing
+else:
+    TK_IMPORT_ERROR = None
 
 #: Workbook tabs, in render order. Single source of truth -- this was
 #: previously duplicated between __post_init__ and cfg_unpack.
@@ -110,7 +120,11 @@ class SysConfig:
 
         self.cur_vlts           = self.o_app.cur_vlts  # deepcopy?
         self.sys_vlts           = self.o_app.sys_vlts
-        self.apply_vault(self.o_app.dflt_vault_name)
+        # No obsidian.json, or none of its vaults on this machine, leaves no
+        # default. That is not fatal: CONFIG.yaml, a VAULT_PATH argument or the
+        # setup screen's folder picker can all still name one.
+        if self.o_app.dflt_vault_name:
+            self.apply_vault(self.o_app.dflt_vault_name)
         self.sys_tab_seq = list(DEFAULT_TAB_SEQ)
 
         self.sys_pn_wb_exec = self.get_dflt_wb_exec(self.sys_cfg_os)
@@ -239,6 +253,15 @@ class SysConfig:
                 f"--headless to complete setup."
             )
 
+        if SetupScreen is None:
+            raise ConfigIncompleteError(
+                f"Configuration at {self.sys_pn_cfg} is missing or invalid, and the "
+                f"setup screen needs tkinter, which this Python does not have "
+                f"({TK_IMPORT_ERROR}). Install it (Debian/Ubuntu: python3-tk; "
+                f"Fedora: python3-tkinter; Homebrew: python-tk@3.13) or use a "
+                f"uv-managed Python, then run again."
+            )
+
         # The screen writes the config itself when the user saves, so there is
         # nothing to persist here -- and nothing *should* be persisted when they
         # cancel. This used to call save_config() unconditionally, so dismissing
@@ -266,24 +289,11 @@ class SysConfig:
         self.sys_pn_bnr     = str(paths.BANNER)
         self.sys_pn_a51     = str(paths.AREA51)
 
-    def get_dflt_wb_exec(self, cfg_os):
-        # Todo - Needs testing on all platforms
-        wb_exec = ""
-        common_execs = {
-              'Linux': ['scalc']
-            , 'Darwin': ['open -a Numbers.app ']
-            , 'Windows': ['C:/Program Files/Microsoft Office/root/Office16/EXCEL.EXE', 'C:/Program Files/LibreOffice/program/scalc.exe']
-         }
-
-        for wb_app in common_execs[cfg_os]:
-            if cfg_os != 'Windows':
-                wb_exec = wb_app
-                break
-            elif Path(wb_app).exists():
-                wb_exec = wb_app
-                break
-
-        return wb_exec
+    @staticmethod
+    def get_dflt_wb_exec(cfg_os):
+        """The spreadsheet program to suggest on a fresh install; blank means
+        the system default handler. See ovi_launch."""
+        return launch.default_spreadsheet_app(cfg_os)
 
     def chk_fields_on_load(self) -> bool:
         dir_vault_valid, _ = self.validate_dir_vault(self.dir_vault)
@@ -297,6 +307,9 @@ class SysConfig:
             not installed or has no templates_folder configured. Callers must
             handle None -- most vaults do not have Templater.
         """
+        if not self.dir_vault:
+            return None
+
         template_cfg_file = Path(self.dir_vault) / ".obsidian/plugins/templater-obsidian/data.json"
 
         if not template_cfg_file.is_file():
@@ -311,21 +324,19 @@ class SysConfig:
         except Exception as e:
             raise Exception(f"ConfigSys: Error in get_templates_dir: {e}")
 
-    def get_dot_dirs(self, op_sys: str, dir_start: str) -> list:
+    @staticmethod
+    def get_dot_dirs(op_sys: str, dir_start: str) -> list:
         """
         Returns a list of all "hidden" directories (those starting w/period, eg. '.obsidian')
         immediately under a given directory.
-        :param op_sys:
+        :param op_sys: kept for the callers' sake; the name test needs no separator.
         :param dir_start:
         :return dirs_dot:
         """
-        dirs_dit = []
-        dsep = '/'
-        if op_sys == 'Windows':
-            dsep = '\\'
-        dirs_dot = [f.name for f in os.scandir(dir_start) if
-                         f.is_dir() and f.path.startswith(f"{dir_start}{dsep}.")]
-        return dirs_dot
+        if not dir_start or not Path(dir_start).is_dir():
+            return []
+        return [entry.name for entry in os.scandir(dir_start)
+                if entry.is_dir() and entry.name.startswith('.')]
 
     def get_skip_abs_lst(self, skip_rel_str: str, dir_start: str) -> list:
         """
@@ -346,15 +357,15 @@ class SysConfig:
     def read_config(self, pn_file: str) -> dict:
         cfg_data = {}
         try:
-            with open(pn_file, 'r') as file:
+            with open(pn_file, 'r', encoding='utf-8') as file:
                 cfg_data = yaml.safe_load(file)
         except FileNotFoundError:
                 pass
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to read {pn_file}: {str(e)}")
-            raise Exception(f"Failed to read {pn_file}: {str(e)}")
+            logger.error("Failed to read %s: %s", pn_file, e)
+            raise RuntimeError(f"Failed to read {pn_file}: {e}") from e
 
-        return cfg_data
+        return cfg_data or {}
 
     def load_config(self, pn_file:str) -> None:
         self.sys_cfg = self.read_config(pn_file)
@@ -362,11 +373,14 @@ class SysConfig:
 
     def write_config(self, pn_file, cfg_data):
         try:
-            with open(pn_file, 'w') as file:
-                yaml.dump(cfg_data, file, default_flow_style=False)
+            # UTF-8 and LF explicitly: the platform defaults are cp1252 and
+            # CRLF on Windows, so a config carrying a non-ASCII vault path
+            # would otherwise be unreadable on the next machine.
+            with open(pn_file, 'w', encoding='utf-8', newline='\n') as file:
+                yaml.dump(cfg_data, file, default_flow_style=False, allow_unicode=True)
             return True
         except Exception as e:
-            messagebox.showerror("Error", f"Failed to save {pn_file}: {str(e)}")
+            logger.error("Failed to save %s: %s", pn_file, e)
             return False
 
     def save_config(self) -> bool:
@@ -447,7 +461,10 @@ class SysConfig:
         self.sys_pn_batch       = self.sys_cfg.get('sys_pn_batch',      '')
         self.sys_pn_wbs         = self.sys_cfg.get('sys_pn_wbs',        '')
         self.sys_tab_seq        = self.sys_cfg.get('sys_tab_seq',       list(DEFAULT_TAB_SEQ))
-        self.sys_cfg_os         = self.sys_cfg.get('sys_cfg_os',        platform.system())
+        # Like the paths above, the OS is a fact about this machine, not a
+        # setting: a config carried over from Windows must not make a Mac
+        # think it is Windows.
+        self.sys_cfg_os         = platform.system()
         self.sys_vlts           = self.sys_cfg.get('sys_vlts',          {})
         self.cur_vlts           = self.sys_cfg.get('cur_vlts',          {})
 
@@ -538,16 +555,8 @@ class SysConfig:
 
     @staticmethod
     def validate_sys_pn_wb_exec(sys_pn_wb_exec):
-        if not sys_pn_wb_exec or not sys_pn_wb_exec.strip():
-            return False, "Executable path cannot be empty"
-        path = Path(sys_pn_wb_exec.strip())
-        if not path.exists():
-            return False, "Executable file does not exist"
-        if not path.is_file():
-            return False, "Executable path must be a file"
-        if not os.access(path, os.X_OK):
-            return False, "File is not executable"
-        return True, ""
+        """Blank is valid and means the system default handler. See ovi_launch."""
+        return launch.validate_app(sys_pn_wb_exec)
 
 def main() -> None:
     """Open the setup screen on its own: ``python src/ovi_setup.py``.

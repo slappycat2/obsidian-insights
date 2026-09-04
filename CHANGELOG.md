@@ -6,8 +6,70 @@ Notable changes to Obsidian Insights. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- **A blank spreadsheet application means "use the system default".** Setup no longer insists on
+  a program path: leave the field empty and the workbook is handed to whatever the desktop
+  associates with `.xlsx` (`os.startfile` on Windows, `open` on macOS, `xdg-open` on Linux). A
+  fresh install that finds no recognisable program now defaults to blank instead of to a value
+  that could never validate.
+- **macOS application bundles are accepted.** `Microsoft Excel.app` and `Numbers.app` are
+  directories, which the executable check used to reject with "must be a file" — and the Browse
+  dialog returns exactly that path, so setup could not be completed on a Mac. Bundles now validate
+  and are launched with `open -a`. On Linux a bare command on `PATH` (`libreoffice`, `soffice`,
+  `localc`) validates too, and is what a fresh install suggests when one is found.
+- **Flatpak and Snap Obsidian on Linux.** The vault list is now looked for in
+  `$XDG_CONFIG_HOME/obsidian`, `~/.config/obsidian`, `~/.var/app/md.obsidian.Obsidian/config/obsidian`
+  and `~/snap/obsidian/current/.config/obsidian`, first match wins.
+- `docs/PLATFORM-CHECKLIST.md`: the manual smoke list for macOS and Linux, covering what only a
+  real desktop can exercise.
+
+### Fixed
+
+- **A machine where Obsidian has never run could not start the app at all.** A missing
+  `obsidian.json` raised before the setup screen could open — even with a vault path on the
+  command line. It is now a logged warning; the vault comes from `CONFIG.yaml`, the `VAULT_PATH`
+  argument or the setup screen's folder picker instead. With none of those, `--headless` reports
+  a one-line configuration error rather than a traceback.
+- **The setup screen could not open on Linux.** The window icon was set with `iconbitmap` and a
+  Windows `.ico`, which X11 rejects with a `TclError`. The icon is now a PNG via `iconphoto` on
+  every platform, with the `.ico` as a Windows-only extra, and a failed icon can no longer abort
+  setup. The screen also grows vertically now: with resizing forbidden, the taller native fonts on
+  macOS and HiDPI Linux clipped the Save & Run and Cancel buttons off the bottom.
+- **`--headless` no longer needs tkinter.** The export stage imported it at module scope, so a
+  Python without Tk (system Python on Debian/Ubuntu without `python3-tk`, Homebrew without
+  `python-tk`) failed at import even when no window would ever open. Tk is now imported only by
+  the two GUI modules and, lazily, by the one Retry/Cancel prompt — which no longer fires under
+  `--headless` or in the test suite; a locked workbook there raises a clear error instead.
+- **`sys_cfg_os` is recomputed, never restored.** A `CONFIG.yaml` carried from Windows to a Mac
+  made the app believe it was on Windows, which silently emptied the dot-folder list.
+- **`CONFIG.yaml` and the batch files are UTF-8 with LF line endings** on every platform. They
+  were read and written in the locale encoding (cp1252 on Windows), and only survived because
+  PyYAML happened to escape non-ASCII. Notes are read with `utf-8-sig`, so a byte-order mark
+  neither reaches the YAML parser nor stops a BOM-only note counting as empty.
+- **`obsidian://` links are properly encoded.** The vault id is percent-encoded (a vault
+  registered by folder name uses that name, so `Work & Home` ended the parameter at the
+  ampersand); backslashes become forward slashes before encoding; a `"` in a note name (legal on
+  macOS and Linux) is doubled so the formula still parses; only a trailing `.md` is dropped from
+  the link text. The Duplicates tab's links are built with `Path.relative_to()` rather than a
+  case-sensitive string replace that left a leading separator.
+- **Body text names no font.** Calibri was hard-coded in every tab; it is an Office font with no
+  metric-compatible substitute on a stock Linux. Body cells now land on the same Arial fallback
+  as titles, which fontconfig maps to Liberation Sans.
+- The unused `PIL.ImageTk` import is gone from the setup screen. On several Linux distributions it
+  is a separate package, and importing it for nothing was a gratuitous way to fail.
+- A failed launch of the spreadsheet application is reported in one line after the workbook is
+  written, instead of a traceback after a successful run.
+
 ### Changed
 
+- The Area 51 tab's sign is now drawn by the project rather than taken from a stock photo of
+  unknown provenance. It ships in the wheel and is embedded in every workbook, so its licence
+  has to be ours to give.
+- `pyproject.toml` declares the three operating systems and the GUI environments it runs in, an
+  sdist that leaves out the brand art and owner-only tools, and links to the changelog and source.
+- README rewritten for someone who has never seen the project: requirements per platform,
+  including tkinter and the choice of spreadsheet application, and where generated files land.
 - **Renamed to Obsidian Insights.** The tool, the package and the command are now `ovi`; the old
   name, Obsidian Vault Health Check (`v_chk`), is gone from every surface. What that means when
   upgrading a checkout:

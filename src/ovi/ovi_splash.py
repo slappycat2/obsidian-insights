@@ -1,4 +1,3 @@
-import os
 import tkinter as tk
 from tkinter import ttk, PhotoImage
 
@@ -13,7 +12,9 @@ class SplashScreen(tk.Tk):
     def __init__(self, logo_path, splash_bg='#800000', title="Obsidian Insights", version=f"v{__version__}"):
         super().__init__()
         self.logo_path = logo_path
-        self.title = title
+        # Not ``self.title``: that is Tk's own method, and assigning a str over
+        # it turns every later ``self.title(...)`` into a TypeError.
+        self.app_title = title
         self.version = version
         self.overrideredirect(True) # Remove window decorations for splash effect
         self.configure(bg=splash_bg)
@@ -23,7 +24,7 @@ class SplashScreen(tk.Tk):
         self.logo_label.pack(expand=True)
 
         # Title and version
-        title_label = tk.Label(self, text=self.title,
+        title_label = tk.Label(self, text=self.app_title,
                                font=('Arial', 16, 'bold'),
                                fg='white', bg=splash_bg)
         title_label.pack(pady=(10, 5))
@@ -44,6 +45,13 @@ class SplashScreen(tk.Tk):
         self.progress["maximum"] = 100
 
         self.center_window(400, 330)
+        # An override-redirect window is unmanaged by the window manager. On
+        # macOS it can come up blank until something forces a paint, and on
+        # any platform it may sit under the launching terminal, so raise it
+        # and process pending events once before the pipeline starts.
+        self.attributes('-topmost', True)
+        self.lift()
+        self.update()
 
     def center_window(self, w, h):
         self.update_idletasks()

@@ -80,7 +80,6 @@ in the order listed, via `scripts/import_backlog_issues.sh` — a one-shot boots
 straight after running, because `gh` has no "create if absent" and a second run would duplicate
 every issue. It also created the `refactor`, `testing`, `parsing` and `workbook` labels.
 
-> **The remote holds three unrelated histories.** `main` is the pre-2026 development history and
-> remains the default branch; `archive/2026-02-snapshot` is the pre-modernisation snapshot (formerly
-> the remote `master`); `master` is this modernised tree. None of them share a common ancestor, so
-> git will refuse to merge or compare them — that is expected, not a broken checkout.
+> The repository that import ran against has since been replaced (see `docs/VERSIONING.md`), and
+> the issues were recreated here with their original numbers, so every `#NN` above still resolves.
+> This repository has one branch, `master`.

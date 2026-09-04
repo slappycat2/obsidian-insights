@@ -4,7 +4,7 @@ A development aid, not part of the package: ``tools/`` sits outside ``src/``,
 so hatchling never sees it and the wheel is unaffected.
 
     uv run python tools/var_dictionary.py                    # -> tools/_out/
-    uv run python tools/var_dictionary.py "F:/Documents/ovi variables.xlsx"
+    uv run python tools/var_dictionary.py "D:/Documents/ovi variables.xlsx"
 
 Three passes, all in this file:
 

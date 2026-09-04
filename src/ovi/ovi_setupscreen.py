@@ -1,9 +1,8 @@
 import os
+import platform
 import tkinter as tk
 from tkinter import ttk, filedialog, messagebox, PhotoImage
-from PIL import ImageTk
 from datetime import datetime
-import subprocess
 
 from ovi.ovi_logger import logger
 
@@ -13,6 +12,7 @@ class SetupScreen:
         self.sys_cfg = self.sys_obj.sys_cfg
         self.logo = self.sys_obj.sys_pn_lg2
         self.icon = self.sys_obj.sys_pn_ico
+        self.icon_png = self.sys_obj.sys_pn_lg3
 
         self.c_vlts  = self.sys_obj.cur_vlts  # make pointer, for easier reference
         self.v_list  = list(self.c_vlts.keys())
@@ -21,10 +21,14 @@ class SetupScreen:
         self.root = tk.Tk()
         self.root.title("Obsidian Insights")
 
+        # An initial size, not a fixed one. ttk widgets take the platform's
+        # default font, which is taller on macOS and on HiDPI Linux than on
+        # Windows; with vertical resizing forbidden the Save/Cancel row was the
+        # first thing to be clipped, with no way for the user to reach it.
         self.root.geometry("780x620")
-        self.root.resizable(True, False)
-        self.root.attributes('-topmost', 1)
-        self.root.iconbitmap(self.icon)
+        self.root.minsize(780, 620)
+        self.root.resizable(True, True)
+        self.set_window_icon()
         self.frame_image = PhotoImage(file=self.logo, master=self.root)
 
         # Tkinter variables
@@ -458,9 +462,34 @@ class SetupScreen:
         x = (self.root.winfo_screenwidth() // 2) - (self.root.winfo_width() // 2)
         y = (self.root.winfo_screenheight() // 2) - (self.root.winfo_height() // 2)
         self.root.geometry(f"+{x}+{y}")
+        # Come to the front, then stop floating: a window left -topmost sits
+        # over every other application for as long as it is open, which on
+        # macOS includes the file dialogs this screen itself opens.
+        self.root.attributes('-topmost', True)
+        self.root.lift()
+        self.root.after(250, lambda: self.root.attributes('-topmost', False))
         self.root.mainloop()
 
         return self.saved
+
+    def set_window_icon(self) -> None:
+        """Give the window an icon on every platform.
+
+        ``iconbitmap`` takes a Windows .ico only on Windows; on X11 it wants an
+        XBM and raises TclError on anything else, which used to stop the setup
+        screen from opening on Linux at all. ``iconphoto`` takes a PNG
+        everywhere, so it goes first and the .ico is a Windows-only extra.
+        An icon is decoration -- never let it abort setup.
+        """
+        try:
+            self.root.iconphoto(True, PhotoImage(file=self.icon_png, master=self.root))
+        except tk.TclError as exc:
+            logger.debug("setupscreen: iconphoto failed: %s", exc)
+        if platform.system() == "Windows":
+            try:
+                self.root.iconbitmap(self.icon)
+            except tk.TclError as exc:
+                logger.debug("setupscreen: iconbitmap failed: %s", exc)
 
     def browse_vault_dir(self) -> None:
         """Pick a vault folder. Any directory will do, Obsidian's or not."""
@@ -517,13 +546,29 @@ class SetupScreen:
         self.validate_all_fields()
 
     def browse_exec_path(self) -> None:
+        """Pick the spreadsheet program.
+
+        On macOS the native panel offers .app bundles as single items and
+        returns the bundle path, which validate_app() accepts. Off Windows the
+        filter is "*" rather than "*.*": Unix binaries have no extension, and
+        "*.*" hides every one of them.
+        """
+        system = self.sys_obj.sys_cfg_os
+        current = self.sys_pn_wb_exec_var.get().strip()
+        if current and os.path.dirname(current):
+            start = os.path.dirname(current)
+        else:
+            start = {"Darwin": "/Applications", "Windows": "C:/Program Files"}.get(system, "/usr/bin")
+
+        if system == "Windows":
+            filetypes = [("Executable files", "*.exe"), ("All files", "*.*")]
+        else:
+            filetypes = [("All files", "*")]
+
         file_path = filedialog.askopenfilename(
-            title="Select Spreadsheet Executable",
-            initialdir=os.path.dirname(self.sys_pn_wb_exec_var.get()) if self.sys_pn_wb_exec_var.get() else "/",
-            filetypes=[
-                ("Executable files", "*.exe" if self.sys_obj.sys_cfg_os == "Windows" else "*"),
-                ("All files", "*.*")
-            ]
+            title="Select Spreadsheet Application (leave blank for the system default)",
+            initialdir=start,
+            filetypes=filetypes,
         )
         if file_path:
             self.sys_pn_wb_exec_var.set(file_path)

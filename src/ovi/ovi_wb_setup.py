@@ -99,7 +99,7 @@ class WbDataDef:
 
         The vault's *folder* name is what goes in, not sys_cfg['vault_name'] -- that
         one is a display label built for the setup screen's dropdown, of the form
-        'work - (D:/Vaults)', and sanitising it produces a filename nobody wants to
+        'Work - (D:/Vaults)', and sanitising it produces a filename nobody wants to
         read. Two vaults sharing a folder name therefore share a stub; they still get
         their own sequence numbers, so nothing is overwritten. A vault that sanitises
         away to nothing falls back to the bare sys_id.
@@ -159,8 +159,8 @@ class WbDataDef:
         step: --init deletes the batch file but cannot delete a workbook Excel
         is holding open, and numbering from the batch files alone would then
         hand the next run a number whose .xlsx already exists -- which
-        save_workbook() answers with a modal retry dialog, even under
-        --headless. Gaps are deliberately not refilled, for the same reason.
+        save_workbook() answers with a retry dialog, or under --headless with
+        WorkbookLockedError. Gaps are deliberately not refilled, for the same reason.
         """
         batch_num = max([-1] + self.seq_nums(self.sys_dir_bat, '.yaml')
                              + self.seq_nums(self.sys_dir_wbs, '.xlsx')) + 1
@@ -229,11 +229,11 @@ class WbDataDef:
             self.get_next_bat()
 
         try:
-            with open(self.sys_pn_batch, 'w') as yaml_file:
+            with open(self.sys_pn_batch, 'w', encoding='utf-8', newline='\n') as yaml_file:
                 yaml.dump({
                     'wb_def':     self.wb_def
                 }
-                    , stream=yaml_file, sort_keys=False
+                    , stream=yaml_file, sort_keys=False, allow_unicode=True
                 )
             return
 
@@ -250,7 +250,7 @@ class WbDataDef:
             logger.debug(f"ConfigData-read_config: Reading Config file: {self.sys_pn_batch}")
             pass
         try:
-            with open(self.sys_pn_batch, 'r') as file_y:
+            with open(self.sys_pn_batch, 'r', encoding='utf-8') as file_y:
                 bat_data = file_y.read()
 
             wb_def_temp = yaml.safe_load(bat_data)
