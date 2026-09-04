@@ -1,6 +1,6 @@
 """Render the analysed vault data into a formatted .xlsx workbook.
 
-Consumes the per-tab cell definitions built by v_chk_wb_tabs and writes tables,
+Consumes the per-tab cell definitions built by ovi_wb_tabs and writes tables,
 conditional formatting, obsidian:// hyperlinks and images through openpyxl.
 
 Outstanding bugs and enhancements live in docs/BACKLOG.md, and on GitHub once
@@ -26,9 +26,9 @@ from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 import tkinter as tk
 from tkinter import messagebox
 
-from vault_check.v_chk_colors import Colors
-from vault_check.v_chk_plugin_man import PluginMan
-from vault_check.v_chk_logger import logger
+from ovi.ovi_colors import Colors
+from ovi.ovi_plugin_man import PluginMan
+from ovi.ovi_logger import logger
 
 
 FALLBACK_FONT = "Arial"
@@ -38,7 +38,7 @@ class ExcelExporter:
     def __init__(self, wbd_obj):
         self.tab_def = {}
         self.wb_tabs_open = {}
-        self.v_chk_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.ovi_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
         self.TAG_TOT_COLS = 20  # Set this to the maximum columns to be added to table (w/o the step)
         self.TAG_BEG_COL = 7  # set the to the first column, ie, where to start
         self.PROP_TOT_COLS = 13  # Set this to the maximum columns to be added to table (w/o the step)

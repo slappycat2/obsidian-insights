@@ -2,15 +2,15 @@ import os
 import tkinter as tk
 from tkinter import ttk, PhotoImage
 
-from vault_check import __version__
-from vault_check.v_chk_logger import logger
+from ovi import __version__
+from ovi.ovi_logger import logger
 
 SPLASH_Test = False
 
 class SplashScreen(tk.Tk):
 
     # noinspection DuplicatedCode
-    def __init__(self, logo_path, splash_bg='#800000', title="Obsidian Vault Health Check", version=f"v{__version__}"):
+    def __init__(self, logo_path, splash_bg='#800000', title="Obsidian Insights", version=f"v{__version__}"):
         super().__init__()
         self.logo_path = logo_path
         self.title = title

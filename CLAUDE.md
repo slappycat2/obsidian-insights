@@ -4,7 +4,7 @@ This file provides guidance to Claude Code (claude.ai/code) when working with co
 
 ## What this is
 
-Obsidian Vault Health Check (`v_chk`) — a local, read-only scanner that walks every `.md` file in an
+Obsidian Insights (`ovi`) — a local, read-only scanner that walks every `.md` file in an
 Obsidian vault, harvests frontmatter properties, inline (`key:: value`) properties, tags, code blocks,
 duplicate filenames and unparseable YAML, then emits a multi-tab, heavily-formatted `.xlsx` workbook
 with hyperlinks back into the vault. Nothing is written to the vault and nothing leaves the machine.
@@ -16,8 +16,8 @@ the installed copy rather than to whatever directory you happen to be standing i
 
 ```
 main.py                      entry point for source checkouts
-pyproject.toml               version lives in src/vault_check/__init__.py (hatchling reads it)
-src/vault_check/             the package -- all live code
+pyproject.toml               version lives in src/ovi/__init__.py (hatchling reads it)
+src/ovi/                     the package -- all live code
     assets/                  runtime images (logos, banner, area51)
     logging_configs/         JSON/YAML logging dictConfigs
 tests/                       pytest suite
@@ -40,7 +40,8 @@ tracking in Phase 4) are both gone; `xcluded/` remains recoverable from commit `
 
 Root-only rules in `.gitignore` **must** start with `/` — `/data/`, `/logs/`, `/CONFIG.yaml`,
 `/vault_check/`. An unanchored pattern matches at every depth, and `vault_check/` therefore also
-matched `src/vault_check/`, the package itself. The damage was entirely silent: `git add -A` skipped
+matched `src/vault_check/`, the package itself (it has since been renamed `src/ovi/`, and an
+unanchored `ovi/` would do the same). The damage was entirely silent: `git add -A` skipped
 `__init__.py` without a word, and because hatchling honours `.gitignore`, `uv build` produced a wheel
 containing only `dist-info` metadata — no modules, no assets. Nothing failed locally, because the
 editable install resolves imports from the source tree regardless.
@@ -54,29 +55,29 @@ Dependencies are managed with `uv` (`uv.lock`, Python 3.13 pinned in `.python-ve
 
 ```powershell
 uv sync
-uv run v-chk --help
-uv run v-chk                                    # vault last opened in Obsidian
-uv run v-chk "D:/Vaults/o26"                  # a specific vault
-uv run v-chk --headless --do-not-open <vault>   # no GUI, no Excel launch
+uv run ovi --help
+uv run ovi                                    # vault last opened in Obsidian
+uv run ovi "D:/Vaults/o26"                  # a specific vault
+uv run ovi --headless --do-not-open <vault>   # no GUI, no Excel launch
 ```
 
-`uv sync` installs the project itself (`[project.scripts] v-chk = "vault_check.v_chk:main"`), which is
-what makes the `v-chk` command and clean `vault_check.*` imports work. `python main.py [...]` is
+`uv sync` installs the project itself (`[project.scripts] ovi = "ovi.ovi:main"`), which is
+what makes the `ovi` command and clean `ovi.*` imports work. `python main.py [...]` is
 equivalent. **After changing `pyproject.toml`, re-run `uv sync`** — PyCharm's Run button invokes
 `.venv\Scripts\python.exe` directly and never consults uv or the lockfile.
 
-**Paths never depend on the working directory.** Everything resolves through `v_chk_paths.py`, which
+**Paths never depend on the working directory.** Everything resolves through `ovi_paths.py`, which
 separates *package assets* (relative to `__file__`) from *writable data* (`DATA_ROOT`). Run it from
 anywhere. Do not reintroduce `Path.cwd()`.
 
-`DATA_ROOT` resolution order: `$V_CHK_DATA_DIR` → the repo root when running from a source checkout
-(detected via `pyproject.toml`) → `~/.v_chk`. Tests set the env var to redirect into a `tmp_path`.
+`DATA_ROOT` resolution order: `$OVI_DATA_DIR` → the repo root when running from a source checkout
+(detected via `pyproject.toml`) → `~/.ovi`. Tests set the env var to redirect into a `tmp_path`.
 
 Useful flags: `--headless` (never open a window; raises `ConfigIncompleteError` rather than blocking
 on a dialog), `-q/--no-splash`, `-x/--do-not-open`, `-s/--setup` (force the setup screen),
 `-i/--init` (delete CONFIG.yaml, batch files and workbooks; prompts first), `-d/--debug-level`.
 
-To reach the setup GUI directly: `uv run python -m vault_check.v_chk_setup`.
+To reach the setup GUI directly: `uv run python -m ovi.ovi_setup`.
 
 ## Tests
 
@@ -89,8 +90,8 @@ uv run pytest -q tests/test_pipeline.py::test_workbook_is_created
 
 Two seams make the suite possible without an Obsidian install or a GUI:
 
-- `conftest.pytest_configure` sets `V_CHK_DATA_DIR` to a temp dir **before** any
-  test module imports `vault_check`. This matters because `v_chk_paths` resolves
+- `conftest.pytest_configure` sets `OVI_DATA_DIR` to a temp dir **before** any
+  test module imports `ovi`. This matters because `ovi_paths` resolves
   `DATA_ROOT` once, at import time — setting the variable inside a fixture would be too late.
 - `StubSysConfig` (in `conftest.py`) supplies the `sys_cfg` dict directly. Every stage reads that
   dict rather than SysConfig's attributes, so no real SysConfig is needed. Its keys mirror
@@ -122,20 +123,20 @@ on an instance built with `__new__`, so a stub stands in for Tk.
 
 ## Pipeline
 
-`run_pipeline(sys_cfg_obj, progress)` in `v_chk.py` drives the four stages and requires no GUI —
+`run_pipeline(sys_cfg_obj, progress)` in `ovi.py` drives the four stages and requires no GUI —
 that is what makes the code testable. `run_with_splash()` wraps it, passing `SplashScreen.update_status`
 as the progress callback; the splash owns the Tk mainloop, so the work happens inside a
 `splash.after()` callback and exceptions are captured and re-raised after the loop exits.
 
-1. **`SysConfig`** (`v_chk_setup.py`) — dataclass holding all system + per-vault settings. Reads/writes
+1. **`SysConfig`** (`ovi_setup.py`) — dataclass holding all system + per-vault settings. Reads/writes
    `CONFIG.yaml`. **Downstream stages read the packed `sys_cfg` dict, not these attributes**, so any
    attribute change made after `load_config()` must be followed by `cfg_pack()` or it is silently
    ignored (this is why `select_vault_by_path()` calls it). Delegates vault discovery to
-   `ObsidianApp` (`v_chk_obs_app.py`), which parses Obsidian's
+   `ObsidianApp` (`ovi_obs_app.py`), which parses Obsidian's
    own `obsidian.json` (`%APPDATA%/obsidian/` on Windows, `~/.config/obsidian/` Linux,
    `~/Library/Application Support/obsidian/` macOS) to build `sys_vlts`/`cur_vlts` and pick the last-open
    vault as the default. If `CONFIG.yaml` is missing or `chk_fields_on_load()` fails, the Tk `SetupScreen`
-   (`v_chk_setupscreen.py`) is shown before anything else runs.
+   (`ovi_setupscreen.py`) is shown before anything else runs.
 
    **obsidian.json is not the only way in.** `register_vault_dir()` builds a vault record for any
    directory, so a folder Obsidian has never opened can still be scanned — the setup screen's Vault
@@ -146,22 +147,22 @@ as the progress callback; the splash owns the Tk mainloop, so the work happens i
    `.obsidian` folder is reported by `check_obsidian_dir()`, which is a **warning only** and must
    stay out of `validate_dir_vault()` — that one gates whether the setup screen opens at all, and
    `tests/test_setup_screen.py` pins a bare directory as valid.
-2. **`VaultHealthCheck`** (`v_chk_build.py`) — `rglob("*.md")` over the vault; per file it strips
+2. **`VaultScan`** (`ovi_build.py`) — `rglob("*.md")` over the vault; per file it strips
    Templater tags, splits frontmatter from body on a delimiter anchored to the top of the file (see
    "Frontmatter is only frontmatter at the top of the file" below), strips code blocks and inline code
    from the body, `yaml.safe_load`s the frontmatter, regex-scans the body for `key:: value` and
    `#tags`, and accumulates into the `obs_*` dicts.
-3. **`NewWb`** (`v_chk_wb_tabs.py`) — turns the harvested data plus per-tab layout metadata into a
+3. **`NewWb`** (`ovi_wb_tabs.py`) — turns the harvested data plus per-tab layout metadata into a
    complete cell-level tab definition for each tab.
-4. **`ExcelExporter`** (`v_chk_xl.py`) — walks `sys_tab_seq` and renders each tab into an openpyxl
+4. **`ExcelExporter`** (`ovi_xl.py`) — walks `sys_tab_seq` and renders each tab into an openpyxl
    workbook (tables, conditional formatting, `obsidian://` hyperlinks, images), saves it, and `Popen`s
    the configured spreadsheet executable.
 
 ### Stages talk through a YAML file, not objects
 
-Each stage re-reads `wb_def` from disk rather than passing it in memory. `WbDataDef` (`v_chk_wb_setup.py`)
-allocates the next sequential batch file `data/batch_files/v_chk_<vault>_NNNN.yaml` (and the matching
-`data/workbooks/v_chk_<vault>_NNNN.xlsx`), and `write_bat_data()` / `read_wb_data()` are the handoff. `NewWb` and
+Each stage re-reads `wb_def` from disk rather than passing it in memory. `WbDataDef` (`ovi_wb_setup.py`)
+allocates the next sequential batch file `data/batch_files/ovi_<vault>_NNNN.yaml` (and the matching
+`data/workbooks/ovi_<vault>_NNNN.xlsx`), and `write_bat_data()` / `read_wb_data()` are the handoff. `NewWb` and
 `ExcelExporter` both begin with `read_wb_data()`. Consequence: anything you add to `wb_def` must be
 `yaml.dump`-able, and stale batch files are the first thing to check when a run produces odd output.
 
@@ -182,7 +183,7 @@ delete the workbook beside it, which is what happens while Excel has that workbo
 outcome that `reset_generated_files()` reports and exits 0 on. Numbering from the batch files alone
 then reused the survivor's number, and `ExcelExporter.save_workbook()` answers a locked target with a
 modal Tk retry dialog that fires even under `--headless`. For the same reason gaps are **not**
-refilled: a missing `_0001` stays missing rather than overwriting `v_chk_<vault>_0001.xlsx`.
+refilled: a missing `_0001` stays missing rather than overwriting `ovi_<vault>_0001.xlsx`.
 
 `wb_def` has exactly three keys:
 
@@ -201,21 +202,21 @@ so the Xyml tab can print `(empty file)` in its "Fm Okay" column instead of a lo
 Tabs are identified by 4-character ids: `pros vals tags file code xyml dups tmpl nest plug qadd summ
 ar51`. Adding or renaming one touches **eight** places. Most mismatches raise; two do not:
 
-1. `NewWb.tab_common` (`v_chk_wb_tabs.py`) — display name, titles, help text, `data_src`. Every key
+1. `NewWb.tab_common` (`ovi_wb_tabs.py`) — display name, titles, help text, `data_src`. Every key
    is read with `[...]`, not `.get()`, and each `help_txt` sub-key needs a matching
    `tab_cd_<key>_def`.
 2. A `DefXxxx(NewTab)` subclass in the same file, which fills in `tab_def` and calls `tab_def_post()`.
 3. The `if/elif` dispatch chain in `NewWb.__init__` — an unknown key raises `Unexpected key`.
-4. `WbDataDef.get_next_bat()`'s `wb_tabs` dict (`v_chk_wb_setup.py`). **Insert before `summ`** —
+4. `WbDataDef.get_next_bat()`'s `wb_tabs` dict (`ovi_wb_setup.py`). **Insert before `summ`** —
    `DefSumm` reads the other tabs' finished `tab_cd_fixed_summ`, so it has to be built last.
-5. `Colors.init_tab_clrs()` (`v_chk_colors.py`) — keyed by tab id; a missing entry is a `KeyError`.
-6. **`ExcelExporter.export_tab()`'s per-tab `vals` branch** (`v_chk_xl.py`) — the `if/elif tab_id`
+5. `Colors.init_tab_clrs()` (`ovi_colors.py`) — keyed by tab id; a missing entry is a `KeyError`.
+6. **`ExcelExporter.export_tab()`'s per-tab `vals` branch** (`ovi_xl.py`) — the `if/elif tab_id`
    chain that turns harvested data into a row. **This is the one that fails silently:** with no
    branch, `vals` stays `[]`, and the tab renders its title, headers, totals and an empty table
    without raising or logging anything. `vals[i]` lands in absolute column `tbl_beg_col + i`, so the
    list must be flat and in table-column order.
-7. `DEFAULT_TAB_SEQ` (`v_chk_setup.py`) — nothing renders without it.
-8. The sink in `wb_data` (`v_chk_build.py`) — `initialize_all_tabs()` raises `KeyError` on a
+7. `DEFAULT_TAB_SEQ` (`ovi_setup.py`) — nothing renders without it.
+8. The sink in `wb_data` (`ovi_build.py`) — `initialize_all_tabs()` raises `KeyError` on a
    `data_src` key that is absent, so it must always be assigned, `{}` included. `{}` is what makes
    the tab drop.
 
@@ -223,10 +224,10 @@ Optional ninth: `DefSumm.tab_summ_map`. Its nine grid slots are full, so a new t
 box on the Summary tab — silent and harmless.
 
 Render order and inclusion come from `sys_cfg['sys_tab_seq']`, defaulting to `DEFAULT_TAB_SEQ` in
-`v_chk_setup.py`. **`sys_tab_seq` is persisted in `CONFIG.yaml`**, so adding an id to
+`ovi_setup.py`. **`sys_tab_seq` is persisted in `CONFIG.yaml`**, so adding an id to
 `DEFAULT_TAB_SEQ` does nothing on a machine that already has a config — `cfg_unpack()` restores the
 saved list and the new tab silently never renders. Expect to need `-i/--init`, a hand-edited
-`CONFIG.yaml`, or a scratch `V_CHK_DATA_DIR` to see it.
+`CONFIG.yaml`, or a scratch `OVI_DATA_DIR` to see it.
 
 `NewTab` is the base class: it defines table naming (`tbl_<tab_id>`), the header row/column origin, the
 `RowId` / `IsVisible` / `P-V Index` helper columns, and the Excel formula strings (`f_uniq_*`, `f_txt_*`,
@@ -234,10 +235,10 @@ saved list and the new tab silently never renders. Expect to need `-i/--init`, a
 and `set_table_links()` compute where the variable-width "FileNN" hyperlink columns land — the count comes
 from `ctot[11]`/`ctot[12]` (max links seen) capped by the user's `link_lim_vals`/`link_lim_tags`.
 
-**Fonts are resolved once, at the top of `v_chk_wb_tabs.py`.** `DISPLAY_FONT` (Impact) is used for
+**Fonts are resolved once, at the top of `ovi_wb_tabs.py`.** `DISPLAY_FONT` (Impact) is used for
 every tab title and subtitle via the module-level `TITLE_FONT`; never write a font name in a tab
 subclass. An `.xlsx` cell names exactly one font with no fallback list, so `display_font()` checks
-what is installed on this machine — fair, since v_chk builds and opens the workbook in one run — and
+what is installed on this machine — fair, since ovi builds and opens the workbook in one run — and
 returns `None` when it is absent. `None` means "no preference", which lands on
 `ExcelExporter.FALLBACK_FONT` (Arial: on Windows and macOS, and substituted by metric-compatible
 Liberation Sans on Linux). Expect the fallback to fire on Linux, where Impact is not an OS font.
@@ -250,7 +251,7 @@ and the constants had already drifted (the Code tab claimed 44 while its table e
 
 ### Cell definition convention
 
-Cells are plain 11-element lists shared between `v_chk_wb_tabs.py` and `v_chk_xl.py`:
+Cells are plain 11-element lists shared between `ovi_wb_tabs.py` and `ovi_xl.py`:
 
 ```
 [col, row, font, size, width, text_clr, fill_clr, bold, italic, align, value]
@@ -261,9 +262,9 @@ Cells are plain 11-element lists shared between `v_chk_wb_tabs.py` and `v_chk_xl
 
 ### `ctot` counters
 
-`sys_cfg['ctot']` is a list of counters incremented throughout `v_chk_build.py` and rendered on the
-**Area51** tab (not the Summary tab). Its length is `CTOT_SLOTS` in `src/vault_check/__init__.py` — the
-one place it is stated; `v_chk_build`, `v_chk_setup`, `v_chk_obs_app`, `v_chk_wb_tabs` and
+`sys_cfg['ctot']` is a list of counters incremented throughout `ovi_build.py` and rendered on the
+**Area51** tab (not the Summary tab). Its length is `CTOT_SLOTS` in `src/ovi/__init__.py` — the
+one place it is stated; `ovi_build`, `ovi_setup`, `ovi_obs_app`, `ovi_wb_tabs` and
 `tests/conftest.py` all import it, and they must agree or `DefAr51` indexes off the end.
 
 Slots: `0` md files seen, `1` templates seen, `2` skip-dir files skipped, `3` files
@@ -288,10 +289,10 @@ an empty note has no frontmatter either.
 - **Templates are read, but reach only the Templates tab.** Files under the Templater folder are
   harvested into `obs_tmplt` and deliberately kept out of every other sink — Properties, Tags,
   Files, nested-plugin data, code blocks, duplicate filenames and the bad-YAML tab (`record_yaml_issue()`
-  is a no-op for them, since Templater syntax isn't valid YAML). They count in `ctot[1]`, not `ctot[3]`. `PluginMan` (`v_chk_plugin_man.py`)
+  is a no-op for them, since Templater syntax isn't valid YAML). They count in `ctot[1]`, not `ctot[3]`. `PluginMan` (`ovi_plugin_man.py`)
   separately reads `.obsidian/plugins/*/manifest.json` + `community-plugins.json` for the Plugins tab and
   maps code-block signatures (`dataview`, `button`, …) to plugin ids.
-- **One plugin's own settings are read: QuickAdd's.** `QuickAddData` (`v_chk_quick_add.py`) reads
+- **One plugin's own settings are read: QuickAdd's.** `QuickAddData` (`ovi_quick_add.py`) reads
   `.obsidian/plugins/<dir>/data.json` for the `qadd` tab, gated on `PluginMan` saying QuickAdd is
   both installed *and* enabled; anything else yields `{}` and the tab drops. It takes the
   already-built `PluginMan` rather than constructing its own, and finds the folder through that
@@ -315,21 +316,21 @@ an empty note has no frontmatter either.
   `NonD`, described in `WbDataDef.xyml_descs`.
 - **Everything is lowercased** for grouping; the original casing is preserved in `actual_prop_key` and
   surfaced only on the Files tab.
-- **Logging**: `from v_chk_logger import logger` everywhere; `make_logger(level)` is called once, by
+- **Logging**: `from ovi_logger import logger` everywhere; `make_logger(level)` is called once, by
   `cli()`. Swap the active handler config via `ACTIVE_LOG_CONFIG` (alternatives live in
-  `src/vault_check/logging_configs/`). Those JSON files declare relative log paths, which `_resolve_handler_paths()`
+  `src/ovi/logging_configs/`). Those JSON files declare relative log paths, which `_resolve_handler_paths()`
   rewrites to absolute under `APP_DIR`. Logs rotate at 3 MB, 50 backups, into `logs/`.
-- **The version is single-sourced** from `__version__` in `src/vault_check/__init__.py` — see
+- **The version is single-sourced** from `__version__` in `src/ovi/__init__.py` — see
   `docs/VERSIONING.md` for the protocol and release steps. `pyproject.toml` declares
   `dynamic = ["version"]`; the CLI's `--version`, the splash, `SysConfig.sys_ver` and both Summary
   tab strings all derive from it, and `tests/test_version.py` fails if any of them stops doing so.
   Never type a version literal anywhere else. Bumping `__version__` needs
-  `uv sync --reinstall-package obsidian-vault-health-check`, or the installed metadata stays stale.
+  `uv sync --reinstall-package obsidian-insights`, or the installed metadata stays stale.
 - **Empty tabs are dropped**, not rendered: `ExcelExporter.initialize_all_tabs()` skips any tab whose
   `data_src` is empty and rewrites `sys_tab_seq` to the surviving list. A vault with no Templater
   folder configured, or no nested plugin data, legitimately produces 10 sheets rather than 12.
 - **Outstanding work lives in GitHub issues**, not in code comments. A ~90-line `Bug-NNN` / `ER-NNN`
-  block at the top of `v_chk_xl.py` (whose own Bug-022 asked for exactly this) became
+  block at the top of `ovi_xl.py` (whose own Bug-022 asked for exactly this) became
   `docs/BACKLOG.md`, which in turn became issues #1–#25 on 2026-07-29. `docs/BACKLOG.md` is now a
   frozen historical record — file new work on the tracker, and do not reintroduce todo lists in
   source files. The one exception is `docs/WORKING-NOTES.md`, which tracks repo administration, CI

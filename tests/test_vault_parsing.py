@@ -1,4 +1,4 @@
-"""Tests for VaultHealthCheck, the markdown/YAML harvesting stage.
+"""Tests for VaultScan, the markdown/YAML harvesting stage.
 
 This is the riskiest code in the project -- it parses arbitrary user markdown --
 and it is pure enough to test directly: give it a directory of .md files, look
@@ -35,7 +35,7 @@ def test_frontmatter_properties_are_harvested(scan):
 
 
 def test_property_keys_are_lowercased(scan):
-    """Obsidian treats properties case-insensitively, so v_chk groups on lowercase."""
+    """Obsidian treats properties case-insensitively, so ovi groups on lowercase."""
     result = scan({"note.md": """
         ---
         Status: Draft
@@ -293,13 +293,13 @@ def test_a_whitespace_only_file_counts_as_empty(make_vault, stub_config):
     """All-whitespace is empty. The test reads the raw file rather than the
     stripped text, so a template holding only `<% tp.date.now() %>` -- which
     strips away to nothing -- is not mistaken for an empty note."""
-    from vault_check.v_chk_build import VaultHealthCheck
+    from ovi.ovi_build import VaultScan
 
     vault = make_vault({"real.md": "Body.\n"})
     # written directly: make_vault lstrips, which would leave nothing to test
     (vault / "blank.md").write_text("   \n\n\t\n", encoding="utf-8")
 
-    result = VaultHealthCheck(stub_config(vault))
+    result = VaultScan(stub_config(vault))
 
     assert result.ctot[13] == 1
     assert any("blank.md" in path for path in result.obs_empty)
@@ -308,10 +308,10 @@ def test_a_whitespace_only_file_counts_as_empty(make_vault, stub_config):
 def test_an_empty_template_is_not_listed_on_the_xyml_tab(make_vault, stub_config):
     """split_file recorded NoFm itself, which bypassed record_yaml_issue() and
     the template exemption inside it."""
-    from vault_check.v_chk_build import VaultHealthCheck
+    from ovi.ovi_build import VaultScan
 
     vault = make_vault({"Templates/Blank.md": "", "real.md": "Body.\n"})
-    result = VaultHealthCheck(
+    result = VaultScan(
         stub_config(vault, dir_templates=str(vault / "Templates")))
 
     assert not any("Blank.md" in path
@@ -582,10 +582,10 @@ def scan_with_templates(make_vault, stub_config):
     dir_templates must be absolute -- is_subdirectory() tests it against
     md_file.parents, and a relative Path silently matches nothing.
     """
-    from vault_check.v_chk_build import VaultHealthCheck
+    from ovi.ovi_build import VaultScan
 
     vault = make_vault(TEMPLATE_VAULT)
-    return VaultHealthCheck(stub_config(vault, dir_templates=str(vault / "Templates")))
+    return VaultScan(stub_config(vault, dir_templates=str(vault / "Templates")))
 
 
 def test_templates_are_excluded_from_the_vault_tabs(make_vault, stub_config):

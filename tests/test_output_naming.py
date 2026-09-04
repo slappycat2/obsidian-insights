@@ -1,7 +1,7 @@
 """Generated filenames name the vault they came from.
 
-Batch files and workbooks used to be numbered globally -- v_chk_0000.yaml,
-v_chk_0001.yaml -- so a directory of them said nothing about which vault
+Batch files and workbooks used to be numbered globally -- ovi_0000.yaml,
+ovi_0001.yaml -- so a directory of them said nothing about which vault
 produced which, and scanning a second vault simply continued the first one's
 numbering. The vault name now sits between the sys_id and the sequence number,
 and the sequence is per-vault.
@@ -11,7 +11,7 @@ from pathlib import Path
 
 import pytest
 
-from vault_check.v_chk_wb_setup import WbDataDef, safe_name_part
+from ovi.ovi_wb_setup import WbDataDef, safe_name_part
 
 
 @pytest.mark.parametrize("raw, expected", [
@@ -36,7 +36,7 @@ def test_batch_and_workbook_names_carry_the_vault_name(make_vault, stub_config):
     wbd.get_next_bat()
 
     batch_stem = Path(wbd.sys_pn_batch).stem
-    assert batch_stem.startswith("v_chk_test_NamedVault_")
+    assert batch_stem.startswith("ovi_test_NamedVault_")
     assert Path(wbd.sys_pn_wbs).stem == batch_stem
     assert Path(wbd.sys_pn_wbs).suffix == ".xlsx"
 
@@ -47,7 +47,7 @@ def test_a_sanitised_vault_name_is_used(make_vault, stub_config):
     wbd = WbDataDef(stub_config(vault))
     wbd.get_next_bat()
 
-    assert Path(wbd.sys_pn_batch).stem.startswith("v_chk_test_Vault_Two_")
+    assert Path(wbd.sys_pn_batch).stem.startswith("ovi_test_Vault_Two_")
 
 
 def test_numbering_is_per_vault(make_vault, stub_config):
@@ -74,7 +74,7 @@ def test_the_vault_folder_wins_over_the_display_label(make_vault, stub_config):
     wbd = WbDataDef(stub_config(vault, vault_name="LabelVault - (D:/Vaults)"))
     wbd.get_next_bat()
 
-    assert Path(wbd.sys_pn_batch).stem.startswith("v_chk_test_LabelVault_")
+    assert Path(wbd.sys_pn_batch).stem.startswith("ovi_test_LabelVault_")
 
 
 def test_a_nameless_vault_falls_back_to_the_bare_sys_id(make_vault, stub_config):
@@ -83,7 +83,7 @@ def test_a_nameless_vault_falls_back_to_the_bare_sys_id(make_vault, stub_config)
     wbd = WbDataDef(stub_config(Path(""), vault_name="", dir_vault=""))
     wbd.get_next_bat()
 
-    assert Path(wbd.sys_pn_batch).stem.startswith("v_chk_test_0")
+    assert Path(wbd.sys_pn_batch).stem.startswith("ovi_test_0")
 
 
 def _touch(path):
@@ -122,7 +122,7 @@ def test_numbering_does_not_refill_gaps(make_vault, stub_config):
 
 
 def test_excel_lock_files_do_not_reserve_a_number(make_vault, stub_config):
-    """'~$name.xlsx' is Excel's owner file, not a workbook v_chk produced."""
+    """'~$name.xlsx' is Excel's owner file, not a workbook ovi produced."""
     vault = make_vault({"note.md": "Body.\n"}, name="OwnerFileVault")
     cfg = stub_config(vault)
 

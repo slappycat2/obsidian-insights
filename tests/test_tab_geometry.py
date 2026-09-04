@@ -1,4 +1,4 @@
-"""Tests for the table column geometry in v_chk_wb_tabs.
+"""Tests for the table column geometry in ovi_wb_tabs.
 
 Issue #4: the IsVisible column's position used to be written in three places --
 a per-tab `tab_tots_isVisible_col` constant, a hardcoded column index in each
@@ -14,10 +14,10 @@ from pathlib import Path
 
 import pytest
 
-from vault_check.v_chk_wb_tabs import NewTab
+from ovi.ovi_wb_tabs import NewTab
 
 SOURCE = (Path(__file__).resolve().parent.parent
-          / "src" / "vault_check" / "v_chk_wb_tabs.py").read_text(encoding="utf-8")
+          / "src" / "ovi" / "ovi_wb_tabs.py").read_text(encoding="utf-8")
 
 VAULT = {
     "Projects/Alpha.md": """
@@ -42,11 +42,11 @@ VAULT = {
 @pytest.fixture
 def tab_defs(make_vault, stub_config):
     """Every tab_def from a real run, keyed by tab id."""
-    from vault_check.v_chk_build import VaultHealthCheck
-    from vault_check.v_chk_wb_tabs import NewWb
+    from ovi.ovi_build import VaultScan
+    from ovi.ovi_wb_tabs import NewWb
 
     vault = make_vault(VAULT)
-    wb_obj = NewWb(VaultHealthCheck(stub_config(vault)))
+    wb_obj = NewWb(VaultScan(stub_config(vault)))
     return wb_obj.wb_def["wb_tabs"]
 
 

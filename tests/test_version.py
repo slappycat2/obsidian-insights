@@ -16,7 +16,7 @@ from pathlib import Path
 
 import pytest
 
-from vault_check import __version__
+from ovi import __version__
 
 SEMVER = re.compile(r"^\d+\.\d+\.\d+$")
 
@@ -41,7 +41,7 @@ def test_pyproject_does_not_hardcode_a_version():
 
     assert "version" not in pyproject["project"], "pyproject.toml pins its own version"
     assert "version" in pyproject["project"]["dynamic"]
-    assert pyproject["tool"]["hatch"]["version"]["path"] == "src/vault_check/__init__.py"
+    assert pyproject["tool"]["hatch"]["version"]["path"] == "src/ovi/__init__.py"
 
 
 def test_installed_metadata_matches_the_package():
@@ -49,20 +49,20 @@ def test_installed_metadata_matches_the_package():
     the number. A stale editable install shows up here."""
     from importlib.metadata import version
 
-    assert version("obsidian-vault-health-check") == __version__
+    assert version("obsidian-insights") == __version__
 
 
 def test_summary_tab_strings_are_derived_not_hardcoded():
     """The Summary tab announces the version twice, in the title and in a
     hyperlink. Both used to be string literals that nobody remembered to edit."""
-    source = (REPO_ROOT / "src" / "vault_check" / "v_chk_wb_tabs.py").read_text(encoding="utf-8")
+    source = (REPO_ROOT / "src" / "ovi" / "ovi_wb_tabs.py").read_text(encoding="utf-8")
 
-    assert "f'Obsidian Vault Health Check v{__version__}'" in source
+    assert "f'Obsidian Insights v{__version__}'" in source
     assert '"v{__version__}"' in source
 
 
-@pytest.mark.parametrize("module", ["v_chk_wb_tabs.py", "v_chk_setup.py", "v_chk.py",
-                                    "v_chk_splash.py"])
+@pytest.mark.parametrize("module", ["ovi_wb_tabs.py", "ovi_setup.py", "ovi.py",
+                                    "ovi_splash.py"])
 def test_no_stray_version_literals(module):
     """No module that displays a version may contain a bare version literal.
 
@@ -70,7 +70,7 @@ def test_no_stray_version_literals(module):
     "v.0.9", not every number in the file, so plugin and Obsidian versions
     (e.g. "Deprecated in Obsidian 1.4") are unaffected.
     """
-    source = (REPO_ROOT / "src" / "vault_check" / module).read_text(encoding="utf-8")
+    source = (REPO_ROOT / "src" / "ovi" / module).read_text(encoding="utf-8")
 
     strays = re.findall(r"""['"]v\.?\d+\.\d+""", source)
 
@@ -83,7 +83,7 @@ def test_sys_ver_is_not_restored_from_config():
     Restoring it from CONFIG.yaml pinned the reported version to whatever wrote
     the file first -- a 0.2.9 config made 0.3.0 report 0.2.9.
     """
-    source = (REPO_ROOT / "src" / "vault_check" / "v_chk_setup.py").read_text(encoding="utf-8")
+    source = (REPO_ROOT / "src" / "ovi" / "ovi_setup.py").read_text(encoding="utf-8")
 
     assert "self.sys_ver            = __version__" in source
     assert "self.sys_cfg.get('sys_ver'" not in source

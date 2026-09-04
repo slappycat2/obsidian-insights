@@ -4,9 +4,9 @@ from datetime import  datetime
 from pathlib import Path
 from dataclasses import dataclass, field
 
-from vault_check import CTOT_SLOTS
-from vault_check.v_chk_json_file import JsonFile
-from vault_check.v_chk_logger import logger
+from ovi import CTOT_SLOTS
+from ovi.ovi_json_file import JsonFile
+from ovi.ovi_logger import logger
 
 @dataclass
 class ObsidianApp:
@@ -14,7 +14,7 @@ class ObsidianApp:
     ObsidianApp class is a placeholder for the currently installed Obsidian
      application settings and related methods.
     sys_vlts contains a dictionary of all known vaults and their settings from
-    previous runs. However, each time v_chk is run, a check must be done to only use
+    previous runs. However, each time ovi is run, a check must be done to only use
      vaults that currently exist in obsidian.json.
     Currently, it does not contain any methods or attributes.
     possible platforms: Linux, Darwin, Windows
@@ -107,7 +107,7 @@ class ObsidianApp:
         dst_v_dict['bool_unused_3']      = src_v_dict.get('bool_unused_3',  False)
         dst_v_dict['link_lim_vals']      = src_v_dict.get('link_lim_vals', 0)
         dst_v_dict['link_lim_tags']      = src_v_dict.get('link_lim_tags', 0)
-        dst_v_dict['v_chk_date']         = src_v_dict.get('v_chk_date',
+        dst_v_dict['ovi_date']         = src_v_dict.get('ovi_date',
                                                       datetime.now().strftime("%Y-%m-%d %H:%M:%S"))
 
         return dst_v_dict

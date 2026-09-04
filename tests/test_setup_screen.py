@@ -20,10 +20,10 @@ from pathlib import Path
 
 import pytest
 
-from vault_check import v_chk_setup
-from vault_check.v_chk_setup import (ConfigIncompleteError, SetupCancelledError,
+from ovi import ovi_setup
+from ovi.ovi_setup import (ConfigIncompleteError, SetupCancelledError,
                                      SysConfig, VaultNotFoundError)
-from vault_check.v_chk_setupscreen import SetupScreen
+from ovi.ovi_setupscreen import SetupScreen
 
 
 class FakeRoot:
@@ -44,7 +44,7 @@ class FakeSysObj:
     def __init__(self, save_succeeds=True):
         self.vault_name = "TestVault"
         self.sys_pn_cfg = "ignored.yaml"
-        self.v_chk_date = None
+        self.ovi_date = None
         self.save_succeeds = save_succeeds
         self.save_calls = []
 
@@ -93,7 +93,7 @@ def test_save_marks_the_screen_saved_and_closes_it():
 def test_a_failed_save_does_not_count_as_saved(monkeypatch):
     """If the config cannot be written, the run must not proceed as though it
     had been."""
-    import vault_check.v_chk_setupscreen as setupscreen
+    import ovi.ovi_setupscreen as setupscreen
 
     shown = []
     monkeypatch.setattr(setupscreen.messagebox, "showerror",
@@ -134,7 +134,7 @@ def test_cancel_closes_without_saving():
 def test_the_window_close_button_is_wired_to_cancel():
     """Regression: with no WM_DELETE_WINDOW handler, closing the window looked
     exactly like a successful save to the caller."""
-    source = (Path(v_chk_setup.__file__).parent / "v_chk_setupscreen.py").read_text(encoding="utf-8")
+    source = (Path(ovi_setup.__file__).parent / "ovi_setupscreen.py").read_text(encoding="utf-8")
 
     assert 'self.root.protocol("WM_DELETE_WINDOW", self.on_cancel)' in source
 
@@ -205,7 +205,7 @@ class RecordingVar:
 
 def make_vault_screen(monkeypatch):
     """A SetupScreen wired for the dropdown handlers, and its two vaults."""
-    import vault_check.v_chk_setupscreen as setupscreen
+    import ovi.ovi_setupscreen as setupscreen
 
     monkeypatch.setattr(setupscreen.tk, "StringVar", RecordingVar)
     monkeypatch.setattr(setupscreen.tk, "BooleanVar", RecordingVar)
@@ -328,7 +328,7 @@ class StubScreen:
 def run_setup_on(sys_obj, monkeypatch, user_saved):
     StubScreen.instances = []
     StubScreen.returns = user_saved
-    monkeypatch.setattr(v_chk_setup, "SetupScreen", StubScreen)
+    monkeypatch.setattr(ovi_setup, "SetupScreen", StubScreen)
     return SysConfig.run_setup_ui(sys_obj)
 
 
@@ -385,20 +385,20 @@ def test_non_interactive_setup_still_raises_config_incomplete(tmp_path, monkeypa
 
 def test_cli_stops_cleanly_when_setup_is_cancelled(monkeypatch):
     """The reported bug, at the level the user sees it: cancel the dialog and
-    v_chk went on to build a workbook."""
+    ovi went on to build a workbook."""
     from click.testing import CliRunner
 
-    from vault_check import v_chk
+    from ovi import ovi
 
     def refuse(**kwargs):
         raise SetupCancelledError("Setup was cancelled; nothing was changed.")
 
     built = []
-    monkeypatch.setattr(v_chk, "SysConfig", refuse)
-    monkeypatch.setattr(v_chk, "run_pipeline", lambda *a, **k: built.append(True))
-    monkeypatch.setattr(v_chk, "run_with_splash", lambda *a, **k: built.append(True))
+    monkeypatch.setattr(ovi, "SysConfig", refuse)
+    monkeypatch.setattr(ovi, "run_pipeline", lambda *a, **k: built.append(True))
+    monkeypatch.setattr(ovi, "run_with_splash", lambda *a, **k: built.append(True))
 
-    result = CliRunner().invoke(v_chk.cli, ["--setup"])
+    result = CliRunner().invoke(ovi.cli, ["--setup"])
 
     assert not built, "a workbook was built after the user cancelled setup"
     assert result.exit_code == 1
@@ -633,7 +633,7 @@ def test_registering_a_path_that_is_not_a_directory(tmp_path):
 def test_a_command_line_path_obsidian_never_opened_is_accepted(tmp_path):
     """Regression: this used to raise VaultNotFoundError.
 
-    The vault list comes from obsidian.json, so v-chk <folder> refused any
+    The vault list comes from obsidian.json, so ovi <folder> refused any
     folder that had never been opened in Obsidian -- a copied vault, a backup,
     a machine whose Obsidian had been reset.
     """
@@ -765,3 +765,15 @@ def test_a_vault_missing_from_cur_vlts_is_put_back(monkeypatch, tmp_path):
 
     assert vault_name in screen.c_vlts
     assert screen.last_vault_name == vault_name
+
+
+def test_legacy_sys_id_is_read_as_ovi():
+    """A CONFIG.yaml written before the rename to Obsidian Insights says
+    ``sys_id: v_chk``. It must come back as ``ovi`` so generated filenames
+    switch over without an --init."""
+    cfg = SysConfig.__new__(SysConfig)
+    cfg.sys_cfg = {"sys_id": "v_chk"}
+
+    cfg.cfg_unpack()
+
+    assert cfg.sys_id == "ovi"

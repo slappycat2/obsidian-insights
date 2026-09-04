@@ -1,9 +1,9 @@
-"""Command line entry point for the Obsidian Vault Health Check.
+"""Command line entry point for Obsidian Insights.
 
 Pipeline, in order:
 
     SysConfig          -- resolve configuration and choose a vault
-    VaultHealthCheck   -- walk the vault, harvest properties/tags/code blocks
+    VaultScan          -- walk the vault, harvest properties/tags/code blocks
     NewWb              -- turn that data into per-tab cell definitions
     ExcelExporter      -- render the .xlsx and (optionally) open it
 
@@ -17,21 +17,21 @@ from subprocess import Popen
 
 import click
 
-from vault_check import __version__
-from vault_check import v_chk_paths as paths
-from vault_check import v_chk_splash as v_splash
-from vault_check.v_chk_build import VaultHealthCheck
-from vault_check.v_chk_logger import DEFAULT_LOG_LEVEL, logger, make_logger
-from vault_check.v_chk_setup import (ConfigIncompleteError, SetupCancelledError,
+from ovi import __version__
+from ovi import ovi_paths as paths
+from ovi import ovi_splash as v_splash
+from ovi.ovi_build import VaultScan
+from ovi.ovi_logger import DEFAULT_LOG_LEVEL, logger, make_logger
+from ovi.ovi_setup import (ConfigIncompleteError, SetupCancelledError,
                                      SysConfig, VaultNotFoundError)
-from vault_check.v_chk_wb_tabs import NewWb
-from vault_check.v_chk_xl import ExcelExporter
+from ovi.ovi_wb_tabs import NewWb
+from ovi.ovi_xl import ExcelExporter
 
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
 #: (status text, percent complete) for each stage of run_pipeline().
 PHASES = (
-    ("Initializing Vault Health Check...",      10),
+    ("Initializing Obsidian Insights...",       10),
     ("Gathering Vault Statistics...",           20),
     ("Building Workbook Tab Structure...",      50),
     ("Generating Workbook...",                  70),
@@ -56,10 +56,10 @@ def run_pipeline(sys_cfg_obj: SysConfig, progress=log_progress) -> ExcelExporter
     progress(*PHASES[0])
 
     progress(*PHASES[1])
-    vhc_obj = VaultHealthCheck(sys_cfg_obj)
+    scan_obj = VaultScan(sys_cfg_obj)
 
     progress(*PHASES[2])
-    nwb_obj = NewWb(vhc_obj)
+    nwb_obj = NewWb(scan_obj)
 
     progress(*PHASES[3])
     exporter = ExcelExporter(nwb_obj.wbd_obj)
@@ -88,7 +88,7 @@ def run_with_splash(sys_cfg_obj: SysConfig) -> ExcelExporter:
         finally:
             splash.destroy()
 
-    splash.update_status("Starting Vault Health Check...", 0)
+    splash.update_status("Starting Obsidian Insights...", 0)
     splash.after(500, work)
     splash.mainloop()
 
@@ -120,7 +120,7 @@ def reset_generated_files(assume_yes: bool = False) -> None:
     """
     targets = [p for p in (paths.CONFIG_FILE,) if p.exists()]
     targets += sorted(paths.BATCH_DIR.glob("*.yaml"))
-    # '~$name.xlsx' is Excel's owner file for an open workbook, not v_chk output.
+    # '~$name.xlsx' is Excel's owner file for an open workbook, not ovi output.
     # Listing one only to fail on it puts a second, confusing line in the report.
     targets += sorted(p for p in paths.WORKBOOK_DIR.glob("*.xlsx")
                       if not p.name.startswith("~$"))
@@ -160,7 +160,7 @@ def reset_generated_files(assume_yes: bool = False) -> None:
 
 
 @click.command(context_settings={"help_option_names": ["-h", "--help"]})
-@click.version_option(__version__, prog_name="Obsidian Vault Check")
+@click.version_option(__version__, prog_name="Obsidian Insights")
 @click.option("-i", "--init", "do_init", is_flag=True,
               help="Delete CONFIG.yaml, batch files and workbooks, then exit.")
 @click.option("-s", "--setup", "force_setup", is_flag=True,
@@ -190,7 +190,7 @@ def cli(do_init, force_setup, do_not_open, no_splash, headless, assume_yes,
     accepted, and one that is missing a .obsidian folder is scanned anyway, with
     a warning in the log.
 
-    The vault is only ever read -- v_chk never writes to it.
+    The vault is only ever read -- ovi never writes to it.
     """
     make_logger(debug_level)
 

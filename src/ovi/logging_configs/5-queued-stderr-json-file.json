@@ -7,7 +7,7 @@
       "datefmt": "%Y-%m-%dT%H:%M:%S%z"
     },
     "json": {
-      "()": "v_chk_log_config.MyJSONFormatter",
+      "()": "ovi_log_config.MyJSONFormatter",
       "fmt_keys": {
         "level": "levelname",
         "message": "message",
@@ -31,7 +31,7 @@
       "class": "logging.handlers.RotatingFileHandler",
       "level": "DEBUG",
       "formatter": "json",
-      "filename": "logs/v_chk.log.jsonl",
+      "filename": "logs/ovi.log.jsonl",
       "encoding": "utf-8",
       "maxBytes": 3000000,
       "backupCount": 50

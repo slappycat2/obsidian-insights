@@ -1,11 +1,11 @@
-"""Logging setup for v_chk.
+"""Logging setup for ovi.
 
 Import ``logger`` from here everywhere; call ``make_logger()`` exactly once, at
 application start-up.
 
 The JSON files in ``src/logging_configs/`` declare their log files with
-relative paths (``logs/v_chk.log``). Those are resolved against DATA_ROOT here
-rather than the working directory, so logging works no matter where v_chk is
+relative paths (``logs/ovi.log``). Those are resolved against DATA_ROOT here
+rather than the working directory, so logging works no matter where ovi is
 launched from.
 """
 
@@ -15,13 +15,13 @@ import logging.config
 import logging.handlers
 from pathlib import Path
 
-from vault_check import v_chk_paths as paths
+from ovi import ovi_paths as paths
 
 # Pillow logs a great deal at DEBUG; keep it out of our log file.
 pil_logger = logging.getLogger('PIL')
 pil_logger.setLevel(logging.INFO)
 
-logger = logging.getLogger("v_chk")
+logger = logging.getLogger("ovi")
 
 #: Which file in src/logging_configs/ to use. The alternatives there route to
 #: stdout, to JSON, or through a background queue.
@@ -69,7 +69,7 @@ def make_logger(level: str = DEFAULT_LOG_LEVEL,
                 config_name: str = ACTIVE_LOG_CONFIG) -> logging.Logger:
     """Configure logging and return the application logger.
 
-    :param level: level for the ``v_chk`` logger, e.g. from ``--debug-level``.
+    :param level: level for the ``ovi`` logger, e.g. from ``--debug-level``.
     :param config_name: filename within ``src/logging_configs/``.
     """
     setup_logging(config_name)

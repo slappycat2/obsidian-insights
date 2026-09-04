@@ -3,11 +3,21 @@
   "disable_existing_loggers": false,
   "formatters": {
     "simple": {
-      "format": "%(levelname)s: %(message)s"
-    },
-    "detailed": {
-      "format": "[%(levelname)s|%(module)s|L%(lineno)d] %(asctime)s: %(message)s",
+      "format": "%(levelname)s: %(message)s",
       "datefmt": "%Y-%m-%dT%H:%M:%S%z"
+    },
+    "json": {
+      "()": "ovi_log_config.MyJSONFormatter",
+      "fmt_keys": {
+        "level": "levelname",
+        "message": "message",
+        "timestamp": "timestamp",
+        "logger": "name",
+        "module": "module",
+        "function": "funcName",
+        "line": "lineno",
+        "thread_name": "threadName"
+      }
     }
   },
   "handlers": {
@@ -20,8 +30,8 @@
     "file": {
       "class": "logging.handlers.RotatingFileHandler",
       "level": "DEBUG",
-      "formatter": "detailed",
-      "filename": "logs/v_chk.log",
+      "formatter": "json",
+      "filename": "logs/ovi.log.jsonl",
       "encoding": "utf-8",
       "maxBytes": 3000000,
       "backupCount": 50

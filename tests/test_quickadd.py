@@ -14,8 +14,8 @@ import json
 
 import pytest
 
-from vault_check.v_chk_plugin_man import PluginMan
-from vault_check.v_chk_quick_add import EMPTY_MARK, QuickAddData
+from ovi.ovi_plugin_man import PluginMan
+from ovi.ovi_quick_add import EMPTY_MARK, QuickAddData
 
 ROWID, SEQ, SECTION, LEVEL, PARENT, NAME, TYPE, KEY, VALUE = range(9)
 

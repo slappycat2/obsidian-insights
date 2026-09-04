@@ -1,14 +1,14 @@
-"""Build a data dictionary of every name v_chk defines, as an .xlsx workbook.
+"""Build a data dictionary of every name ovi defines, as an .xlsx workbook.
 
 A development aid, not part of the package: ``tools/`` sits outside ``src/``,
 so hatchling never sees it and the wheel is unaffected.
 
     uv run python tools/var_dictionary.py                    # -> tools/_out/
-    uv run python tools/var_dictionary.py "F:/Documents/v_chk variables.xlsx"
+    uv run python tools/var_dictionary.py "F:/Documents/ovi variables.xlsx"
 
 Three passes, all in this file:
 
-1. **Extract.** Walk main.py and every module in src/vault_check with ``ast``,
+1. **Extract.** Walk main.py and every module in src/ovi with ``ast``,
    recording each name assigned at module, class or instance level. ast rather
    than regex, so assignment targets and annotations are read structurally and
    a name inside a string or comment is never mistaken for a definition.
@@ -45,7 +45,7 @@ ROOT = TOOLS.parent
 sys.path.insert(0, str(TOOLS))
 from var_purposes import resolve                              # noqa: E402
 
-SRC = [ROOT / "main.py"] + sorted((ROOT / "src" / "vault_check").glob("*.py"))
+SRC = [ROOT / "main.py"] + sorted((ROOT / "src" / "ovi").glob("*.py"))
 
 # Literal on the right-hand side -> content type. Anything not listed leaves the
 # type blank, which the workbook shows as a dash: honest about not knowing.
@@ -299,7 +299,7 @@ CFG_KEYS = """sys_id sys_ver sys_dir_sys sys_dir_dat sys_dir_bat sys_dir_wbs sys
 sys_pn_cfg sys_pn_wb_exec sys_pn_batch sys_pn_wbs sys_tab_seq sys_cfg_os cur_vlts sys_vlts sys_pn_lg2
 sys_pn_lg3 sys_pn_ico sys_pn_bnr sys_pn_a51 sys_splash_bg vault_name vault_id dir_vault dir_templates
 skip_rel_str skip_abs_lst dirs_dot ctot bool_shw_notes bool_rel_paths bool_summ_rows bool_unused_1
-bool_unused_2 bool_unused_3 link_lim_vals link_lim_tags v_chk_date""".split()
+bool_unused_2 bool_unused_3 link_lim_vals link_lim_tags ovi_date""".split()
 
 ON_SCREEN = {"vault_name", "skip_rel_str", "sys_pn_wb_exec", "bool_shw_notes",
              "bool_rel_paths", "bool_unused_1", "bool_unused_2",
@@ -366,7 +366,7 @@ def build(records, out_path):
           ["Name", "Kind", "Defined on", "Type", "Default / initial value", "Defined at",
            "Used in (file: occurrences)", "Files", "Uses", "Purpose", "Purpose from"],
           [26, 18, 20, 16, 30, 26, 46, 7, 7, 78, 15], rows,
-          "Every name assigned at module, class or instance level across main.py and src/vault_check, "
+          "Every name assigned at module, class or instance level across main.py and src/ovi, "
           "extracted with Python's ast module. A type marked (inferred) was borrowed from the SysConfig "
           "field of the same name; 'None at init' means the attribute starts as None and is given its "
           "real value later; a dash means the type depends on what is assigned at run time. Occurrence "
@@ -397,8 +397,8 @@ def build(records, out_path):
 
     sheet("Counters (ctot)", ["Slot", "Area51 label", "Counts", "Type"], [11, 36, 92, 10],
           [[a, b, c, "int"] for a, b, c in CTOT],
-          "sys_cfg['ctot'] -- a list of integers incremented through v_chk_build.py and rendered on the "
-          "Area51 tab, not the Summary tab. Its length is CTOT_SLOTS in src/vault_check/__init__.py, the "
+          "sys_cfg['ctot'] -- a list of integers incremented through ovi_build.py and rendered on the "
+          "Area51 tab, not the Summary tab. Its length is CTOT_SLOTS in src/ovi/__init__.py, the "
           "one place it is stated. Adding a slot means bumping CTOT_SLOTS, appending to ctot_descs AND "
           "adding the matching f-tot-NN / x-tot-NN cell pair in DefAr51.tab_cd_fixed_summ -- a "
           "description with no cell is simply never rendered.",
@@ -407,7 +407,7 @@ def build(records, out_path):
     sheet("Data sinks", ["Name", "Shape", "Tab that consumes it", "Holds", "Type"],
           [14, 36, 20, 72, 10],
           [[a, b, c, d, "list" if a == "obs_empty" else "dict"] for a, b, c, d in SINKS],
-          "The harvest. VaultHealthCheck accumulates into these, they travel inside wb_def['wb_data'], "
+          "The harvest. VaultScan accumulates into these, they travel inside wb_def['wb_data'], "
           "and each tab reads exactly one via its data_src. A tab whose sink is empty is dropped rather "
           "than rendered, which is why a vault with no Templater folder legitimately produces 10 sheets, "
           "not 12.",
@@ -439,7 +439,7 @@ def write_readme(wb, n_rows, n_once, counts):
     ws = wb["Sheet"]
     ws.title = "Read me"
     ws.sheet_view.showGridLines = False
-    ws["A1"] = "v_chk -- variable dictionary"
+    ws["A1"] = "ovi -- variable dictionary"
     ws["A1"].font = Font(size=20, bold=True, color="1F3864")
     ws.column_dimensions["A"].width = 118
 
@@ -449,7 +449,7 @@ def write_readme(wb, n_rows, n_once, counts):
         ("", ""),
         ("What is in here", "h"),
         (f"Every name assigned at module, class or instance level in main.py and the modules of "
-         f"src/vault_check -- {n_rows} of them. Locals inside functions are not included; neither "
+         f"src/ovi -- {n_rows} of them. Locals inside functions are not included; neither "
          f"are the tests.", ""),
         ("", ""),
         ("How it was built", "h"),
@@ -517,7 +517,7 @@ def main():
     else:
         out_dir = TOOLS / "_out"
         out_dir.mkdir(parents=True, exist_ok=True)
-        out = out_dir / "v_chk variables.xlsx"
+        out = out_dir / "ovi variables.xlsx"
 
     records = extract()
     counts = build(records, out)

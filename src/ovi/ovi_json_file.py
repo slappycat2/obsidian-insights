@@ -1,7 +1,7 @@
 from pathlib import Path
 import json
 
-from vault_check.v_chk_logger import logger
+from ovi.ovi_logger import logger
 
 class JsonFile:
     """

@@ -13,9 +13,9 @@ not a mock.
 
 Two things here are load-bearing:
 
-* **It cannot write your config.** ``V_CHK_DATA_DIR`` is redirected to a scratch
-  directory holding a *copy* of CONFIG.yaml before ``vault_check`` is imported --
-  ``v_chk_paths`` resolves DATA_ROOT once, at import time, so redirecting later
+* **It cannot write your config.** ``OVI_DATA_DIR`` is redirected to a scratch
+  directory holding a *copy* of CONFIG.yaml before ``ovi`` is imported --
+  ``ovi_paths`` resolves DATA_ROOT once, at import time, so redirecting later
   would be too late. The screen is then dismissed with ``on_cancel()``, never
   ``on_save_and_run()``, and ``show()`` returning False is the proof that nothing
   was saved.
@@ -36,17 +36,17 @@ from pathlib import Path
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
-# Redirect DATA_ROOT before vault_check is imported -- see the module docstring.
-_scratch = Path(tempfile.mkdtemp(prefix="v_chk_ui_shot_"))
+# Redirect DATA_ROOT before ovi is imported -- see the module docstring.
+_scratch = Path(tempfile.mkdtemp(prefix="ovi_ui_shot_"))
 _real_cfg = REPO_ROOT / "CONFIG.yaml"
 if _real_cfg.exists():
     shutil.copy2(_real_cfg, _scratch / "CONFIG.yaml")
-os.environ["V_CHK_DATA_DIR"] = str(_scratch)
+os.environ["OVI_DATA_DIR"] = str(_scratch)
 
 from PIL import ImageGrab                                    # noqa: E402
 
-from vault_check.v_chk_setup import SysConfig                # noqa: E402
-from vault_check.v_chk_setupscreen import SetupScreen        # noqa: E402
+from ovi.ovi_setup import SysConfig                # noqa: E402
+from ovi.ovi_setupscreen import SetupScreen        # noqa: E402
 
 
 def dpi_scale() -> float:

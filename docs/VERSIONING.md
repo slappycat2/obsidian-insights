@@ -2,7 +2,7 @@
 
 ## The short version
 
-The version is **one string, in one file**: `__version__` in `src/vault_check/__init__.py`.
+The version is **one string, in one file**: `__version__` in `src/ovi/__init__.py`.
 Everything else derives from it. If you find yourself typing a version number anywhere else, that is
 the bug.
 
@@ -17,7 +17,7 @@ treat any pre-2026-07-29 version string as a label, not a version.
 
 Restarting below the previous number (0.3.0 → 0.1.0) is normally forbidden, because packaging tools
 order versions and would treat it as a downgrade. It was safe exactly once, here, because nothing
-had ever been published: no PyPI release under either `obsidian-vault-health-check` or `v-chk`, no
+had ever been published: no PyPI release under either `obsidian-insights` or `ovi`, no
 git tags, no GitHub releases. **That escape hatch is now closed** — from 0.1.0 on, the number only
 goes up.
 
@@ -59,13 +59,13 @@ Nothing in this list should ever be edited by hand:
 
 | Consumer | How |
 |---|---|
-| `pyproject.toml` | `dynamic = ["version"]` + `[tool.hatch.version] path = "src/vault_check/__init__.py"` |
-| `v-chk --version` | `@click.version_option(__version__, ...)` in `v_chk.py` |
-| Splash screen | `version=f"v{__version__}"` default in `v_chk_splash.py` |
-| Summary tab title | `f'Obsidian Vault Health Check v{__version__}'` in `v_chk_wb_tabs.py` |
-| Summary tab hyperlink | `f'...,"v{__version__}")'` in `v_chk_wb_tabs.py` |
+| `pyproject.toml` | `dynamic = ["version"]` + `[tool.hatch.version] path = "src/ovi/__init__.py"` |
+| `ovi --version` | `@click.version_option(__version__, ...)` in `ovi.py` |
+| Splash screen | `version=f"v{__version__}"` default in `ovi_splash.py` |
+| Summary tab title | `f'Obsidian Insights v{__version__}'` in `ovi_wb_tabs.py` |
+| Summary tab hyperlink | `f'...,"v{__version__}")'` in `ovi_wb_tabs.py` |
 | `SysConfig.sys_ver` | assigned `__version__` in `cfg_unpack()` |
-| Installed metadata | `importlib.metadata.version("obsidian-vault-health-check")` |
+| Installed metadata | `importlib.metadata.version("obsidian-insights")` |
 
 `tests/test_version.py` enforces this. It does not check *which* version is correct — only that
 there is exactly one of it, since that is the property that kept breaking.
@@ -80,8 +80,8 @@ there is exactly one of it, since that is the property that kept breaking.
 
 ```bash
 uv run pytest                                              # 1. green before you start
-# 2. edit __version__ in src/vault_check/__init__.py
-uv sync --reinstall-package obsidian-vault-health-check    # 3. see the gotcha below
+# 2. edit __version__ in src/ovi/__init__.py
+uv sync --reinstall-package obsidian-insights    # 3. see the gotcha below
 # 4. move CHANGELOG.md's Unreleased entries under the new version + today's date
 uv run pytest                                              # 5. green after
 git commit -am "Release v1.1.0"
@@ -120,7 +120,7 @@ git push origin master --follow-tags
 > **Gotcha: `uv sync` alone is not enough.** The version is baked into the editable install's
 > metadata at install time, so bumping `__version__` leaves `importlib.metadata` reporting the old
 > number and `test_installed_metadata_matches_the_package` failing. Only
-> `--reinstall-package obsidian-vault-health-check` refreshes it. CI never hits this, because it
+> `--reinstall-package obsidian-insights` refreshes it. CI never hits this, because it
 > installs from scratch.
 
 ## Tags

@@ -10,7 +10,7 @@ jobs:
   pytest:
     # The suite is pure filesystem work -- it builds throwaway vaults in a
     # tmp_path and never touches Obsidian or a GUI -- so it runs on all three
-    # platforms. That is the point: v_chk has Windows/macOS/Linux branches for
+    # platforms. That is the point: ovi has Windows/macOS/Linux branches for
     # locating obsidian.json, and case-sensitive filesystems catch asset-name
     # mistakes that Windows silently forgives.
     runs-on: ${{ matrix.os }}
@@ -57,9 +57,9 @@ jobs:
           names = zipfile.ZipFile(wheel).namelist()
 
           required = [
-              "vault_check/__init__.py",
-              "vault_check/v_chk.py",
-              "vault_check/v_chk_paths.py",
+              "ovi/__init__.py",
+              "ovi/ovi.py",
+              "ovi/ovi_paths.py",
           ]
           missing = [name for name in required if name not in names]
 

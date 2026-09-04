@@ -1,4 +1,4 @@
-"""Obsidian Vault Health Check -- analyse an Obsidian vault into a spreadsheet."""
+"""Obsidian Insights -- analyse an Obsidian vault into a spreadsheet."""
 
 __version__ = "1.2.0"
 

@@ -63,14 +63,14 @@ VAULT = {
 @pytest.fixture
 def workbook_path(make_vault, stub_config):
     """Run all four stages over a small vault and return the .xlsx path."""
-    from vault_check.v_chk_build import VaultHealthCheck
-    from vault_check.v_chk_wb_tabs import NewWb
-    from vault_check.v_chk_xl import ExcelExporter
+    from ovi.ovi_build import VaultScan
+    from ovi.ovi_wb_tabs import NewWb
+    from ovi.ovi_xl import ExcelExporter
 
     vault = make_vault(VAULT)
 
-    health_check = VaultHealthCheck(stub_config(vault))
-    vault_wb = NewWb(health_check)
+    scan = VaultScan(stub_config(vault))
+    vault_wb = NewWb(scan)
 
     exporter = ExcelExporter(vault_wb.wbd_obj)
     exporter.export()
@@ -107,9 +107,9 @@ def test_the_quickadd_tab_renders_when_the_plugin_is_present(make_vault, stub_co
     """
     import json
 
-    from vault_check.v_chk_build import VaultHealthCheck
-    from vault_check.v_chk_wb_tabs import NewWb
-    from vault_check.v_chk_xl import ExcelExporter
+    from ovi.ovi_build import VaultScan
+    from ovi.ovi_wb_tabs import NewWb
+    from ovi.ovi_xl import ExcelExporter
 
     files = dict(VAULT)
     files[".obsidian/community-plugins.json"] = json.dumps(["quickadd"])
@@ -124,7 +124,7 @@ def test_the_quickadd_tab_renders_when_the_plugin_is_present(make_vault, stub_co
     })
 
     vault = make_vault(files, name="QuickAddPipelineVault")
-    exporter = ExcelExporter(NewWb(VaultHealthCheck(stub_config(vault))).wbd_obj)
+    exporter = ExcelExporter(NewWb(VaultScan(stub_config(vault))).wbd_obj)
     exporter.export()
 
     ws = openpyxl.load_workbook(exporter.sys_pn_wbs)["QuickAdd"]
@@ -235,7 +235,7 @@ def test_summary_tab_shows_the_running_version(workbook_path):
     there is exactly one distinct value and it is the running one."""
     import re
 
-    from vault_check import __version__
+    from ovi import __version__
 
     wb = openpyxl.load_workbook(workbook_path)
     text = " ".join(
@@ -297,9 +297,9 @@ def test_templates_tab_reaches_the_workbook(make_vault, stub_config):
 
     Asserted end to end because the drop happens during export, not harvesting.
     """
-    from vault_check.v_chk_build import VaultHealthCheck
-    from vault_check.v_chk_wb_tabs import NewWb
-    from vault_check.v_chk_xl import ExcelExporter
+    from ovi.ovi_build import VaultScan
+    from ovi.ovi_wb_tabs import NewWb
+    from ovi.ovi_xl import ExcelExporter
 
     vault = make_vault({
         "Notes/Real.md": "---\nauthor: Jane\n---\n\nReal note.\n",
@@ -308,8 +308,8 @@ def test_templates_tab_reaches_the_workbook(make_vault, stub_config):
             "tags: [daily]\n---\n\n# <% tp.file.title %>\n"
         ),
     })
-    health_check = VaultHealthCheck(stub_config(vault, dir_templates=str(vault / "Templates")))
-    exporter = ExcelExporter(NewWb(health_check).wbd_obj)
+    scan = VaultScan(stub_config(vault, dir_templates=str(vault / "Templates")))
+    exporter = ExcelExporter(NewWb(scan).wbd_obj)
     exporter.export()
 
     wb = openpyxl.load_workbook(exporter.sys_pn_wbs)

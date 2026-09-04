@@ -7,11 +7,11 @@ from datetime import datetime
 from tkinter import messagebox
 from dataclasses import dataclass, field
 
-from vault_check import __version__, CTOT_SLOTS
-from vault_check import v_chk_paths as paths
-from vault_check.v_chk_obs_app import ObsidianApp
-from vault_check.v_chk_setupscreen import SetupScreen
-from vault_check.v_chk_logger import logger, make_logger
+from ovi import __version__, CTOT_SLOTS
+from ovi import ovi_paths as paths
+from ovi.ovi_obs_app import ObsidianApp
+from ovi.ovi_setupscreen import SetupScreen
+from ovi.ovi_logger import logger, make_logger
 
 #: Workbook tabs, in render order. Single source of truth -- this was
 #: previously duplicated between __post_init__ and cfg_unpack.
@@ -45,7 +45,7 @@ class SetupCancelledError(RuntimeError):
 @dataclass
 class SysConfig:
     sys_cfg:                 dict = field(default_factory=dict)
-    sys_id:                  str  = 'v_chk'
+    sys_id:                  str  = 'ovi'
     sys_ver:                 str  = __version__
     sys_dir_sys:             str  = field(default=None)
     sys_dir_dat:             str  = field(default=None)
@@ -83,7 +83,7 @@ class SysConfig:
     bool_unused_3:           bool = field(default=False)
     link_lim_vals:           int  = field(default=0)
     link_lim_tags:           int  = field(default=0)
-    v_chk_date:              str  = field(default=None)
+    ovi_date:              str  = field(default=None)
     sys_init:                bool = field(default=False)
 
     # Runtime behaviour, not persisted to CONFIG.yaml.
@@ -97,7 +97,7 @@ class SysConfig:
 
     def __post_init__(self):
         self.sys_cfg_os     = platform.system()
-        self.v_chk_date     = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+        self.ovi_date     = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
         self.set_path_vars()
         paths.ensure_runtime_dirs()
@@ -235,7 +235,7 @@ class SysConfig:
         if not self.interactive:
             raise ConfigIncompleteError(
                 f"Configuration at {self.sys_pn_cfg} is missing or invalid, and "
-                f"v_chk is running non-interactively. Run it once without "
+                f"ovi is running non-interactively. Run it once without "
                 f"--headless to complete setup."
             )
 
@@ -247,7 +247,7 @@ class SysConfig:
             raise SetupCancelledError("Setup was cancelled; nothing was changed.")
 
     def set_path_vars(self):
-        """Populate every path attribute from v_chk_paths.
+        """Populate every path attribute from ovi_paths.
 
         These stay as ``str`` (not Path) because downstream code concatenates
         them with ``+``, e.g. WbDataDef.get_last_bat().
@@ -329,7 +329,7 @@ class SysConfig:
 
     def get_skip_abs_lst(self, skip_rel_str: str, dir_start: str) -> list:
         """
-        Returns a list of all directories to be skipped from the vault health check based
+        Returns a list of all directories to be skipped from the vault scan based
         on the comma separated list provided by the user during setup.
         :param skip_rel_str:
         :param dir_start:
@@ -420,20 +420,25 @@ class SysConfig:
             , 'bool_unused_3':      self.bool_unused_3
             , 'link_lim_vals':      self.link_lim_vals
             , 'link_lim_tags':      self.link_lim_tags
-            , 'v_chk_date':         self.v_chk_date
+            , 'ovi_date':         self.ovi_date
         }
 
         # self.sys_cfg['sys_cfg'] = self.sys_cfg
 
     def cfg_unpack(self):
-        self.sys_id             = self.sys_cfg.get('sys_id',            'v_chk')
+        self.sys_id             = self.sys_cfg.get('sys_id',            'ovi')
+        # CONFIG.yaml files written before the rename to Obsidian Insights
+        # carry the old id; honour them so output filenames switch over
+        # without an --init.
+        if self.sys_id == 'v_chk':
+            self.sys_id = 'ovi'
         # The version is always the running code's, never the one restored from
         # CONFIG.yaml -- otherwise the first config a machine writes pins the
         # reported version forever. A config written by 0.2.9 really was making
         # 0.3.0 report itself as 0.2.9. What lands back in CONFIG.yaml is
         # therefore "the version that last wrote this file".
         self.sys_ver            = __version__
-        # Paths are always recomputed from v_chk_paths rather than restored from
+        # Paths are always recomputed from ovi_paths rather than restored from
         # CONFIG.yaml, so a config file written on another machine (or before
         # the project moved) still resolves correctly.
         self.set_path_vars()
@@ -462,7 +467,7 @@ class SysConfig:
         self.bool_unused_3      = self.sys_cfg.get('bool_unused_3',     False)
         self.link_lim_vals      = self.sys_cfg.get('link_lim_vals',     0)
         self.link_lim_tags      = self.sys_cfg.get('link_lim_tags',     0)
-        self.v_chk_date         = self.sys_cfg.get('v_chk_date',        '')
+        self.ovi_date         = self.sys_cfg.get('ovi_date',        '')
 
     @staticmethod
     def validate_vault_id(vault_id):
@@ -545,7 +550,7 @@ class SysConfig:
         return True, ""
 
 def main() -> None:
-    """Open the setup screen on its own: ``python src/v_chk_setup.py``.
+    """Open the setup screen on its own: ``python src/ovi_setup.py``.
 
     Constructing SysConfig with force_setup=True shows the screen and saves
     whatever is entered, regardless of whether CONFIG.yaml already validates.

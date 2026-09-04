@@ -1,5 +1,5 @@
 [project]
-name = "obsidian-vault-health-check"
+name = "obsidian-insights"
 dynamic = ["version"]
 description = "Analyse an Obsidian vault and produce a spreadsheet of its properties, values and tags."
 readme = "README.md"
@@ -24,24 +24,24 @@ dependencies = [
 ]
 
 [project.urls]
-Homepage = "https://github.com/slappycat2/obsidian-vault-health-check"
-Issues = "https://github.com/slappycat2/obsidian-vault-health-check/issues"
+Homepage = "https://github.com/slappycat2/obsidian-insights"
+Issues = "https://github.com/slappycat2/obsidian-insights/issues"
 
 [project.scripts]
-# Installs a `v-chk` command onto PATH inside the venv.
-v-chk = "vault_check.v_chk:main"
+# Installs an `ovi` command onto PATH inside the venv.
+ovi = "ovi.ovi:main"
 
 [build-system]
 requires = ["hatchling"]
 build-backend = "hatchling.build"
 
-# Single source of truth for the version: src/vault_check/__init__.py.
+# Single source of truth for the version: src/ovi/__init__.py.
 # Everything else (the CLI's --version, SysConfig.sys_ver) reads it from there.
 [tool.hatch.version]
-path = "src/vault_check/__init__.py"
+path = "src/ovi/__init__.py"
 
 [tool.hatch.build.targets.wheel]
-packages = ["src/vault_check"]
+packages = ["src/ovi"]
 
 [dependency-groups]
 dev = [

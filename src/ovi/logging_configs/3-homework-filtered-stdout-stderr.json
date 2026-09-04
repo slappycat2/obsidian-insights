@@ -9,7 +9,7 @@
   },
   "filters": {
     "no_errors": {
-      "()": "v_chk_log_config.NonErrorFilter"
+      "()": "ovi_log_config.NonErrorFilter"
     }
   },
   "handlers": {

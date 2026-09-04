@@ -7,9 +7,9 @@ import platform
 from functools import lru_cache
 from pathlib import Path
 
-from vault_check import __version__, CTOT_SLOTS
-from vault_check.v_chk_colors import Colors
-from vault_check.v_chk_logger import logger
+from ovi import __version__, CTOT_SLOTS
+from ovi.ovi_colors import Colors
+from ovi.ovi_logger import logger
 
 # --------------------------------------------------------------------------
 # Display font for tab titles and subtitles
@@ -30,7 +30,7 @@ from vault_check.v_chk_logger import logger
 # condensed reads as blurred rather than bolder. Worth revisiting if the
 # titles look wrong.
 #
-# v_chk builds the workbook and opens it on the same machine, so looking at
+# ovi builds the workbook and opens it on the same machine, so looking at
 # what is installed here is a fair proxy for what will render it.
 # --------------------------------------------------------------------------
 DISPLAY_FONT = "Impact"
@@ -79,10 +79,10 @@ def font_is_installed(family):
                 if not name.endswith(FONT_SUFFIXES):
                     continue
                 if name.rsplit(".", 1)[0].replace(" ", "").replace("-", "") == wanted:
-                    logger.debug(f"v_chk_wb_tabs: font '{family}' found: {filename}")
+                    logger.debug(f"ovi_wb_tabs: font '{family}' found: {filename}")
                     return True
 
-    logger.info(f"v_chk_wb_tabs: font '{family}' is not installed; "
+    logger.info(f"ovi_wb_tabs: font '{family}' is not installed; "
                 f"titles will use the workbook default")
     return False
 
@@ -100,9 +100,9 @@ def display_font():
 TITLE_FONT = display_font()
 
 class NewWb():
-    def __init__(self, vhc_obj):
-        self.vhc_obj = vhc_obj
-        self.wbd_obj = vhc_obj.wbd_obj
+    def __init__(self, scan_obj):
+        self.scan_obj = scan_obj
+        self.wbd_obj = scan_obj.wbd_obj
         self.tab_id = 'init'
         self.wb_def = self.wbd_obj.read_wb_data()
         self.wb_tabs = self.wb_def['wb_tabs']
@@ -119,7 +119,7 @@ class NewWb():
               'summ': {
                   'tab_name': "Summary"
                 , 'shw_grid': False
-                , 'tab_titl': f'Obsidian Vault Health Check v{__version__}'
+                , 'tab_titl': f'Obsidian Insights v{__version__}'
                 , 'hdr_clrs': True          #  True=Force Tab Colors; False=Use TableStyle Colors
                 , 'col_key1': "Property"
                 , 'col_key2': ""
@@ -1739,7 +1739,7 @@ class DefSumm(NewTab):
         super().__init__(self.tab_id, wb_obj)
         ctot = self.sys_cfg['ctot']
         dir_vault_txt = f"Vault Path: {self.sys_cfg['dir_vault']}"
-        v_chk_date = self.sys_cfg['v_chk_date']
+        ovi_date = self.sys_cfg['ovi_date']
         comm = wb_obj.tab_common
 
         banner = self.sys_cfg['sys_pn_bnr']
@@ -1769,7 +1769,7 @@ class DefSumm(NewTab):
 
         clr1, txt1, clr2, txt2,         table_style = self.colors.get_tab_clrs(self.tab_id)
         wht0 = 'FFFFFF'
-        val_version = f'=HYPERLINK("https://github.com/slappycat2/obsidian-vault-health-check","v{__version__}")'
+        val_version = f'=HYPERLINK("https://github.com/slappycat2/obsidian-insights","v{__version__}")'
         val_donate  = f'=HYPERLINK("https://ko-fi.com/swenlarsen","support this project!")'
         pros_key1 = f"{comm['pros']['col_key1']}"
         pros_lnks = f"{comm['pros']['col_lnks']}"
@@ -1823,7 +1823,7 @@ class DefSumm(NewTab):
             , 'img-01':    [  3,  1, '', sz,  0, '', '',     False, False, 'left', banner]
             , 'row-01':    [  3,  1, '', 72,  0, wht0, wht0, False, False, 'left', "."]
             , 'dir-vault': [  3,  2, '', 16,  0, '','', True, False, 'left', dir_vault_txt]
-            , 'c-date':    [ 10,  2, '', 10,  0, '','', True, False, 'right', v_chk_date]
+            , 'c-date':    [ 10,  2, '', 10,  0, '','', True, False, 'right', ovi_date]
             , 'version':   [  3, 31, '', sz,  0, '', '',  False, False, 'left', val_version]
             , 'donate':    [ 10, 31, '', sz,  0, '', '',  False, False, 'right', val_donate]
             , 'Notes-hdr': [ 14,  2, '', 16, 32, txt1, clr1, True, False, 'left', 'Notes: ']
@@ -1989,7 +1989,7 @@ class DefAr51(NewTab):
         self.tab_def['tab_cd_fixed_grid']   = {  # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
             # totals headers (across and down)
               'img-01':     [1,  1, '', sz, 0, '', '', False, False, 'left', banner]
-            , 'Ctrl-Key':   [2, 20, '', 14, 48,   '', sea2, True,  False, 'left', 'Control totals from src.v_chk']
+            , 'Ctrl-Key':   [2, 20, '', 14, 48,   '', sea2, True,  False, 'left', 'Control totals from src.ovi']
             , 'Ctrl-Val':   [0,  0, '', 10, 11,   '', sea2, True,  False, 'right', 'Totals']
             , 'Run-Bal':    [0,  0, '', 10, 10,   '', sea2, True,  False, 'right', 'Run Tot']
             , 'Zero-Bal':   [0,  0, '', 10, 13,   '', sea2, True,  False, 'center', 'Zero Bal Chk']

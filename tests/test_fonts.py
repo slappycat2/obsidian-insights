@@ -11,10 +11,10 @@ from pathlib import Path
 import openpyxl
 import pytest
 
-from vault_check import v_chk_wb_tabs as tabs
+from ovi import ovi_wb_tabs as tabs
 
 SOURCE = (Path(__file__).resolve().parent.parent
-          / "src" / "vault_check" / "v_chk_wb_tabs.py").read_text(encoding="utf-8")
+          / "src" / "ovi" / "ovi_wb_tabs.py").read_text(encoding="utf-8")
 
 
 @pytest.fixture(autouse=True)
@@ -108,12 +108,12 @@ def test_no_tab_hardcodes_a_font_name():
 
 @pytest.fixture
 def workbook(make_vault, stub_config):
-    from vault_check.v_chk_build import VaultHealthCheck
-    from vault_check.v_chk_wb_tabs import NewWb
-    from vault_check.v_chk_xl import ExcelExporter
+    from ovi.ovi_build import VaultScan
+    from ovi.ovi_wb_tabs import NewWb
+    from ovi.ovi_xl import ExcelExporter
 
     vault = make_vault({"Note.md": "---\nauthor: Jane\n---\n\nBody.\n"})
-    exporter = ExcelExporter(NewWb(VaultHealthCheck(stub_config(vault))).wbd_obj)
+    exporter = ExcelExporter(NewWb(VaultScan(stub_config(vault))).wbd_obj)
     exporter.export()
     return openpyxl.load_workbook(exporter.sys_pn_wbs)
 
@@ -125,7 +125,7 @@ def test_tab_titles_use_the_resolved_display_font(workbook):
     Both branches are real -- Windows and macOS runners take the first, Linux
     the second, since Impact is not an OS font there.
     """
-    from vault_check.v_chk_xl import FALLBACK_FONT
+    from ovi.ovi_xl import FALLBACK_FONT
 
     title = workbook["Properties"].cell(row=2, column=3)
 
@@ -156,15 +156,15 @@ def test_titles_name_no_font_at_all_when_the_display_font_is_missing(
     The tab subclasses read TITLE_FONT when they are instantiated, so patching
     the module global here is enough.
     """
-    from vault_check.v_chk_xl import FALLBACK_FONT
-    from vault_check.v_chk_build import VaultHealthCheck
-    from vault_check.v_chk_wb_tabs import NewWb
-    from vault_check.v_chk_xl import ExcelExporter
+    from ovi.ovi_xl import FALLBACK_FONT
+    from ovi.ovi_build import VaultScan
+    from ovi.ovi_wb_tabs import NewWb
+    from ovi.ovi_xl import ExcelExporter
 
     monkeypatch.setattr(tabs, "TITLE_FONT", None)
 
     vault = make_vault({"Note.md": "---\nauthor: Jane\n---\n\nBody.\n"})
-    exporter = ExcelExporter(NewWb(VaultHealthCheck(stub_config(vault))).wbd_obj)
+    exporter = ExcelExporter(NewWb(VaultScan(stub_config(vault))).wbd_obj)
     exporter.export()
 
     title = openpyxl.load_workbook(exporter.sys_pn_wbs)["Properties"].cell(row=2, column=3)

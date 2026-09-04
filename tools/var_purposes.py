@@ -15,7 +15,7 @@ import re
 AUTHORED = {
 # --- package-level ---------------------------------------------------------
 "__version__": "The single source of truth for the version. pyproject declares dynamic=['version'] and hatchling reads it from here; the CLI --version, the splash, SysConfig.sys_ver and both Summary tab strings all derive from it. Never type a version literal anywhere else.",
-"CTOT_SLOTS": "How many slots the ctot counter list has. Stated once here; v_chk_build, v_chk_setup, v_chk_obs_app, v_chk_wb_tabs and tests/conftest all import it, and they must agree or DefAr51 indexes off the end of the list.",
+"CTOT_SLOTS": "How many slots the ctot counter list has. Stated once here; ovi_build, ovi_setup, ovi_obs_app, ovi_wb_tabs and tests/conftest all import it, and they must agree or DefAr51 indexes off the end of the list.",
 "LOG_LEVELS": "The -d/--debug-level choices accepted on the command line.",
 "PHASES": "Names of the four pipeline stages, used for the splash screen's progress text.",
 "ACTIVE_LOG_CONFIG": "Which JSON/YAML logging dictConfig under logging_configs/ is live. Swap this to change handlers without touching code.",
@@ -24,9 +24,9 @@ AUTHORED = {
 "pil_logger": "Pillow's own logger, held separately so its chatter can be silenced independently of ours.",
 "LOG_RECORD_BUILTIN_ATTRS": "The stock LogRecord attribute names, so the JSON formatter can tell built-in fields from extras a caller passed in.",
 
-# --- paths (v_chk_paths.py) ------------------------------------------------
+# --- paths (ovi_paths.py) ------------------------------------------------
 "PACKAGE_DIR": "The installed package directory, resolved from __file__. Root for every *asset* path, which is why running from any working directory works and why Path.cwd() must never come back.",
-"DATA_ROOT": "Root for everything *writable*. Resolution order: $V_CHK_DATA_DIR, then the repo root when running from a source checkout (detected via pyproject.toml), then ~/.v_chk. Resolved once at import time, which is why tests set the env var before importing vault_check.",
+"DATA_ROOT": "Root for everything *writable*. Resolution order: $OVI_DATA_DIR, then the repo root when running from a source checkout (detected via pyproject.toml), then ~/.ovi. Resolved once at import time, which is why tests set the env var before importing ovi.",
 "DATA_DIR_ENV_VAR": "Name of the environment variable that redirects DATA_ROOT. The seam the test suite uses.",
 "ASSETS_DIR": "Package assets (logos, banner, area51 image) — read-only, ships in the wheel.",
 "LOGGING_CONFIG_DIR": "Where the JSON/YAML logging dictConfigs live.",
@@ -52,7 +52,7 @@ AUTHORED = {
 "SPLASH_Test": "Debug flag that keeps the splash screen up for inspection.",
 
 # --- SysConfig: system settings --------------------------------------------
-"SysConfig.sys_id": "Application id ('v_chk'). Prefixes every generated filename and is the fallback stub when a vault name sanitises away to nothing.",
+"SysConfig.sys_id": "Application id ('ovi'). Prefixes every generated filename and is the fallback stub when a vault name sanitises away to nothing.",
 "SysConfig.sys_ver": "Running version, always taken from __version__ rather than from CONFIG.yaml — otherwise the first config a machine writes would pin the version forever.",
 "SysConfig.sys_cfg": "The packed settings dict. THIS is what every downstream stage reads, not the attributes. Any attribute changed after load_config() must be followed by cfg_pack() or the change is silently ignored.",
 "SysConfig.sys_cfg_os": "platform.system() — decides where obsidian.json lives and how dot-directories are found.",
@@ -64,7 +64,7 @@ AUTHORED = {
 "SysConfig.sys_dir_img": "Directory holding the image assets used in the workbook.",
 "SysConfig.sys_pn_cfg": "Full path to CONFIG.yaml.",
 "SysConfig.sys_pn_wb_exec": "Full path to the spreadsheet executable that ExcelExporter Popens when the workbook is finished. Validated by validate_sys_pn_wb_exec(); this is the field the setup screen's Full Path box edits.",
-"SysConfig.sys_pn_batch": "Full path to this run's batch file, allocated sequentially per vault as v_chk_<vault>_NNNN.yaml.",
+"SysConfig.sys_pn_batch": "Full path to this run's batch file, allocated sequentially per vault as ovi_<vault>_NNNN.yaml.",
 "SysConfig.sys_pn_wbs": "Full path to this run's workbook, sharing the batch file's sequence number.",
 "SysConfig.sys_tab_seq": "Which tabs to render and in what order. ExcelExporter rewrites it to the surviving list after dropping empty tabs.",
 "SysConfig.sys_vlts": "Every vault Obsidian knows about, parsed from its obsidian.json.",
@@ -75,13 +75,13 @@ AUTHORED = {
 "SysConfig.sys_pn_bnr": "Path to the workbook banner image.",
 "SysConfig.sys_pn_a51": "Path to the Area51 tab image.",
 "SysConfig.sys_splash_bg": "Splash screen background colour (#800000, maroon).",
-"SysConfig.sys_init": "True when CONFIG.yaml already existed and was loaded at startup, False when this run had to build one from the setup screen. Nothing reads it yet, and it is not persisted. Unrelated to the -i/--init flag, which is handled entirely by v_chk.reset_generated_files() before SysConfig is ever constructed.",
+"SysConfig.sys_init": "True when CONFIG.yaml already existed and was loaded at startup, False when this run had to build one from the setup screen. Nothing reads it yet, and it is not persisted. Unrelated to the -i/--init flag, which is handled entirely by ovi.reset_generated_files() before SysConfig is ever constructed.",
 "SysConfig.interactive": "False under --headless. Makes run_setup_ui() raise ConfigIncompleteError rather than block on a window nobody can answer.",
 "SysConfig.force_setup": "Set by -s/--setup: show the setup screen even when CONFIG.yaml already validates.",
 "SysConfig.vault_path_override": "A vault path given on the command line, which wins over the one in CONFIG.yaml.",
 "SysConfig.o_app": "The ObsidianApp instance that discovers vaults; vault discovery is delegated to it rather than done here.",
-"SysConfig.v_chk_date": "Timestamp of this run, stamped into the workbook.",
-"SysConfig.ctot": "The counter list rendered on the Area51 tab. Incremented all through v_chk_build.",
+"SysConfig.ovi_date": "Timestamp of this run, stamped into the workbook.",
+"SysConfig.ctot": "The counter list rendered on the Area51 tab. Incremented all through ovi_build.",
 
 # --- SysConfig: per-vault settings -----------------------------------------
 "SysConfig.vault_name": "Name of the vault being scanned. Also the key into cur_vlts and, sanitised, part of every generated filename.",
@@ -100,7 +100,7 @@ AUTHORED = {
 "SysConfig.link_lim_vals": "Cap on FileNN hyperlink columns on the Values tab. 0 means unlimited; the real count is min(this, ctot[11]). Issue #8 asks for truncation to be shown when it bites.",
 "SysConfig.link_lim_tags": "Same cap for the Tags tab, against ctot[12].",
 
-# --- VaultHealthCheck: the harvest ----------------------------------------
+# --- VaultScan: the harvest ----------------------------------------
 "obs_props": "Frontmatter and inline properties: {key: {value: [filepath, ...]}}. Feeds the Properties and Values tabs.",
 "obs_atags": "Tags found in note bodies, same {key: {value: [paths]}} shape. Feeds the Tags tab.",
 "obs_xyaml": "Notes whose frontmatter is not usable, classified rather than dropped: BadY, NoFm, MtFm, ErrY, NonD. Feeds the Possible Issues tab.",
@@ -112,14 +112,14 @@ AUTHORED = {
 "obs_plugs": "Installed plugins read from .obsidian/plugins/*/manifest.json plus community-plugins.json. Feeds the Plugins tab.",
 "obs_empty": "Plain list of paths to notes whose raw text is whitespace only. The one sink that is not a nested dict; ExcelExporter turns it into a set so the Xyml tab can print '(empty file)' instead of a lookup that reads blank.",
 "obs_datav": "Dataview-style data. Issue #12 covers task shorthand fields.",
-"VaultHealthCheck.key_stack": "Tracks how deep unpack_yaml() currently is inside a nested dict. The routing decision is structural — upd_val() tests whether this is non-empty. It must never go back to testing plugin_id, which is a whole-file text scan and swallowed a plugin-touched note's genuine top-level properties.",
-"VaultHealthCheck.plugin_id": "Which plugin a nested block is attributed to. Names the bucket only; it does not decide routing.",
-"VaultHealthCheck.plugin_id_def": "Fallback bucket name when no plugin can be identified — 'NestedDictionary'.",
-"VaultHealthCheck.actual_prop_key": "The property key with its original casing preserved. Everything else is lowercased for grouping; this is surfaced only on the Files tab.",
-"VaultHealthCheck.prop_loc_F_I": "Whether a property came from Frontmatter or Inline text.",
-"VaultHealthCheck.isTemplate": "Whether the file currently being parsed lives under the Templater folder. Gates it out of every sink but obs_tmplt, and makes record_yaml_issue() a no-op, since Templater syntax is not valid YAML.",
-"VaultHealthCheck.filepath": "Path of the file currently being parsed.",
-"VaultHealthCheck.dbug": "Local verbose-logging switch for the parser.",
+"VaultScan.key_stack": "Tracks how deep unpack_yaml() currently is inside a nested dict. The routing decision is structural — upd_val() tests whether this is non-empty. It must never go back to testing plugin_id, which is a whole-file text scan and swallowed a plugin-touched note's genuine top-level properties.",
+"VaultScan.plugin_id": "Which plugin a nested block is attributed to. Names the bucket only; it does not decide routing.",
+"VaultScan.plugin_id_def": "Fallback bucket name when no plugin can be identified — 'NestedDictionary'.",
+"VaultScan.actual_prop_key": "The property key with its original casing preserved. Everything else is lowercased for grouping; this is surfaced only on the Files tab.",
+"VaultScan.prop_loc_F_I": "Whether a property came from Frontmatter or Inline text.",
+"VaultScan.isTemplate": "Whether the file currently being parsed lives under the Templater folder. Gates it out of every sink but obs_tmplt, and makes record_yaml_issue() a no-op, since Templater syntax is not valid YAML.",
+"VaultScan.filepath": "Path of the file currently being parsed.",
+"VaultScan.dbug": "Local verbose-logging switch for the parser.",
 "rgx_fm_open": r"Anchors the opening frontmatter delimiter to the top of the file: \A﻿?\s*---[ \t]*$. The leading \s* skips a BOM and the blank line a stripped Templater block leaves, but cannot cross non-whitespace. This is the v0.4.0 fix: the boundary search previously took the first two ^---$ matches wherever they fell, so Markdown horizontal rules and setext underlines looked like delimiters.",
 "rgx_boundary": "Finds the closing frontmatter delimiter, once rgx_fm_open has matched at the top.",
 "rgx_body_pros": "Finds inline `key:: value` properties in the body. Needs re.MULTILINE; its absence is pinned as a regression in the test suite.",
@@ -260,11 +260,11 @@ AUTHORED.update({
 "JsonFile.err_msg": "Why the read failed, if it did — kept rather than raised so a missing or malformed file can be reported instead of crashing the run.",
 "ObsidianApp.cur_vlts": "Per-vault settings built from Obsidian's obsidian.json.",
 "ObsidianApp.sys_vlts": "Every vault Obsidian knows about, as read from obsidian.json.",
-"VaultHealthCheck.dir_templates": "The Templater folder for this vault. Files under it are harvested into obs_tmplt only.",
+"VaultScan.dir_templates": "The Templater folder for this vault. Files under it are harvested into obs_tmplt only.",
 "Colors.tab_id": "Which tab's colour scheme get_tab_clrs() is currently resolving.",
 "Colors.name": "Name of the current colour scheme.",
 "MyJSONFormatter.fmt_keys": "Which LogRecord fields the JSON log formatter emits, and under what names.",
-"<module v_chk_wb_tabs.py>.tabs": "Module-level scratch reference used while building tab definitions.",
+"<module ovi_wb_tabs.py>.tabs": "Module-level scratch reference used while building tab definitions.",
 "ExcelExporter.colors": "The Colors instance the exporter renders fills and table styles from.",
 "ExcelExporter.tab_def": "The tab definition currently being rendered, read from wb_def['wb_tabs'].",
 })
@@ -288,7 +288,7 @@ _STAGE_COPY = {
     "sys_pn_batch": "this run's batch file path", "sys_pn_wbs": "this run's workbook path",
     "sys_pn_cfg": "the CONFIG.yaml path", "sys_pn_wb_exec": "the spreadsheet executable path",
     "dir_vault": "the vault root", "vault_id": "the Obsidian vault id used to build obsidian:// links",
-    "v_chk_date": "this run's timestamp",
+    "ovi_date": "this run's timestamp",
 }
 
 
@@ -330,7 +330,7 @@ PATTERNS = [
      "This stage's copy of the Area51 counter list."),
     (r"^\w+\.xyml_descs$",
      "This stage's copy of the bad-frontmatter code descriptions."),
-    (r"^\w+\.(wbd_obj|vhc_obj|tab_def_obj|o_app)$",
+    (r"^\w+\.(wbd_obj|scan_obj|tab_def_obj|o_app)$",
      "Handle to the {0} collaborator object."),
 ]
 

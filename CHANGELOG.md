@@ -1,8 +1,30 @@
 # Changelog
 
-Notable changes to Obsidian Vault Health Check. Format follows
+Notable changes to Obsidian Insights. Format follows
 [Keep a Changelog](https://keepachangelog.com/en/1.1.0/); versioning follows
 [docs/VERSIONING.md](docs/VERSIONING.md).
+
+## [Unreleased]
+
+### Changed
+
+- **Renamed to Obsidian Insights.** The tool, the package and the command are now `ovi`; the old
+  name, Obsidian Vault Health Check (`v_chk`), is gone from every surface. What that means when
+  upgrading a checkout:
+  - The command is `uv run ovi` (was `uv run v-chk`). `python main.py` is unchanged.
+  - The package imports as `ovi` (was `vault_check`) and its modules are `ovi_*.py` (were
+    `v_chk_*.py`). The scanner class is `VaultScan` (was `VaultHealthCheck`).
+  - The data-directory override is `OVI_DATA_DIR` (was `V_CHK_DATA_DIR`), and an installed copy
+    keeps its data under `~/.ovi` (was `~/.v_chk`).
+  - Generated files are `ovi_<vault>_NNNN.yaml` / `.xlsx` and the log is `logs/ovi.log`. An
+    existing `CONFIG.yaml` still saying `sys_id: v_chk` is read as `ovi`, so the switch needs no
+    `--init`; numbering starts again at `_0000` because the stub is new, and the old `v_chk_*`
+    files are left where they are.
+  - The `ovi_date` config key replaces `v_chk_date`.
+  - The distribution is `obsidian-insights` and the repository is
+    `slappycat2/obsidian-insights`; GitHub redirects the old URL.
+  - The banner on the setup screen now reads "Obsidian Insights". The README screenshot still
+    shows the old Summary tab title until it is retaken.
 
 ## [1.2.0] — 2026-08-27
 
@@ -38,7 +60,7 @@ Notable changes to Obsidian Vault Health Check. Format follows
   Folder** field beside the vault dropdown -- an editable path with a Browse button, in the same
   shape as the Workbook Executable row below it. Type or browse to any directory and it is
   registered as a vault: the dropdown gains it, and Save & Run keeps it, so it is there on the next
-  run. `v-chk <path>` accepts the same folders; it used to raise `VaultNotFoundError` for anything
+  run. `ovi <path>` accepts the same folders; it used to raise `VaultNotFoundError` for anything
   outside obsidian.json, which is why a copied vault, a backup, or a machine whose Obsidian had been
   reset could not be scanned at all. Both routes go through one new `SysConfig.register_vault_dir()`.
 - A folder with no `.obsidian` subfolder is called out in an amber warning under the field, and is
@@ -69,12 +91,12 @@ Notable changes to Obsidian Vault Health Check. Format follows
   `save_workbook()` met it with a modal Tk retry dialog -- one that fires even under `--headless`.
   The number now comes from the highest still on disk in **either** generated directory, plus one, so
   a surviving workbook reserves its own number. Gaps are no longer refilled either: deleting `_0001`
-  out of `0000..0005` used to make the next run silently overwrite `v_chk_<vault>_0001.xlsx`.
+  out of `0000..0005` used to make the next run silently overwrite `ovi_<vault>_0001.xlsx`.
 - A failed delete is still an allowed outcome and still exits 0, but `--init` now counts it --
   `Reset complete -- 2 file(s) deleted, 1 in use and kept.` -- and says the survivors keep their
   numbers. A reset in which nothing could be deleted used to read as a clean success.
 - `--init` no longer tries to delete Excel's `~$<name>.xlsx` owner files. They are Excel's, not
-  v_chk's, and listing one only to fail on it put a second confusing line in the report.
+  ovi's, and listing one only to fail on it put a second confusing line in the report.
 - `get_last_bat()` picks the highest-numbered batch file rather than the newest by creation time, so
   it cannot disagree with the number `get_next_bat()` would hand out. Both now share `seq_nums()`.
 
@@ -96,7 +118,7 @@ First release of the 1.x series. The version number says the tool is finished an
 ### Added
 
 - `tools/ui_shot.py`, a development aid that opens the real setup screen, photographs it, and dumps
-  every widget's class, geometry, text and state. It redirects `V_CHK_DATA_DIR` to a scratch copy of
+  every widget's class, geometry, text and state. It redirects `OVI_DATA_DIR` to a scratch copy of
   `CONFIG.yaml` and dismisses the screen with `on_cancel()`, so it cannot write your configuration.
   Not packaged — `tools/` sits outside `src/`.
 
@@ -111,14 +133,14 @@ Internal only — no change to the workbook or the CLI.
   `wb_def['wb_data'][data_src]`. The copy had also drifted — `obs_nests` was assigned twice, the
   second time from `obs_plugs`, so `self.obs_plugs` never existed at all. `obs_empty` stays, because
   the Xyml row builder does need a per-row membership test.
-- Four unused regexes in `v_chk_xl.py`. Two were stale copies of `v_chk_build.py` patterns frozen in
+- Four unused regexes in `ovi_xl.py`. Two were stale copies of `ovi_build.py` patterns frozen in
   their pre-fix form: `rgx_body` lacked the `re.MULTILINE` whose absence is pinned as a regression in
   `tests/test_vault_parsing.py`, and `rgx_tag_pattern` lacked the guard that stops a wikilink pipe
   reading as a tag. Anyone reaching for one would have picked up a known-broken version.
 
 ### Changed
 
-- The timezone-stripping pattern in `v_chk_xl.py` is compiled once at startup rather than on every
+- The timezone-stripping pattern in `ovi_xl.py` is compiled once at startup rather than on every
   string cell in the workbook.
 - `docs/VERSIONING.md` no longer claims the repository is private. It is public, and has been for
   some time; the note drew its line around what needs the owner's approval in the wrong place, by
@@ -159,7 +181,7 @@ silently discarding the body of notes that have no frontmatter at all.
 - `ctot[10]` now counts notes with no frontmatter, as the code comments and CLAUDE.md always claimed
   it did; it previously incremented only for a wholly empty note. The Area51 label changes from
   "10-Empty Fm/Body in Markdown" to "10-Files With No Frontmatter". The counter list is now sized
-  from a single `CTOT_SLOTS` constant in `src/vault_check/__init__.py` rather than five separate
+  from a single `CTOT_SLOTS` constant in `src/ovi/__init__.py` rather than five separate
   literals.
 
 ## [0.3.0] — 2026-08-03
@@ -170,10 +192,10 @@ that had accumulated since 0.2.0.
 ### Changed
 
 - Batch files and workbooks are now named for the vault they came from:
-  `v_chk_<vault name>_NNNN.yaml` and `v_chk_<vault name>_NNNN.xlsx`, instead of `v_chk_NNNN`. The
+  `ovi_<vault name>_NNNN.yaml` and `ovi_<vault name>_NNNN.xlsx`, instead of `ovi_NNNN`. The
   vault name is reduced to letters, digits, `.`, `-` and `_` first. The sequence number counts per
   vault, so scanning a second vault starts at `_0000` rather than continuing the first one's
-  numbering. Existing `v_chk_NNNN` files are left alone; `--init` deletes them along with the rest.
+  numbering. Existing `ovi_NNNN` files are left alone; `--init` deletes them along with the rest.
 
 ### Fixed
 
@@ -258,12 +280,12 @@ metadata, and `--setup` could not save.
   borrowed the following property's. A note supplying two values of one property is now counted
   once.
 
-[#1]: https://github.com/slappycat2/obsidian-vault-health-check/issues/1
-[#4]: https://github.com/slappycat2/obsidian-vault-health-check/issues/4
-[#5]: https://github.com/slappycat2/obsidian-vault-health-check/issues/5
-[#6]: https://github.com/slappycat2/obsidian-vault-health-check/issues/6
-[#26]: https://github.com/slappycat2/obsidian-vault-health-check/issues/26
-[#27]: https://github.com/slappycat2/obsidian-vault-health-check/issues/27
+[#1]: https://github.com/slappycat2/obsidian-insights/issues/1
+[#4]: https://github.com/slappycat2/obsidian-insights/issues/4
+[#5]: https://github.com/slappycat2/obsidian-insights/issues/5
+[#6]: https://github.com/slappycat2/obsidian-insights/issues/6
+[#26]: https://github.com/slappycat2/obsidian-insights/issues/26
+[#27]: https://github.com/slappycat2/obsidian-insights/issues/27
 
 ## [0.1.0] — 2026-07-29
 
@@ -275,7 +297,7 @@ are standing in the right directory" to an installable, tested, CI-covered packa
 
 ### Added
 
-- Installable `src/` layout package with a `v-chk` console script (`uv sync`, `uv run v-chk`).
+- Installable `src/` layout package with a `ovi` console script (`uv sync`, `uv run ovi`).
 - pytest suite — 48 tests covering markdown/YAML harvesting, path resolution, version
   single-sourcing, and a full four-stage pipeline run asserted against the real `.xlsx`.
 - Cross-platform CI on Ubuntu, Windows and macOS, including a wheel-contents check.
@@ -284,10 +306,10 @@ are standing in the right directory" to an installable, tested, CI-covered packa
 
 ### Changed
 
-- Paths resolve through `v_chk_paths` rather than the working directory; package assets and
+- Paths resolve through `ovi_paths` rather than the working directory; package assets and
   writable data are separated, so the tool runs from anywhere.
-- The version is single-sourced from `src/vault_check/__init__.py`.
-- The backlog moved out of a comment block in `v_chk_xl.py`, first to `docs/BACKLOG.md` and then to
+- The version is single-sourced from `src/ovi/__init__.py`.
+- The backlog moved out of a comment block in `ovi_xl.py`, first to `docs/BACKLOG.md` and then to
   GitHub issues #1–#25.
 
 ### Fixed
@@ -302,12 +324,12 @@ are standing in the right directory" to an installable, tested, CI-covered packa
   the package from commits and producing wheels containing only metadata.
 - Two markdown parser bugs found by the new test suite.
 
-[Unreleased]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v1.2.0...HEAD
-[1.2.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v1.1.0...v1.2.0
-[1.1.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v1.0.0...v1.1.0
-[1.0.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.4.1...v1.0.0
-[0.4.1]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.4.0...v0.4.1
-[0.4.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.3.0...v0.4.0
-[0.3.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.2.0...v0.3.0
-[0.2.0]: https://github.com/slappycat2/obsidian-vault-health-check/compare/v0.1.0...v0.2.0
-[0.1.0]: https://github.com/slappycat2/obsidian-vault-health-check/releases/tag/v0.1.0
+[Unreleased]: https://github.com/slappycat2/obsidian-insights/compare/v1.2.0...HEAD
+[1.2.0]: https://github.com/slappycat2/obsidian-insights/compare/v1.1.0...v1.2.0
+[1.1.0]: https://github.com/slappycat2/obsidian-insights/compare/v1.0.0...v1.1.0
+[1.0.0]: https://github.com/slappycat2/obsidian-insights/compare/v0.4.1...v1.0.0
+[0.4.1]: https://github.com/slappycat2/obsidian-insights/compare/v0.4.0...v0.4.1
+[0.4.0]: https://github.com/slappycat2/obsidian-insights/compare/v0.3.0...v0.4.0
+[0.3.0]: https://github.com/slappycat2/obsidian-insights/compare/v0.2.0...v0.3.0
+[0.2.0]: https://github.com/slappycat2/obsidian-insights/compare/v0.1.0...v0.2.0
+[0.1.0]: https://github.com/slappycat2/obsidian-insights/releases/tag/v0.1.0

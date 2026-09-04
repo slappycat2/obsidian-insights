@@ -1,7 +1,7 @@
 """Harvest the QuickAdd plugin's own configuration for the QuickAdd tab.
 
 QuickAdd stores everything it does -- captures, templates, macros and the steps
-inside them -- in ``.obsidian/plugins/quickadd/data.json``. Nothing else in v_chk
+inside them -- in ``.obsidian/plugins/quickadd/data.json``. Nothing else in ovi
 reads a plugin's settings; ``PluginMan`` reads only manifests and the enabled
 list, so it can say a plugin exists but not what it is configured to do.
 
@@ -22,7 +22,7 @@ choice by id is resolved to that choice's name instead.
 import json
 from pathlib import Path
 
-from vault_check.v_chk_logger import logger
+from ovi.ovi_logger import logger
 
 #: The plugin this module knows how to read, as it appears in its manifest.
 QUICK_ADD_ID = 'quickadd'
@@ -204,7 +204,7 @@ class QuickAddData:
         index suffix so their order is stated rather than implied, and a dict
         inside a list is JSON-encoded rather than exploded: QuickAdd only puts
         one there in a UserScript's free-form settings, where the shape is the
-        script author's business and not a schema v_chk should pretend to know.
+        script author's business and not a schema ovi should pretend to know.
 
         An empty container is reported rather than skipped. Recursing into an
         empty dict yields nothing, so ``globalVariables: {}`` would otherwise

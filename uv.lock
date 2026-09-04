@@ -42,7 +42,7 @@ wheels = [
 ]
 
 [[package]]
-name = "obsidian-vault-health-check"
+name = "obsidian-insights"
 source = { editable = "." }
 dependencies = [
     { name = "click" },

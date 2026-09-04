@@ -1,10 +1,10 @@
-"""Shared pytest fixtures for the v_chk test suite.
+"""Shared pytest fixtures for the ovi test suite.
 
 Two things make this suite possible without a real Obsidian installation:
 
-* ``V_CHK_DATA_DIR`` redirects all generated output into a throwaway directory.
-  v_chk_paths resolves DATA_ROOT once, at import time, so the variable has to be
-  set before ``vault_check`` is first imported. ``pytest_configure`` runs before
+* ``OVI_DATA_DIR`` redirects all generated output into a throwaway directory.
+  ovi_paths resolves DATA_ROOT once, at import time, so the variable has to be
+  set before ``ovi`` is first imported. ``pytest_configure`` runs before
   test modules are collected and imported, which is early enough.
 
 * ``StubSysConfig`` stands in for the real SysConfig, which would read the
@@ -20,24 +20,24 @@ from textwrap import dedent
 
 import pytest
 
-# Safe at module scope despite the V_CHK_DATA_DIR dance below: vault_check's
-# __init__ imports nothing, so this does not pull in v_chk_paths and does not
+# Safe at module scope despite the OVI_DATA_DIR dance below: ovi's
+# __init__ imports nothing, so this does not pull in ovi_paths and does not
 # resolve DATA_ROOT before pytest_configure has redirected it.
-from vault_check import CTOT_SLOTS
+from ovi import CTOT_SLOTS
 
 _TMP_DATA_ROOT: str | None = None
 
 
 def pytest_configure(config):
     global _TMP_DATA_ROOT
-    _TMP_DATA_ROOT = tempfile.mkdtemp(prefix="v_chk_tests_")
-    os.environ["V_CHK_DATA_DIR"] = _TMP_DATA_ROOT
+    _TMP_DATA_ROOT = tempfile.mkdtemp(prefix="ovi_tests_")
+    os.environ["OVI_DATA_DIR"] = _TMP_DATA_ROOT
 
 
 def pytest_unconfigure(config):
     if _TMP_DATA_ROOT:
         shutil.rmtree(_TMP_DATA_ROOT, ignore_errors=True)
-        os.environ.pop("V_CHK_DATA_DIR", None)
+        os.environ.pop("OVI_DATA_DIR", None)
 
 
 class StubSysConfig:
@@ -52,14 +52,14 @@ class StubSysConfig:
     """
 
     def __init__(self, vault_dir, **overrides):
-        from vault_check import v_chk_paths as paths
-        from vault_check.v_chk_setup import DEFAULT_TAB_SEQ
+        from ovi import ovi_paths as paths
+        from ovi.ovi_setup import DEFAULT_TAB_SEQ
 
         paths.ensure_runtime_dirs()
         vault_dir = Path(vault_dir)
 
         self.sys_cfg = {
-            "sys_id": "v_chk_test",
+            "sys_id": "ovi_test",
             "sys_ver": "test",
             "sys_dir_sys": str(paths.DATA_ROOT),
             "sys_dir_dat": str(paths.DATA_DIR),
@@ -97,7 +97,7 @@ class StubSysConfig:
             "bool_unused_3": False,
             "link_lim_vals": 0,
             "link_lim_tags": 0,
-            "v_chk_date": "2026-01-01 00:00:00",
+            "ovi_date": "2026-01-01 00:00:00",
         }
         self.sys_cfg.update(overrides)
 
@@ -132,12 +132,12 @@ def make_vault(tmp_path):
 
 @pytest.fixture
 def scan(make_vault):
-    """Run a full VaultHealthCheck over an ad-hoc vault and return it."""
+    """Run a full VaultScan over an ad-hoc vault and return it."""
 
     def _scan(files, **overrides):
-        from vault_check.v_chk_build import VaultHealthCheck
+        from ovi.ovi_build import VaultScan
 
         vault = make_vault(files)
-        return VaultHealthCheck(StubSysConfig(vault, **overrides))
+        return VaultScan(StubSysConfig(vault, **overrides))
 
     return _scan

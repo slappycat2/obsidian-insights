@@ -3,7 +3,7 @@ import re
 from pathlib import Path, PurePath
 import yaml
 
-from vault_check.v_chk_logger import logger
+from ovi.ovi_logger import logger
 
 # Anything outside this set is replaced in the vault name before it goes into a
 # filename. Two reasons: the name comes from a folder on someone else's disk and
@@ -27,7 +27,7 @@ class WbDataDef:
 
         self.sys_pn_cfg     = self.sys_cfg['sys_pn_cfg']
 
-        self.sys_id         = self.sys_cfg.get('sys_id','v_chk')
+        self.sys_id         = self.sys_cfg.get('sys_id','ovi')
         self.file_stub      = self.build_file_stub()
         self.sys_dir_bat    = self.sys_cfg['sys_dir_bat']
         self.sys_dir_wbs    = self.sys_cfg['sys_dir_wbs']
@@ -119,8 +119,8 @@ class WbDataDef:
         reduced it to [A-Za-z0-9._-], but the glob alone is not enough: a vault
         whose name sanitises away to nothing falls back to the bare sys_id (see
         build_file_stub), and that stub is a prefix of every other stub. The
-        fullmatch is what keeps another vault's v_chk_work_0000.yaml from
-        donating its 0000 to plain v_chk. \d{4,} rather than four digits so the
+        fullmatch is what keeps another vault's ovi_work_0000.yaml from
+        donating its 0000 to plain ovi. \d{4,} rather than four digits so the
         count survives run 10000.
         """
         pattern = re.compile(rf'{re.escape(self.file_stub)}_(\d{{4,}})')

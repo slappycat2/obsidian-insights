@@ -1,9 +1,10 @@
-"""Tests for v_chk_paths.
+"""Tests for ovi_paths.
 
 These exist because of a real failure: an unanchored `vault_check/` rule in
-.gitignore matched src/vault_check/ as well as the intended leftover directory.
-Hatchling honours .gitignore, so the built wheel contained nothing but metadata
--- no modules, no assets -- and src/vault_check/__init__.py was never committed
+.gitignore matched src/vault_check/ (the package, before its rename to src/ovi/)
+as well as the intended leftover directory. Hatchling honours .gitignore, so the
+built wheel contained nothing but metadata -- no modules, no assets -- and
+src/vault_check/__init__.py was never committed
 at all. Nothing failed locally, because the editable install resolves imports
 straight from the source tree.
 
@@ -16,7 +17,7 @@ from pathlib import Path
 
 import pytest
 
-from vault_check import v_chk_paths as paths
+from ovi import ovi_paths as paths
 
 ASSET_CONSTANTS = (
     "LOGO_SPLASH",
@@ -48,7 +49,7 @@ def test_assets_live_inside_the_package():
 
 
 def test_active_logging_config_exists():
-    from vault_check.v_chk_logger import ACTIVE_LOG_CONFIG
+    from ovi.ovi_logger import ACTIVE_LOG_CONFIG
 
     assert (paths.LOGGING_CONFIG_DIR / ACTIVE_LOG_CONFIG).is_file()
 
@@ -62,11 +63,11 @@ def test_all_logging_configs_are_packaged():
 
 
 def test_data_root_honours_the_environment_override():
-    """conftest sets V_CHK_DATA_DIR before importing vault_check; this is the
+    """conftest sets OVI_DATA_DIR before importing ovi; this is the
     seam the whole test suite depends on for isolation."""
     override = os.environ.get(paths.DATA_DIR_ENV_VAR)
 
-    assert override, "V_CHK_DATA_DIR should be set during the test run"
+    assert override, "OVI_DATA_DIR should be set during the test run"
     assert paths.DATA_ROOT == Path(override).expanduser().resolve()
 
 

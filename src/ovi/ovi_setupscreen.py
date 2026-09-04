@@ -5,7 +5,7 @@ from PIL import ImageTk
 from datetime import datetime
 import subprocess
 
-from vault_check.v_chk_logger import logger
+from ovi.ovi_logger import logger
 
 class SetupScreen:
     def __init__(self, sys_obj):
@@ -19,7 +19,7 @@ class SetupScreen:
         self.last_vault_name   = self.sys_obj.vault_name
 
         self.root = tk.Tk()
-        self.root.title("Obsidian Vault Health Check")
+        self.root.title("Obsidian Insights")
 
         self.root.geometry("780x620")
         self.root.resizable(True, False)
@@ -566,7 +566,7 @@ class SetupScreen:
     def on_save_and_run(self) -> None:
         if self.validate_all_fields():
             self.upd_all_sys_objs_with_tk_vars(self.sys_obj.vault_name)
-            self.sys_obj.v_chk_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
+            self.sys_obj.ovi_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
 
             # save_config() takes no arguments -- it writes to sys_pn_cfg
             # itself. Passing one raised TypeError the moment the button was

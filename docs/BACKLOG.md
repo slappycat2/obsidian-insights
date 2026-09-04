@@ -1,10 +1,10 @@
 # Backlog
 
 The working list of bugs and enhancement requests, extracted from the comment block that used to sit
-at the top of `src/vault_check/v_chk_xl.py` (that block was itself item Bug-022: *"Remove this
+at the top of `src/ovi/ovi_xl.py` (that block was itself item Bug-022: *"Remove this
 section and track bugs and ERs in Github"*).
 
-**These are now [GitHub issues #1–#25](https://github.com/slappycat2/obsidian-vault-health-check/issues),
+**These are now [GitHub issues #1–#25](https://github.com/slappycat2/obsidian-insights/issues),
 and the issue tracker is authoritative.** Track work there; this file is kept as the historical
 record of where those issues came from, and is no longer updated.
 
@@ -58,7 +58,7 @@ Recorded so the history stays legible; no action needed.
 |---|---|---|
 | Bug-022 | Remove the inline Todo block and track bugs/ERs on GitHub | This document |
 | ER-022 | Options for "open workbook on create" and logging level | Shipped as `-x/--do-not-open` and `-d/--debug-level` |
-| — | *Installation Notes*: "needs an install script to build the directory structure and include assets… fireworks will ensue" | Obsolete. `uv sync` installs the package, assets ship inside it, and `v_chk_paths.ensure_runtime_dirs()` creates the output directories idempotently on every run |
+| — | *Installation Notes*: "needs an install script to build the directory structure and include assets… fireworks will ensue" | Obsolete. `uv sync` installs the package, assets ship inside it, and `ovi_paths.ensure_runtime_dirs()` creates the output directories idempotently on every run |
 
 ## ID collisions
 

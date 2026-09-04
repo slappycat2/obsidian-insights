@@ -1,4 +1,4 @@
-# Obsidian Vault Health Check (beta)
+# Obsidian Insights (beta)
 [![ko-fi](https://ko-fi.com/img/githubbutton_sm.svg)](https://ko-fi.com/Z8Z71B3VAA)
 
 ![image](img/summ_screen.png)
@@ -25,15 +25,15 @@ This system will run a set of python scripts and read[^1] through all Markdown f
 Requires Python 3.13+ and [uv](https://docs.astral.sh/uv/).
 
 ```bash
-git clone https://github.com/slappycat2/obsidian-vault-health-check.git
-cd obsidian-vault-health-check
+git clone https://github.com/slappycat2/obsidian-insights.git
+cd obsidian-insights
 uv sync
 ```
 
 Then run it:
 
 ```bash
-uv run v-chk
+uv run ovi
 ```
 
 On the very first run a setup screen appears. Fill in:
@@ -44,25 +44,25 @@ On the very first run a setup screen appears. Fill in:
 
 Click **Save and Run** and give it a few seconds to gather statistics. When it finishes, a new,
 sequentially named spreadsheet is created and loads automatically. Afterwards the setup screen is
-skipped -- just run `uv run v-chk` again.
+skipped -- just run `uv run ovi` again.
 
 Lastly, please consider buying me, a poor coder (steady there!), a coffee.
 
 #### Usage
 
 ```bash
-uv run v-chk                          # the vault last opened in Obsidian
-uv run v-chk "D:/Vaults/MyVault"      # a specific vault
-uv run v-chk --setup                  # change settings
-uv run v-chk --do-not-open            # build the workbook but don't launch the spreadsheet
-uv run v-chk --headless --do-not-open # no windows at all; for scripting
-uv run v-chk --init                   # delete generated config, batch files and workbooks
-uv run v-chk --help                   # all options
+uv run ovi                          # the vault last opened in Obsidian
+uv run ovi "D:/Vaults/MyVault"      # a specific vault
+uv run ovi --setup                  # change settings
+uv run ovi --do-not-open            # build the workbook but don't launch the spreadsheet
+uv run ovi --headless --do-not-open # no windows at all; for scripting
+uv run ovi --init                   # delete generated config, batch files and workbooks
+uv run ovi --help                   # all options
 ```
 
 `python main.py [...]` works identically if you'd rather not use the installed command.
 
-Generated workbooks land in `data/workbooks/`, and logs in `logs/`. Set the `V_CHK_DATA_DIR`
+Generated workbooks land in `data/workbooks/`, and logs in `logs/`. Set the `OVI_DATA_DIR`
 environment variable to put them somewhere else.
 
 ### Development

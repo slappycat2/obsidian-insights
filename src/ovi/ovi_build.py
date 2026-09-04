@@ -5,13 +5,13 @@ from typing import Any
 
 import yaml
 
-from vault_check import CTOT_SLOTS
-from vault_check.v_chk_wb_setup import WbDataDef
-from vault_check.v_chk_plugin_man import PluginMan
-from vault_check.v_chk_quick_add import QuickAddData
-from vault_check.v_chk_logger import logger
+from ovi import CTOT_SLOTS
+from ovi.ovi_wb_setup import WbDataDef
+from ovi.ovi_plugin_man import PluginMan
+from ovi.ovi_quick_add import QuickAddData
+from ovi.ovi_logger import logger
 
-class VaultHealthCheck:   # WbConfig
+class VaultScan:   # WbConfig
     def __init__(self, sys_obj):
         self.wbd_obj = WbDataDef(sys_obj)
         self.dbug = False
@@ -85,7 +85,7 @@ class VaultHealthCheck:   # WbConfig
         self.process_vault()
 
     def process_vault(self):
-        logger.info(f"Starting Health Check on vault: {self.sys_cfg['vault_name']}...")
+        logger.info(f"Starting scan of vault: {self.sys_cfg['vault_name']}...")
 
         v_path_obj = Path(self.sys_cfg['dir_vault'])
         for md_file in v_path_obj.rglob("*.md"):
@@ -118,7 +118,7 @@ class VaultHealthCheck:   # WbConfig
                 # logger.debug(f"Skipping file: {md_file} is in skip_rel_str")
                 continue # this gets the next file...
 
-            logger.info(f"Running health check on: {md_file}")
+            logger.info(f"Scanning: {md_file}")
 
             md_pname = str(md_file)
             self.process_md_file(md_pname)
@@ -264,12 +264,12 @@ class VaultHealthCheck:   # WbConfig
                 return
 
         except yaml.YAMLError as e:
-            logger.debug(f"v_chk_build:process_yaml (BadY) Error in YAML: {self.filepath} {e}")
+            logger.debug(f"ovi_build:process_yaml (BadY) Error in YAML: {self.filepath} {e}")
             self.record_yaml_issue('BadY')
             return
 
         except Exception as e:
-            logger.error(f"v_chk_build:process_yaml (ErrY) Unknown YAML: {self.filepath} {e}")
+            logger.error(f"ovi_build:process_yaml (ErrY) Unknown YAML: {self.filepath} {e}")
                 # e = unhashable type: 'dict'
             self.record_yaml_issue('ErrY')
             return
@@ -349,7 +349,7 @@ class VaultHealthCheck:   # WbConfig
         return
 
     def upd_val(self, k, v):
-        # logger.debug(f"v_chk_build:upd_val {k=}: {v=}")
+        # logger.debug(f"ovi_build:upd_val {k=}: {v=}")
 
         # Normalise the value FIRST. Downstream it is used as a dictionary key,
         # and YAML happily produces lists and dicts, which are unhashable.
@@ -406,7 +406,7 @@ class VaultHealthCheck:   # WbConfig
         return
 
     def upd_obs_files(self, o_files, ukey, uval, fkey):
-        logger.debug(f"v_chk_build:upd_obs_files {ukey=}, {uval=}")
+        logger.debug(f"ovi_build:upd_obs_files {ukey=}, {uval=}")
         self.ctot[7] += 1
         ukey = ukey.lower()
         fkey = f"{fkey}|{self.prop_loc_F_I}"    # (F)frontmatter or (I)inline indicator
@@ -418,7 +418,7 @@ class VaultHealthCheck:   # WbConfig
         return
 
     def upd_obs_nests(self, o_files, ukey, uval, fkey):
-        logger.debug(f"v_chk_build:upd_obs_nests {ukey=}, {uval=}, {fkey=}")
+        logger.debug(f"ovi_build:upd_obs_nests {ukey=}, {uval=}, {fkey=}")
         self.ctot[8] += 1
         ukey = ukey.lower()
         fkey = f"{self.plugin_id}|{fkey}"
@@ -430,7 +430,7 @@ class VaultHealthCheck:   # WbConfig
         return
 
     def upd_obs_props(self, obs_dict, ukey, uval, filepath):
-        logger.debug(f"v_chk_build:upd_obs_props {ukey=}, {uval=}, {filepath=}")
+        logger.debug(f"ovi_build:upd_obs_props {ukey=}, {uval=}, {filepath=}")
         self.ctot[9] += 1
         f_list = []
 
@@ -497,7 +497,7 @@ class VaultHealthCheck:   # WbConfig
         return str(value)
 
     def convert_list_to_str(self, wlink):
-        logger.debug(f"v_chk_build:convert_list_to_str:started <{wlink=}>")
+        logger.debug(f"ovi_build:convert_list_to_str:started <{wlink=}>")
 
         # This is very brute force, but I haven't got  a better way right now
         wlink = f"{wlink}"  # make sure it's a string this will destroy lists!!!
@@ -516,7 +516,7 @@ class VaultHealthCheck:   # WbConfig
         # lastly, let's forces quotes around all [[]]
         wlink = wlink.replace("[[", '"[[')  # remove inner single quotes                        [['tests']]
         wlink = wlink.replace("]]", ']]"')
-        logger.debug(f"v_chk_build:convert_list_to_str:done    <{wlink=}>")
+        logger.debug(f"ovi_build:convert_list_to_str:done    <{wlink=}>")
         return wlink
 
     def split_file(self, content):

@@ -1,4 +1,4 @@
-from vault_check.v_chk_logger import logger
+from ovi.ovi_logger import logger
 
 class Colors:
     # There are 16 million colors, these are ones I picked to play with,
@@ -40,7 +40,7 @@ class Colors:
         # renameTo: clrtb, clrf2, clrf1, clrt1, clrt2
         self.name = "blu"
         self.dflt_shade = 2         # 60% of self.name
-        self.dflt_row_style = 5     # v_chk custom style
+        self.dflt_row_style = 5     # ovi custom style
         self.tab_id = None
         self.tbl_row_style = 4      # 4 is the dark one, but this is init, only
         self.shade = 0              # must be 0-6 (0=solid, 6 is dark)
@@ -212,7 +212,7 @@ class Colors:
                 , ["TableStyleMedium",  "8",  "9", "10",  "11",  "12", "13", "14"]    # 2
                 , ["TableStyleMedium", "15", "16", "17",  "18"   "19", "20", "21"]    # 3
                 , ["TableStyleDark",    "1",  "2",  "3",   "4",   "5",  "6",  "7"]    # 4
-                , ["TableStyleMedium", "15", "20", "19",  "19",  "17", "16", "18"]    # 5=v_chk style
+                , ["TableStyleMedium", "15", "20", "19",  "19",  "17", "16", "18"]    # 5=ovi style
                 ]
         row_clr_idx = {
                   "wht": 1   # (accent colors from Ion Theme)
