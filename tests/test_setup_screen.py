@@ -397,7 +397,7 @@ def test_cli_stops_cleanly_when_setup_is_cancelled(monkeypatch):
         raise SetupCancelledError("Setup was cancelled; nothing was changed.")
 
     built = []
-    monkeypatch.setattr(ovi, "SysConfig", refuse)
+    monkeypatch.setattr("ovi.ovi.SysConfig", refuse)
     monkeypatch.setattr(ovi, "run_pipeline", lambda *a, **k: built.append(True))
     monkeypatch.setattr(ovi, "run_with_splash", lambda *a, **k: built.append(True))
 

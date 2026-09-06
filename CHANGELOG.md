@@ -8,6 +8,15 @@ Notable changes to Obsidian Insights. Format follows
 
 ### Changed
 
+- **A clean PyCharm inspection.** Some 200 findings across the package, the tests and the dev
+  tools are gone: dead code (a loop in the Issues tab builder whose whole body was commented out,
+  two `__main__` blocks that would have crashed on their first line, unused imports and locals),
+  regex escapes that never did anything, and annotations at the seams PyCharm could not infer --
+  `SysConfig`'s vault-dependent fields are now declared optional, `tab_def` is typed, and the
+  `which` and progress callbacks have named shapes. Nothing in the workbook changes. One
+  behavioural edge: `get_skip_abs_lst()` returns an empty list rather than raising when no vault
+  or skip list is set. What remains is openpyxl and click stub noise in the tests and four
+  "duplicated fragment" notes on parallel field assignments that are clearer as they are.
 - **New Summary-tab banner.** The Illustrator artwork is the source; the shipped asset is that
   export with its transparent artboard margins trimmed and scaled to the 137 px height the
   Summary tab's first row was laid out for, so it no longer needs to be hand-cropped.

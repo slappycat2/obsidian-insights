@@ -202,7 +202,8 @@ def test_open_workbook_failure_is_reported_not_raised(monkeypatch):
 
     monkeypatch.setattr(ovi.launch, "open_workbook", boom)
     echoed = []
-    monkeypatch.setattr(click, "echo", lambda msg, **k: echoed.append(msg))
+    # The dotted-string target: PyCharm cannot see names a module re-exports.
+    monkeypatch.setattr("click.echo", lambda msg, **k: echoed.append(msg))
 
     # Built with __new__: only the two attributes open_workbook reads are needed.
     exporter = ExcelExporter.__new__(ExcelExporter)
