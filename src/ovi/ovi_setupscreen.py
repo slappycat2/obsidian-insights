@@ -462,6 +462,10 @@ class SetupScreen:
         x = (self.root.winfo_screenwidth() // 2) - (self.root.winfo_width() // 2)
         y = (self.root.winfo_screenheight() // 2) - (self.root.winfo_height() // 2)
         self.root.geometry(f"+{x}+{y}")
+        # Flush the request before -topmost is set: on Windows that call maps
+        # the window, and a position still pending at that moment is dropped,
+        # leaving the screen at the default cascade position.
+        self.root.update_idletasks()
         # Come to the front, then stop floating: a window left -topmost sits
         # over every other application for as long as it is open, which on
         # macOS includes the file dialogs this screen itself opens.

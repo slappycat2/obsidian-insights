@@ -60,6 +60,10 @@ class SplashScreen(tk.Tk):
         x = (ws // 2) - (w // 2)
         y = (hs // 2) - (h // 2)
         self.geometry(f"{w}x{h}+{x}+{y}")
+        # Flush the request before anything else touches the window. On
+        # Windows, setting -topmost on a window that has not been mapped yet
+        # discards a pending position, and the splash came up at +0+0.
+        self.update_idletasks()
 
     def update_status(self, text, progress_value=None):
         logger.debug(f"\n\n===================================================================\n{text}")

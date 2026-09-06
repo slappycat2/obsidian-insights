@@ -6,6 +6,12 @@ Notable changes to Obsidian Insights. Format follows
 
 ## [Unreleased]
 
+### Changed
+
+- **New Summary-tab banner.** The Illustrator artwork is the source; the shipped asset is that
+  export with its transparent artboard margins trimmed and scaled to the 137 px height the
+  Summary tab's first row was laid out for, so it no longer needs to be hand-cropped.
+
 ### Fixed
 
 - **Tabs added in a newer version now reach machines that already have a `CONFIG.yaml`.** The
@@ -18,6 +24,11 @@ Notable changes to Obsidian Insights. Format follows
   back after unpacking it: the pipeline reads the packed dict, and on a plain run it was being
   handed the file's raw contents, so nothing `cfg_unpack()` normalises -- the version, the OS,
   the paths -- had been reaching it either (#28).
+- **The splash and setup screens are centred again.** 1.3.0 raised both windows with `-topmost`
+  after placing them, and on Windows (Tk 8.6.15) setting that attribute on a window that has not
+  been mapped yet discards the pending position: the splash came up at the top-left corner and
+  the setup screen at the default cascade position. The placement request is now flushed with
+  `update_idletasks()` before the attribute is set.
 
 ## [1.3.0] — 2026-09-04
 
