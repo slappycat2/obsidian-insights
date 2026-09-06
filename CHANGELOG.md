@@ -6,6 +6,19 @@ Notable changes to Obsidian Insights. Format follows
 
 ## [Unreleased]
 
+### Fixed
+
+- **Tabs added in a newer version now reach machines that already have a `CONFIG.yaml`.** The
+  render order is persisted as `sys_tab_seq`, and `cfg_unpack()` restored it verbatim, so a config
+  written before a tab existed kept that tab out of every workbook: the QuickAdd tab shipped in
+  1.2.0 and was harvested on every run, then silently dropped by the exporter. The saved list is
+  now reconciled with `DEFAULT_TAB_SEQ` on load -- the saved order is kept, missing tabs are
+  inserted where the default places them relative to their neighbours (so still before `summ`),
+  and ids the running code no longer knows are dropped. `load_config()` also packs the config
+  back after unpacking it: the pipeline reads the packed dict, and on a plain run it was being
+  handed the file's raw contents, so nothing `cfg_unpack()` normalises -- the version, the OS,
+  the paths -- had been reaching it either (#28).
+
 ## [1.3.0] — 2026-09-04
 
 ### Added

@@ -149,7 +149,10 @@ as the progress callback; the splash owns the Tk mainloop, so the work happens i
 1. **`SysConfig`** (`ovi_setup.py`) — dataclass holding all system + per-vault settings. Reads/writes
    `CONFIG.yaml`. **Downstream stages read the packed `sys_cfg` dict, not these attributes**, so any
    attribute change made after `load_config()` must be followed by `cfg_pack()` or it is silently
-   ignored (this is why `select_vault_by_path()` calls it). Delegates vault discovery to
+   ignored (this is why `select_vault_by_path()` calls it). `load_config()` itself packs after it
+   unpacks, for the same reason: before it did, a plain run handed the pipeline the file's raw
+   contents, and nothing `cfg_unpack()` normalises -- version, OS, paths, the merged tab list --
+   reached the workbook (#28). Delegates vault discovery to
    `ObsidianApp` (`ovi_obs_app.py`), which parses Obsidian's own `obsidian.json` (found via
    `candidate_config_dirs()`, see above) to build `sys_vlts`/`cur_vlts` and pick the last-open
    vault as the default; with no file or no reachable vault there is no default and
@@ -244,10 +247,14 @@ Optional ninth: `DefSumm.tab_summ_map`. Its nine grid slots are full, so a new t
 box on the Summary tab — silent and harmless.
 
 Render order and inclusion come from `sys_cfg['sys_tab_seq']`, defaulting to `DEFAULT_TAB_SEQ` in
-`ovi_setup.py`. **`sys_tab_seq` is persisted in `CONFIG.yaml`**, so adding an id to
-`DEFAULT_TAB_SEQ` does nothing on a machine that already has a config — `cfg_unpack()` restores the
-saved list and the new tab silently never renders. Expect to need `-i/--init`, a hand-edited
-`CONFIG.yaml`, or a scratch `OVI_DATA_DIR` to see it.
+`ovi_setup.py`. **`sys_tab_seq` is persisted in `CONFIG.yaml`**, so `cfg_unpack()` does not restore
+it verbatim: `merge_tab_seq()` keeps the saved order, inserts any id from `DEFAULT_TAB_SEQ` the
+saved list lacks directly after the nearest of its default predecessors that is present (which is
+what keeps a new tab before `summ`), and drops ids the code no longer knows. Before that merge
+existed, the QuickAdd tab was harvested on every run for a week and never rendered, because the
+development machine's config predated it (#28). A new id in `DEFAULT_TAB_SEQ` is therefore enough;
+`-i/--init` is no longer needed to see a new tab. The merge only reaches the pipeline because
+`load_config()` calls `cfg_pack()` after `cfg_unpack()` -- see the next paragraph.
 
 `NewTab` is the base class: it defines table naming (`tbl_<tab_id>`), the header row/column origin, the
 `RowId` / `IsVisible` / `P-V Index` helper columns, and the Excel formula strings (`f_uniq_*`, `f_txt_*`,

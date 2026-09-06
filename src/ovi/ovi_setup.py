@@ -30,6 +30,32 @@ DEFAULT_TAB_SEQ = ('pros', 'vals', 'tags', 'file',
                    'nest', 'plug', 'qadd', 'summ', 'ar51')
 
 
+def merge_tab_seq(saved, default=DEFAULT_TAB_SEQ):
+    """Reconcile a tab list restored from CONFIG.yaml with the running code.
+
+    ``sys_tab_seq`` is persisted, so a config written before a tab existed
+    would otherwise never render it: the QuickAdd tab shipped in 1.2.0 and
+    was harvested on every run, then silently dropped by the exporter
+    because the saved list predated it (issue #28).
+
+    The saved order is kept. Every id in ``default`` that the saved list
+    lacks is inserted directly after the nearest id that precedes it in
+    ``default`` and is already present -- so a new tab lands where the
+    default puts it relative to its neighbours, and in particular still
+    before ``summ``, which has to be built last. Ids the running code no
+    longer knows are dropped rather than handed to the exporter, where the
+    ``wb_tabs`` lookup would raise ``KeyError``.
+    """
+    merged = [tab_id for tab_id in (saved or []) if tab_id in default]
+    for i, tab_id in enumerate(default):
+        if tab_id in merged:
+            continue
+        preceding = [t for t in default[:i] if t in merged]
+        pos = merged.index(preceding[-1]) + 1 if preceding else 0
+        merged.insert(pos, tab_id)
+    return merged
+
+
 class ConfigIncompleteError(RuntimeError):
     """Raised when configuration is unusable and setup cannot be shown."""
 
@@ -370,6 +396,13 @@ class SysConfig:
     def load_config(self, pn_file:str) -> None:
         self.sys_cfg = self.read_config(pn_file)
         self.cfg_unpack()
+        # Downstream stages read the packed dict, not the attributes, so
+        # everything cfg_unpack() normalises -- the version, the OS, the
+        # paths, the merged tab list, a legacy sys_id -- has to be packed
+        # straight back. Without this a plain run (no VAULT_PATH, no setup
+        # screen) handed the pipeline the file's raw contents, and the
+        # QuickAdd tab stayed missing even after the merge existed (#28).
+        self.cfg_pack()
 
     def write_config(self, pn_file, cfg_data):
         try:
@@ -460,7 +493,10 @@ class SysConfig:
         self.sys_pn_wb_exec     = self.sys_cfg.get('sys_pn_wb_exec',    '')
         self.sys_pn_batch       = self.sys_cfg.get('sys_pn_batch',      '')
         self.sys_pn_wbs         = self.sys_cfg.get('sys_pn_wbs',        '')
-        self.sys_tab_seq        = self.sys_cfg.get('sys_tab_seq',       list(DEFAULT_TAB_SEQ))
+        # The saved list is reconciled with DEFAULT_TAB_SEQ rather than
+        # restored verbatim: a config written before a tab existed must not
+        # keep that tab out of every workbook (issue #28).
+        self.sys_tab_seq        = merge_tab_seq(self.sys_cfg.get('sys_tab_seq'))
         # Like the paths above, the OS is a fact about this machine, not a
         # setting: a config carried over from Windows must not make a Mac
         # think it is Windows.

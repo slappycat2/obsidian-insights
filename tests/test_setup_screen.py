@@ -779,3 +779,72 @@ def test_legacy_sys_id_is_read_as_ovi():
     cfg.cfg_unpack()
 
     assert cfg.sys_id == "ovi"
+
+
+# ---------------------------------------------------------------------------
+# sys_tab_seq is persisted; new tabs must still reach a machine with a config
+# ---------------------------------------------------------------------------
+
+def test_saved_tab_seq_gains_tabs_added_since_it_was_written():
+    """Regression for issue #28: a CONFIG.yaml written before the QuickAdd
+    tab existed restored its old list verbatim, so ``qadd`` was harvested on
+    every run and never rendered."""
+    from ovi.ovi_setup import DEFAULT_TAB_SEQ
+    cfg = SysConfig.__new__(SysConfig)
+    cfg.sys_cfg = {"sys_tab_seq": [t for t in DEFAULT_TAB_SEQ if t != "qadd"]}
+
+    cfg.cfg_unpack()
+
+    assert cfg.sys_tab_seq == list(DEFAULT_TAB_SEQ)
+
+
+def test_load_config_hands_the_merged_tab_seq_to_the_pipeline(tmp_path):
+    """Regression for issue #28, second half: the pipeline reads the packed
+    ``sys_cfg`` dict, and ``load_config()`` used to leave that dict as the
+    raw file contents -- so the merge (and the version fix before it) never
+    reached the exporter on a plain run."""
+    import yaml
+    from ovi import __version__
+    from ovi.ovi_setup import DEFAULT_TAB_SEQ
+    pn_cfg = tmp_path / "CONFIG.yaml"
+    pn_cfg.write_text(yaml.dump({
+        "sys_tab_seq": [t for t in DEFAULT_TAB_SEQ if t != "qadd"],
+        "sys_ver": "0.0.0",
+    }), encoding="utf-8")
+    cfg = SysConfig.__new__(SysConfig)
+
+    cfg.load_config(str(pn_cfg))
+
+    assert cfg.sys_cfg["sys_tab_seq"] == list(DEFAULT_TAB_SEQ)
+    assert cfg.sys_cfg["sys_ver"] == __version__
+
+
+def test_merge_tab_seq_places_a_new_tab_before_summ_and_keeps_saved_order():
+    """A new tab goes where the default puts it relative to its neighbours;
+    the user's ordering of the tabs they already had is untouched, and
+    ``summ`` stays after everything it summarises."""
+    from ovi.ovi_setup import merge_tab_seq
+    default = ("pros", "vals", "tags", "new1", "nest", "plug", "qadd", "summ", "ar51")
+    saved = ["tags", "pros", "vals", "plug", "nest", "summ", "ar51"]
+
+    merged = merge_tab_seq(saved, default)
+
+    # new1 follows "tags", the last of its default predecessors the user has;
+    # qadd follows "plug" for the same reason, which here puts it before nest.
+    assert merged == ["tags", "new1", "pros", "vals", "plug", "qadd", "nest", "summ", "ar51"]
+    assert merged.index("qadd") < merged.index("summ")
+    assert [t for t in merged if t in saved] == saved
+
+
+def test_merge_tab_seq_drops_ids_the_code_no_longer_knows():
+    from ovi.ovi_setup import merge_tab_seq
+    default = ("pros", "summ")
+
+    assert merge_tab_seq(["pros", "gone", "summ"], default) == ["pros", "summ"]
+
+
+def test_merge_tab_seq_with_nothing_saved_is_the_default():
+    from ovi.ovi_setup import DEFAULT_TAB_SEQ, merge_tab_seq
+
+    assert merge_tab_seq(None) == list(DEFAULT_TAB_SEQ)
+    assert merge_tab_seq([]) == list(DEFAULT_TAB_SEQ)
