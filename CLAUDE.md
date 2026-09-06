@@ -28,7 +28,7 @@ docs/WORKING-NOTES.md        repo/process to-dos and working agreements -- untra
 tools/ui_shot.py             dev-only: photographs the Tk setup screen and dumps its widget tree
 tools/var_dictionary.py      dev-only: ast-walks the package into a variable-dictionary workbook
 tools/var_purposes.py            the hand-written descriptions that workbook uses
-img/                         README screenshot and brand source files (not runtime)
+img/                         README screenshot only (brand sources live in the untracked workingAssets/)
 data/, logs/, CONFIG.yaml    generated at runtime, gitignored
 ```
 

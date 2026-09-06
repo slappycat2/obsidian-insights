@@ -1,4 +1,4 @@
-    # ---------------------------------------------------------------------------
+# ---------------------------------------------------------------------------
 # Python
 # ---------------------------------------------------------------------------
 __pycache__/
@@ -72,6 +72,10 @@ xcluded/
 # The file still lives on disk and is still the right place for that material.
 # ---------------------------------------------------------------------------
 /docs/WORKING-NOTES.md
+
+# Brand sources and export intermediates (Illustrator files, oversized PNGs) are
+# kept beside the repo, not in it. Root-only: anchored, like every rule above.
+/workingAssets/
 
 # Screenshots and widget dumps from tools/ui_shot.py. Regenerated on demand and
 # specific to one machine's display scaling, so they are not worth tracking.
