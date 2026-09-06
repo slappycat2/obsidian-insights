@@ -702,7 +702,6 @@ class NewTab:
         if self.tab_def['tab_table_link_spcrs']:
             spcr_cols = link_cols
 
-        col_num = 0
         for k, v in self.tab_def['tab_cd_table_hdr'].items():
             col_num = int(v[0])
             if col_num != 0:
@@ -1282,19 +1281,6 @@ class DefXyml(NewTab):
             row_num += 1
 
         self.tab_common['xyml']['help_txt']['notes'] = tab_note
-        #   'BadY': ["Invalid Properties",            'Cannot Load Frontmatter-Check YAML Markdown syntax.']
-        # , 'NoFm': ['No Properties',                 'Not a problem, if intentional.']
-        # , 'MtFm': ['Frontmatter loaded, but empty', 'Not a problem, if intentional.']
-        #             123456789012345678901234567890
-        # , 'ErrY': ["Frontmatter error",             'An Unknown Error occurred trying to process Frontmatter.']
-        # , 'NonD': ['Frontmatter formatting error',  'Invalid Frontmatter--Not in dictionary format']
-        row_idx = 7
-        for dkey, desc in self.xyml_descs.items():
-            dkey_2 = f"{dkey}{row_idx}"
-            f_tot = f"=COUNTIF(tbl_xyml[{self.col_val1}],C{row_idx})"
-            # self.tab_def['tab_cd_fixed_grid'][dkey]   = [ 3, row_idx, '', sz, 0, txt2, clr2, True,  False, 'right', desc[0]]
-            # self.tab_def['tab_cd_fixed_grid'][dkey_2] = [ 4, row_idx, '', sz, 0, "", "",       False, False, 'center', f_tot]
-            row_idx += 1
 
         self.tab_def_post()
 
@@ -1902,7 +1888,6 @@ class DefAr51(NewTab):
         self.colors = wb_obj.Colors
       # self.tab_common = wb_obj.tab_common
         super().__init__(self.tab_id, wb_obj)
-        sys_cfg  = wb_obj.sys_cfg
         ctot = wb_obj.ctot
         tab_common = wb_obj.tab_common
         sea2 = self.colors.tbl_clrs['sea'][2]
@@ -1919,7 +1904,6 @@ class DefAr51(NewTab):
         xyml_val1 = f"{tab_common['xyml']['col_val1']}"
         dups_key1 = f"{tab_common['dups']['col_key1']}"
 
-        file_tot1 = f'=_xlfn.AGGREGATE(3,3,tbl_file[{file_key1}])'
         file_tot1 = f'=COUNTA(_xlfn.UNIQUE(_xlfn.FILTER(tbl_file[{file_key1}],tbl_file[IsVisible])))*-1'
         xyml_tot1 = f'=_xlfn.AGGREGATE(3,3,tbl_xyml[{xyml_key1}])*(-1)'
         xyml_tot2 = f'=COUNTIF(tbl_xyml[{xyml_val1}],TRUE)'
@@ -2053,13 +2037,3 @@ class DefAr51(NewTab):
 
 
         }
-
-
-if __name__ == '__main__':
-    tabs = NewWb()
-
-
-
-
-
-

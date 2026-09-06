@@ -1,7 +1,5 @@
-from pathlib import Path
 import json
 
-from ovi.ovi_logger import logger
 
 class JsonFile:
     """

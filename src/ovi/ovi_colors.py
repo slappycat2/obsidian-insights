@@ -1,5 +1,3 @@
-from ovi.ovi_logger import logger
-
 class Colors:
     # There are 16 million colors, these are ones I picked to play with,
     def __init__(self):

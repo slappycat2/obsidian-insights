@@ -8,7 +8,6 @@ the repository is published -- not in comments here.
 """
 
 import os
-import time
 import copy
 import re
 import urllib.parse
@@ -92,7 +91,7 @@ class ExcelExporter:
         # Compiled once: export_cell() runs this over every string cell in the
         # workbook, and re.compile() on each was the only reason it was a str.
         self.rgx_noTZdatePattern = re.compile(
-            r"([0-9]{4})[-\/]([0-1]?[0-9]{1})[-\/]([0-3])?([0-9]{1})(\s+)([0-9]{2}:[0-9]{2}:[0-9]{2})(.*)")
+            r"([0-9]{4})[-/]([0-1]?[0-9])[-/]([0-3])?([0-9])(\s+)([0-9]{2}:[0-9]{2}:[0-9]{2})(.*)")
         self.rgx_noTZdateReplace = r"\1-\2-\3\4 \6"
 
         # self.code_q_types = ['TABLE', 'LIST', 'TASK', 'CALENDAR']
@@ -130,13 +129,9 @@ class ExcelExporter:
         tab = self.wb_tabs_open[tab_id]
         err_txt = self.colors.err_txt
 
-        tab_def = self.wb_def['wb_tabs'][tab_id]
-
         # ========================================================================
         # export Totals Grid, both headers and formulas for totals
         # ========================================================================
-        val = ''
-        # row_idx = 19
         tab = self.export_grid(tab, 1)
         # ========================================================================
         # export cfg
@@ -177,8 +172,6 @@ class ExcelExporter:
         tbl_name = tab_def['tbl_name']
         tab_cd_table_hdr = tab_def['tab_cd_table_hdr']
         tab_cd_table_dtl = tab_def['tab_cd_table_dtl']
-        hdr_IsVis        = tab_def['hdr_IsVis']
-        showGridLines    = self.tab_def['showGridLines']
         data_src           = tab_def['data_src']
 
         logger.debug(f"Exporting Tab: {tab_id}") #  Set a breakpount on this line
@@ -856,40 +849,27 @@ class ExcelExporter:
                         cell.border = Border(top=border, bottom=border, right=border)
         elif sides == "bottom":
             for row in ws[cell_range]:
-                border_first_col = True
                 for cell in row:
                     cell.border = Border(bottom=border)
         elif sides == "top":
             for row in ws[cell_range]:
-                border_first_col = True
                 for cell in row:
                     cell.border = Border(top=border)
         elif sides == "left":
             for row in ws[cell_range]:
-                border_first_col = True
                 for cell in row:
                     cell.border = Border(left=border)
         elif sides == "right":
             for row in ws[cell_range]:
-                border_first_col = True
                 for cell in row:
                     cell.border = Border(right=border)
         elif sides == "v-sides":
             for row in ws[cell_range]:
-                border_first_col = True
                 for cell in row:
                     cell.border = Border(left=border, right=border)
         elif sides == "h-sides":
             for row in ws[cell_range]:
-                border_first_col = True
                 for cell in row:
                     cell.border = Border(top=border, bottom=border)
-
-def main() -> None:
-    exporter = ExcelExporter()
-    exporter.export()
-
-if __name__ == '__main__':
-    main()
 
 

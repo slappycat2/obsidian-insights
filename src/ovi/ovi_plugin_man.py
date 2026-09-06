@@ -96,7 +96,6 @@ class PluginMan:
         v_path = f"{o_path}plugins/"
         v_path_obj = Path(v_path)
         cp_json = f"{o_path}community-plugins.json"
-        enabled_plugins = []
 
         # A vault folder Obsidian has never opened has no .obsidian directory at
         # all, which is expected rather than broken -- it just means no plugins,

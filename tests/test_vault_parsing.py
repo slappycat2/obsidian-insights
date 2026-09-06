@@ -13,8 +13,6 @@ Shapes produced (see upd_obs_props):
     obs_files  {'filepath|F' or '|I': {property: [original_case, value, ...]}}
 """
 
-import pytest
-
 
 # ---------------------------------------------------------------------------
 # Frontmatter properties

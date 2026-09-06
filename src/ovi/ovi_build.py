@@ -59,14 +59,14 @@ class VaultScan:   # WbConfig
         # field to the start of a *line* ("rating:: 5"). Without the flag it
         # anchored to the start of the whole body, so the only inline fields
         # ever found were bracketed ones ("[rating:: 5]").
-        self.rgx_body_pros = re.compile('(^|(\\[))([)([A-Za-z0-9_]+)[:]{2}(.*?)(\\]?\\]?)($|\\])',
+        self.rgx_body_pros = re.compile(r'(^|(\[))([)([A-Za-z0-9_]+)::(.*?)(]?]?)($|])',
                                         re.MULTILINE)
         self.rgx_tag_pattern = re.compile(r'[^|\w]#(\w+)', re.MULTILINE)
-        self.rgx_noTZdatePattern = re.compile(r"([0-9]{4})[-\/]([0-1]?[0-9]{1})[-\/]([0-3])?([0-9]{1})(\s+)([0-9]{2}:[0-9]{2}:[0-9]{2})(.*)", re.MULTILINE)
+        self.rgx_noTZdatePattern = re.compile(r"([0-9]{4})[-/]([0-1]?[0-9])[-/]([0-3])?([0-9])(\s+)([0-9]{2}:[0-9]{2}:[0-9]{2})(.*)", re.MULTILINE)
         self.rgx_code_blocks = re.compile(r'^`{3}[\s\S]*?^`{3}', re.MULTILINE)
         self.rgx_code_inline = re.compile(r'`[^`]*`', re.MULTILINE)
         self.rgx_templater_strs = r"<%[\*]?\s*.*?\s*%>"
-        self.rgx_wikilinks = re.compile(r"\[\[.*?\]\]", re.MULTILINE)
+        self.rgx_wikilinks = re.compile(r"\[\[.*?]]", re.MULTILINE)
 
         self.filepath = ""
         self.prop_loc_F_I = "F"
@@ -259,7 +259,6 @@ class VaultScan:   # WbConfig
         return
 
     def process_yaml(self, front_text):
-        data: dict[Any, Any] = {}
         try:
             data = yaml.safe_load(front_text) or {}
             if not isinstance(data, dict):
@@ -288,7 +287,6 @@ class VaultScan:   # WbConfig
     def unpack_yaml(self, key_passed, a_yaml_dict):
         # For nested dictionaries, this will run reciprocally
         obs_prop_key = ""
-        slash = ""
 
         if key_passed is None:
             obs_prop_key = ""  # otherwise, we get a "/" appended to all keys

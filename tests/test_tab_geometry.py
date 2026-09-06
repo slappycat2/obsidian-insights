@@ -93,7 +93,7 @@ def test_tabs_do_not_hardcode_the_isvisible_column():
     """Regression, issue #4: each subclass used to set tab_tots_isVisible_col to
     a literal. Those were overwritten, so they did nothing but drift -- except
     on one tab, where the value silently widened the table."""
-    assignments = re.findall(r"tab_tots_isVisible_col'\]\s*=\s*(.+)", SOURCE)
+    assignments = re.findall(r"tab_tots_isVisible_col']\s*=\s*(.+)", SOURCE)
 
     assert assignments == ["isvis_col"], f"unexpected assignments: {assignments}"
 

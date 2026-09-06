@@ -47,7 +47,7 @@ def _refuse_to_unlink(monkeypatch, suffix):
             raise PermissionError(
                 32, "The process cannot access the file because it is being "
                     "used by another process")
-        return real_unlink(self, missing_ok=missing_ok)
+        real_unlink(self, missing_ok=missing_ok)
 
     monkeypatch.setattr(Path, "unlink", unlink)
 

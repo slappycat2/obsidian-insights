@@ -134,6 +134,7 @@ def test_cancel_closes_without_saving():
 def test_the_window_close_button_is_wired_to_cancel():
     """Regression: with no WM_DELETE_WINDOW handler, closing the window looked
     exactly like a successful save to the caller."""
+    assert ovi_setup.__file__
     source = (Path(ovi_setup.__file__).parent / "ovi_setupscreen.py").read_text(encoding="utf-8")
 
     assert 'self.root.protocol("WM_DELETE_WINDOW", self.on_cancel)' in source
@@ -316,6 +317,7 @@ def test_leaving_a_vault_keeps_the_edits_made_to_it(monkeypatch):
 class StubScreen:
     """Stands in for the Tk screen; records whether it was shown."""
     instances = []
+    returns = None
 
     def __init__(self, sys_obj):
         self.sys_obj = sys_obj

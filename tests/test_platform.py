@@ -363,6 +363,7 @@ def test_the_export_and_setup_modules_do_not_import_tk_at_module_scope():
     screen and splash are the only modules allowed to need it."""
     import ast
 
+    assert launch.__file__
     for module in ("ovi_xl.py", "ovi.py", "ovi_build.py", "ovi_wb_tabs.py", "ovi_wb_setup.py",
                    "ovi_obs_app.py", "ovi_launch.py"):
         source = (Path(launch.__file__).parent / module).read_text(encoding="utf-8")

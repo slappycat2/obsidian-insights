@@ -321,7 +321,7 @@ def test_templates_tab_reaches_the_workbook(make_vault, stub_config):
     assert [tab.cell(row=10, column=c).value for c in range(4, 7)] == \
            ["RowId", "Property", "Values"]
 
-    rows = {tab.cell(row=r, column=5).value: tab.cell(row=r, column=6).value
+    rows = {str(tab.cell(row=r, column=5).value): tab.cell(row=r, column=6).value
             for r in range(11, tab.max_row + 1)}
 
     assert rows.get("author") == "PLACEHOLDER"
