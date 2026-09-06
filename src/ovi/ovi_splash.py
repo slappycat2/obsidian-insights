@@ -65,7 +65,7 @@ class SplashScreen(tk.Tk):
         # discards a pending position, and the splash came up at +0+0.
         self.update_idletasks()
 
-    def update_status(self, text, progress_value=None):
+    def update_status(self, text: str, progress_value: int | None = None) -> None:
         logger.debug(f"\n\n===================================================================\n{text}")
         self.status_var.set(text)
         if progress_value is not None:

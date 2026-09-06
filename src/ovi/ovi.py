@@ -12,6 +12,7 @@ Each stage hands off to the next through a YAML batch file under
 """
 
 import time
+from collections.abc import Callable
 from pathlib import Path
 
 import click
@@ -38,12 +39,17 @@ PHASES = (
 )
 
 
+#: What run_pipeline() reports through: (status text, percent complete).
+#: log_progress() and SplashScreen.update_status() both have this shape.
+ProgressFn = Callable[[str, int], None]
+
+
 def log_progress(text: str, percent: int) -> None:
     """Progress reporter for headless runs; mirrors SplashScreen.update_status."""
     logger.info("[%3d%%] %s", percent, text)
 
 
-def run_pipeline(sys_cfg_obj: SysConfig, progress=log_progress,
+def run_pipeline(sys_cfg_obj: SysConfig, progress: ProgressFn = log_progress,
                  interactive: bool = False) -> ExcelExporter:
     """Run all four processing stages and return the exporter.
 

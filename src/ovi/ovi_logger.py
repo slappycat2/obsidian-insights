@@ -60,7 +60,8 @@ def setup_logging(config_name: str = ACTIVE_LOG_CONFIG) -> None:
     logging.config.dictConfig(_resolve_handler_paths(config))
 
     queue_handler = logging.getHandlerByName("queue_handler")
-    if queue_handler is not None:
+    if (isinstance(queue_handler, logging.handlers.QueueHandler)
+            and queue_handler.listener is not None):
         queue_handler.listener.start()
         atexit.register(queue_handler.listener.stop)
 

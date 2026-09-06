@@ -81,10 +81,7 @@ class Colors:
         tab_clrs_def = self.tab_clrs[tab_id]
         self.name, self.base_clr = tab_clrs_def
 
-        if shade is None:
-            self.shade = tab_clrs_def[1]
-        else:
-            self.shade = shade
+        self.shade: int = int(tab_clrs_def[1] if shade is None else shade)
 
         self.clr1 = self.tbl_clrs[self.name][0]
         self.clr2 = self.tbl_clrs[self.name][self.shade]

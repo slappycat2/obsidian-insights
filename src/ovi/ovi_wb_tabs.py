@@ -1,11 +1,11 @@
 import copy
-
-from openpyxl.styles import Side
-
 import os
 import platform
 from functools import lru_cache
 from pathlib import Path
+from typing import Any
+
+from openpyxl.styles import Side
 
 from ovi import __version__, CTOT_SLOTS
 from ovi.ovi_colors import Colors
@@ -99,14 +99,14 @@ def display_font():
 
 TITLE_FONT = display_font()
 
-class NewWb():
+class NewWb:
     def __init__(self, scan_obj):
         self.scan_obj = scan_obj
         self.wbd_obj = scan_obj.wbd_obj
         self.tab_id = 'init'
         self.wb_def = self.wbd_obj.read_wb_data()
         self.wb_tabs = self.wb_def['wb_tabs']
-        self.tab_def = {}
+        self.tab_def: dict[str, Any] = {}
         self.sys_cfg = self.wb_def['sys_cfg']
         self.ctot = self.sys_cfg['ctot']
         self.Colors = Colors()
@@ -602,7 +602,9 @@ class NewTab:
         sz = 11
 
         self.tab_table_files = {}
-        self.tab_def = {
+        # Values are cell definitions (11-element lists), ints, strs and nested
+        # dicts of the same; see "Cell definition convention" in CLAUDE.md.
+        self.tab_def: dict[str, Any] = {
                       'tab_id': self.tab_id
                     , 'tab_clr_txt':        self.tab_clr_txt
                     , 'hdr_clrs':           self.hdr_clrs
@@ -753,11 +755,12 @@ class NewTab:
             self.tab_def['tab_tots_isVisible_col'] = isvis_col
             self.tab_def['tab_cd_fixed_grid']['isVisible'][0] = isvis_col
 
-    def set_table_links(self, tab_cd_table_hdr, tab_cd_table_dtl):
-        tab_table_links_hdr     = self.tab_def['tab_cd_table_links']
-        tab_table_links_dtl     = copy.deepcopy(self.tab_def['tab_cd_table_links'])
-        tab_cd_table_spacer_hdr = self.tab_def['tab_cd_table_spacer']
-        tab_cd_table_spacer_dtl = copy.deepcopy(self.tab_def['tab_cd_table_spacer'])
+    def set_table_links(self, tab_cd_table_hdr: dict[str, list[Any]],
+                        tab_cd_table_dtl: dict[str, list[Any]]) -> tuple[dict[str, list[Any]], dict[str, list[Any]]]:
+        tab_table_links_hdr: list[Any]     = self.tab_def['tab_cd_table_links']
+        tab_table_links_dtl: list[Any]     = copy.deepcopy(self.tab_def['tab_cd_table_links'])
+        tab_cd_table_spacer_hdr: list[Any] = self.tab_def['tab_cd_table_spacer']
+        tab_cd_table_spacer_dtl: list[Any] = copy.deepcopy(self.tab_def['tab_cd_table_spacer'])
         tab_table_links_dtl[5]     = tab_table_links_dtl[6]     = ''  # No Color fills in details!
         tab_cd_table_spacer_dtl[5] = tab_cd_table_spacer_dtl[6] = ''  # No Color fills in details!
         tab_table_link_spcrs = self.tab_def['tab_table_link_spcrs']

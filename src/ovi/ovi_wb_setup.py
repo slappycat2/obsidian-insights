@@ -124,10 +124,10 @@ class WbDataDef:
         count survives run 10000.
         """
         pattern = re.compile(rf'{re.escape(self.file_stub)}_(\d{{4,}})')
-        matches = (pattern.fullmatch(p.stem)
-                   for p in Path(directory).glob(f'{self.file_stub}_*{ext}'))
 
-        return [int(m.group(1)) for m in matches if m]
+        return [int(m.group(1))
+                for p in Path(directory).glob(f'{self.file_stub}_*{ext}')
+                if (m := pattern.fullmatch(p.stem)) is not None]
 
     def get_last_bat(self):
         """Sets the name of the latest (most recent) batch file for this vault.

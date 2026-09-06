@@ -84,7 +84,8 @@ class QuickAddData:
         to the plugin id -- ``PluginMan`` records the two separately because
         they are not required to match.
         """
-        entry = self.plugin_lib.plugs_lib.get(QUICK_ADD_ID) if self.plugin_lib else None
+        plugs_lib = self.plugin_lib.plugs_lib if self.plugin_lib else {}
+        entry = plugs_lib.get(QUICK_ADD_ID) or {}
 
         if not entry:
             logger.debug("QuickAddData: QuickAdd is not installed in %s", self.dir_vault)

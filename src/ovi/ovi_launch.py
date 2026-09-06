@@ -23,7 +23,17 @@ import os
 import platform
 import shutil
 import subprocess
+from collections.abc import Callable
 from pathlib import Path
+
+#: shutil.which's shape: a command name in, its path (or None) out. Tests pass
+#: a stand-in so the Linux branch can run on a machine without libreoffice.
+WhichFn = Callable[[str], str | None]
+
+
+def _system_which(command: str) -> str | None:
+    """shutil.which, narrowed to the str-in/str-out form ovi uses."""
+    return shutil.which(command)
 
 #: Probed in order on Windows; the first that exists is the default.
 WINDOWS_CANDIDATES = (
@@ -55,7 +65,7 @@ def is_app_bundle(app: str, system=None) -> bool:
     return path.name.endswith(".app") and path.is_dir()
 
 
-def default_spreadsheet_app(system=None, which=shutil.which) -> str:
+def default_spreadsheet_app(system=None, which: WhichFn = _system_which) -> str:
     """The spreadsheet program to suggest on this platform, or ``""``.
 
     Blank is a valid answer: it means the workbook is handed to whatever the
@@ -81,7 +91,7 @@ def default_spreadsheet_app(system=None, which=shutil.which) -> str:
     return ""
 
 
-def validate_app(app, system=None, which=shutil.which) -> tuple[bool, str]:
+def validate_app(app, system=None, which: WhichFn = _system_which) -> tuple[bool, str]:
     """Whether ``app`` can be launched. Returns ``(ok, message)``.
 
     Accepts: blank (system default), an existing file, a ``.app`` bundle on

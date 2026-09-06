@@ -23,6 +23,11 @@ from ovi.ovi_setup import SysConfig
 from ovi.ovi_xl import ExcelExporter, WorkbookLockedError
 
 
+def which_from(table: dict[str, str]) -> launch.WhichFn:
+    """A shutil.which stand-in that knows only the commands in ``table``."""
+    return lambda command: table.get(command)
+
+
 # ---------------------------------------------------------------------------
 # Where obsidian.json lives
 # ---------------------------------------------------------------------------
@@ -140,7 +145,7 @@ def test_a_bare_command_on_path_validates_on_linux(tmp_path):
     """Regression: the Linux default was the bare name 'scalc', which
     Path.exists() tested against the working directory and always rejected,
     so the setup screen reopened on every run."""
-    which = {"libreoffice": "/usr/bin/libreoffice"}.get
+    which = which_from({"libreoffice": "/usr/bin/libreoffice"})
 
     assert launch.validate_app("libreoffice", "Linux", which=which) == (True, "")
     assert not launch.validate_app("nothere", "Linux", which=which)[0]
@@ -179,7 +184,7 @@ def test_default_app_detection_per_platform(tmp_path, monkeypatch):
 
     assert launch.default_spreadsheet_app("Linux", which=lambda n: None) == ""
     assert launch.default_spreadsheet_app(
-        "Linux", which={"soffice": "/usr/bin/soffice"}.get) == "soffice"
+        "Linux", which=which_from({"soffice": "/usr/bin/soffice"})) == "soffice"
 
     # Nothing found is not an error: blank means the system default.
     monkeypatch.setattr(launch, "DARWIN_CANDIDATES", ())
@@ -199,11 +204,12 @@ def test_open_workbook_failure_is_reported_not_raised(monkeypatch):
     echoed = []
     monkeypatch.setattr(click, "echo", lambda msg, **k: echoed.append(msg))
 
-    class Exporter:
-        sys_pn_wb_exec = "/nope/excel"
-        sys_pn_wbs = "/v/x.xlsx"
+    # Built with __new__: only the two attributes open_workbook reads are needed.
+    exporter = ExcelExporter.__new__(ExcelExporter)
+    exporter.sys_pn_wb_exec = "/nope/excel"
+    exporter.sys_pn_wbs = "/v/x.xlsx"
 
-    ovi.open_workbook(Exporter())
+    ovi.open_workbook(exporter)
 
     assert echoed and "Could not open" in echoed[0]
 

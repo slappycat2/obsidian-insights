@@ -83,31 +83,31 @@ class SysConfig:
     sys_cfg:                 dict = field(default_factory=dict)
     sys_id:                  str  = 'ovi'
     sys_ver:                 str  = __version__
-    sys_dir_sys:             str  = field(default=None)
-    sys_dir_dat:             str  = field(default=None)
-    sys_dir_bat:             str  = field(default=None)
-    sys_dir_wbs:             str  = field(default=None)
-    sys_dir_log:             str  = field(default=None)
-    sys_dir_img:             str  = field(default=None)
-    sys_pn_cfg:              str  = field(default=None)
-    sys_pn_lg2:              str  = field(default=None)
-    sys_pn_lg3:              str  = field(default=None)
-    sys_pn_ico:              str  = field(default=None)
-    sys_pn_bnr:              str  = field(default=None)
-    sys_pn_a51:              str  = field(default=None)
-    sys_splash_bg:           str  = field(default=None)
-    sys_pn_batch:            str  = field(default=None)
-    sys_pn_wbs:              str  = field(default=None)
-    sys_pn_wb_exec:          str  = field(default=None)
+    sys_dir_sys:             str = ""
+    sys_dir_dat:             str = ""
+    sys_dir_bat:             str = ""
+    sys_dir_wbs:             str = ""
+    sys_dir_log:             str = ""
+    sys_dir_img:             str = ""
+    sys_pn_cfg:              str = ""
+    sys_pn_lg2:              str = ""
+    sys_pn_lg3:              str = ""
+    sys_pn_ico:              str = ""
+    sys_pn_bnr:              str = ""
+    sys_pn_a51:              str = ""
+    sys_splash_bg:           str = ""
+    sys_pn_batch:            str | None = None
+    sys_pn_wbs:              str | None = None
+    sys_pn_wb_exec:          str = ""
     sys_vlts:                dict = field(default_factory=dict)
     cur_vlts:                dict = field(default_factory=dict)
     sys_tab_seq:             list = field(default_factory=list)
-    sys_cfg_os:              str  = field(default=None)
-    vault_name:              str  = field(default=None)
-    vault_id:                str  = field(default=None)
-    dir_vault:               str  = field(default=None)
-    dir_templates:           str  = field(default=None)
-    skip_rel_str:            str  = field(default=None)
+    sys_cfg_os:              str = ""
+    vault_name:              str | None = None
+    vault_id:                str | None = None
+    dir_vault:               str | None = None
+    dir_templates:           str | None = None
+    skip_rel_str:            str | None = None
     skip_abs_lst:            list = field(default_factory=list)
     dirs_dot:                list = field(default_factory=list)
     ctot:                    list = field(default_factory=list)
@@ -119,7 +119,7 @@ class SysConfig:
     bool_unused_3:           bool = field(default=False)
     link_lim_vals:           int  = field(default=0)
     link_lim_tags:           int  = field(default=0)
-    ovi_date:              str  = field(default=None)
+    ovi_date:              str = ""
     sys_init:                bool = field(default=False)
 
     # Runtime behaviour, not persisted to CONFIG.yaml.
@@ -129,7 +129,7 @@ class SysConfig:
     #: When True, always show the setup screen even if config is valid (--setup).
     force_setup:             bool = field(default=False)
     #: Vault path from the command line; overrides the vault in CONFIG.yaml.
-    vault_path_override:     str  = field(default=None)
+    vault_path_override:     str | None = None
 
     def __post_init__(self):
         self.sys_cfg_os     = platform.system()
@@ -351,7 +351,7 @@ class SysConfig:
             raise Exception(f"ConfigSys: Error in get_templates_dir: {e}")
 
     @staticmethod
-    def get_dot_dirs(op_sys: str, dir_start: str) -> list:
+    def get_dot_dirs(op_sys: str, dir_start: str | None) -> list:
         """
         Returns a list of all "hidden" directories (those starting w/period, eg. '.obsidian')
         immediately under a given directory.
@@ -364,7 +364,7 @@ class SysConfig:
         return [entry.name for entry in os.scandir(dir_start)
                 if entry.is_dir() and entry.name.startswith('.')]
 
-    def get_skip_abs_lst(self, skip_rel_str: str, dir_start: str) -> list:
+    def get_skip_abs_lst(self, skip_rel_str: str | None, dir_start: str | None) -> list:
         """
         Returns a list of all directories to be skipped from the vault scan based
         on the comma separated list provided by the user during setup.
@@ -372,6 +372,8 @@ class SysConfig:
         :param dir_start:
         :return skip_abs_lst:
         """
+        if not skip_rel_str or not dir_start:
+            return []
         skip_abs_lst = []
         dirs = [d.strip() for d in skip_rel_str.split(',') if d.strip()]
         for dir_name in dirs:
@@ -531,7 +533,7 @@ class SysConfig:
         return True, ""
 
     @staticmethod
-    def validate_dir_vault(dir_vault):
+    def validate_dir_vault(dir_vault: str | None):
         if not dir_vault or not dir_vault.strip():
             return False, "Vault path cannot be empty"
         path = Path(dir_vault.strip())
@@ -542,7 +544,7 @@ class SysConfig:
         return True, ""
 
     @staticmethod
-    def check_obsidian_dir(dir_vault):
+    def check_obsidian_dir(dir_vault: str | None):
         """Report whether a folder holds a .obsidian directory. Never an error.
 
         A folder without one analyses perfectly well -- every vault the test

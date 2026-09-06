@@ -310,7 +310,7 @@ class ExcelExporter:
                             , self.xyml_descs[prop_name][0]
                             ]
                 elif tab_id == "file":
-                    file_nm, loc = prop_name.split("|")
+                    file_nm, loc = str(prop_name).split("|")
                     if loc == 'F':
                         loc = ''
                     else:
@@ -331,7 +331,7 @@ class ExcelExporter:
                             , prop_vals
                             ]
                 elif tab_id == "code":
-                    file_nm = prop_name
+                    file_nm = str(prop_name)
                     cb_sig = value_item
                     plugin_id = self.plugin_lib.get_name(cb_sig)
 
@@ -342,7 +342,7 @@ class ExcelExporter:
                             , len(value_files_list)
                             ]
                 elif tab_id == 'nest':
-                    plugin_id, file_nm = prop_name.split("|")
+                    plugin_id, file_nm = str(prop_name).split("|")
                     vtot = len(value_files_list)
                     prop_vals = " | ".join(map(str, value_files_list[1:]))
                     vals = [int((row_idx - tbl_hdr_row))
@@ -562,9 +562,7 @@ class ExcelExporter:
         # col,row,font,sz, w,t_clr,f_clr,Bold,Ital,  Align,  val ] = 11
         col_idx, def_row, c_font, c_sz, col_w, txt_clr, fill_clr, bold_bool, ital_bool, align_val, def_val = col_def_list
 
-        logger.debug(f"Exporting Cell (Col,Row): {col_def_list[0]},{row_idx} val:{val}  def_val: {def_val}") #  Set a breakpount on this line
-
-        logger.debug(f"Exporting Cell (Col,Row): {col_def_list[0]},{row_idx} val:{val}  def_val: {def_val}") #  Set a breakpount on this line
+        logger.debug(f"Exporting Cell (Col,Row): {col_def_list[0]},{row_idx} val:{val}  def_val: {def_val}")  # breakpoint here
 
         if val is None or val == "":
             val = def_val

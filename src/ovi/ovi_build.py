@@ -28,8 +28,8 @@ class VaultScan:   # WbConfig
 
         # dir_templates is None whenever the Templater plugin is not installed
         # in this vault, so it cannot be handed straight to Path().
-        templates_dir = self.sys_cfg.get('dir_templates') or None
-        self.dir_templates = Path(templates_dir) if templates_dir else None
+        templates_dir = self.sys_cfg.get('dir_templates')
+        self.dir_templates: Path | None = Path(templates_dir) if templates_dir else None
 
         self.isTemplate = False
         self.wb_data = self.wb_def.get('wb_data', {})
@@ -349,7 +349,7 @@ class VaultScan:   # WbConfig
                 self.upd_val(f"{obs_prop_key}{key}", value)
         return
 
-    def upd_val(self, k, v):
+    def upd_val(self, k: str, v: Any) -> None:
         # logger.debug(f"ovi_build:upd_val {k=}: {v=}")
 
         # Normalise the value FIRST. Downstream it is used as a dictionary key,

@@ -19,6 +19,10 @@ from ovi.ovi_quick_add import EMPTY_MARK, QuickAddData
 
 ROWID, SEQ, SECTION, LEVEL, PARENT, NAME, TYPE, KEY, VALUE = range(9)
 
+#: Default for quickadd_vault's ``data``: write QUICK_ADD_DATA. ``None`` means
+#: write no data.json at all, so the default cannot be None.
+SAMPLE_DATA = object()
+
 QUICK_ADD_DATA = {
     "choices": [
         {
@@ -59,8 +63,10 @@ def quickadd_vault(make_vault):
     notice.
     """
 
-    def _build(data=QUICK_ADD_DATA, installed=True, enabled=True,
+    def _build(data: object = SAMPLE_DATA, installed=True, enabled=True,
                plugin_dir="quickadd", manifest_id="quickadd"):
+        if data is SAMPLE_DATA:
+            data = QUICK_ADD_DATA
         files = {"note.md": "Body.\n"}
 
         if installed:
