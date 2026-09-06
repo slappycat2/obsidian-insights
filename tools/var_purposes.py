@@ -335,7 +335,7 @@ PATTERNS = [
 ]
 
 
-def resolve(key, rec):
+def resolve(_key, rec):
     """-> (purpose, source). Order: authored, source comment, pattern, derived."""
     name, owner, kind = rec["name"], rec["owner"], rec["kind"]
 

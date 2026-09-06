@@ -134,6 +134,7 @@ def test_line_start_inline_property_is_harvested(scan):
 # Malformed / missing frontmatter
 # ---------------------------------------------------------------------------
 
+# noinspection PyPep8Naming
 def test_unparseable_yaml_is_recorded_as_BadY(scan):
     result = scan({"bad.md": """
         ---
@@ -147,6 +148,7 @@ def test_unparseable_yaml_is_recorded_as_BadY(scan):
     assert any("bad.md" in path for path in result.obs_xyaml["BadY"])
 
 
+# noinspection PyPep8Naming
 def test_file_without_frontmatter_is_recorded_as_NoFm(scan):
     result = scan({"plain.md": "Just prose, no frontmatter.\n"})
 

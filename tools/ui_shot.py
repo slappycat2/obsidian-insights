@@ -49,6 +49,7 @@ from ovi.ovi_setup import SysConfig                # noqa: E402
 from ovi.ovi_setupscreen import SetupScreen        # noqa: E402
 
 
+# noinspection PyUnresolvedReferences
 def dpi_scale() -> float:
     """Physical pixels per Tk pixel, or 1.0 off Windows.
 
@@ -63,6 +64,8 @@ def dpi_scale() -> float:
 
     import ctypes
 
+    # Win32 names, kept as Microsoft spells them; windll exists only on Windows.
+    # noinspection PyPep8Naming,PyUnresolvedReferences
     HORZRES, DESKTOPHORZRES = 8, 118
     dc = ctypes.windll.user32.GetDC(0)
     try:
@@ -73,6 +76,7 @@ def dpi_scale() -> float:
     return physical / logical if logical else 1.0
 
 
+# noinspection PyBroadException
 def describe(widget, depth: int = 0, lines: list | None = None) -> list:
     """One line per widget: class, geometry, and whatever it carries."""
     if lines is None:

@@ -167,8 +167,7 @@ class SetupScreen:
                  f"------------------------------------------\n"
             )
 
-        # noinspection PyUnusedLocal
-        def vault_name_changed(*args) -> None:
+        def vault_name_changed(*_trace_args) -> None:
             """
             handle the vault_name combobox changed event
              At this point, the only thing that has changed is the vault_name, so we start swapping...
@@ -214,8 +213,7 @@ class SetupScreen:
 
             logger.debug(f"setupscreen:show:vault_name_chgd  ------------------------------------------------------\n\n")
 
-        # noinspection PyUnusedLocal
-        def update_links_help(*args) -> None:
+        def update_links_help(*_trace_args) -> None:
             try:
                 vals = int(self.link_lim_vals_var.get())
                 self.link_lim_vals_help.config(text="(Unlimited)    " if vals == 0 else self.wb_col_help)

@@ -474,7 +474,8 @@ class VaultScan:   # WbConfig
     def strip_codeblocks(self, markdown_text):
         return re.sub(self.rgx_code_blocks, "", markdown_text)
 
-    def strip_inline_code(self, markdown_text):
+    @staticmethod
+    def strip_inline_code(markdown_text):
         return re.sub(r"`[^`]*`", "", markdown_text)
 
     def get_tags_list(self, markdown_text):
@@ -497,7 +498,8 @@ class VaultScan:   # WbConfig
             return ", ".join(str(item) for item in value)
         return str(value)
 
-    def convert_list_to_str(self, wlink):
+    @staticmethod
+    def convert_list_to_str(wlink):
         logger.debug(f"ovi_build:convert_list_to_str:started <{wlink=}>")
 
         # This is very brute force, but I haven't got  a better way right now

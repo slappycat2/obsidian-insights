@@ -28,13 +28,14 @@ from ovi import CTOT_SLOTS
 _TMP_DATA_ROOT: str | None = None
 
 
-def pytest_configure(config):
+def pytest_configure():
     global _TMP_DATA_ROOT
-    _TMP_DATA_ROOT = tempfile.mkdtemp(prefix="ovi_tests_")
-    os.environ["OVI_DATA_DIR"] = _TMP_DATA_ROOT
+    root = tempfile.mkdtemp(prefix="ovi_tests_")
+    _TMP_DATA_ROOT = root
+    os.environ["OVI_DATA_DIR"] = root
 
 
-def pytest_unconfigure(config):
+def pytest_unconfigure():
     if _TMP_DATA_ROOT:
         shutil.rmtree(_TMP_DATA_ROOT, ignore_errors=True)
         os.environ.pop("OVI_DATA_DIR", None)

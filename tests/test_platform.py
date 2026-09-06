@@ -197,7 +197,7 @@ def test_open_workbook_failure_is_reported_not_raised(monkeypatch):
     import click
     from ovi import ovi
 
-    def boom(app, workbook, system=None):
+    def boom(app, _workbook, _system=None):
         raise FileNotFoundError(2, "No such file", app)
 
     monkeypatch.setattr(ovi.launch, "open_workbook", boom)
@@ -357,7 +357,8 @@ def test_a_locked_workbook_raises_instead_of_prompting_when_not_interactive(tmp_
                         staticmethod(lambda msg: pytest.fail("a dialog was opened")))
 
     class Workbook:
-        def save(self, path):
+        # noinspection PyMethodMayBeStatic
+        def save(self, _path):
             pytest.fail("saved over a locked file")
 
     with pytest.raises(WorkbookLockedError):

@@ -351,11 +351,11 @@ class SysConfig:
             raise Exception(f"ConfigSys: Error in get_templates_dir: {e}")
 
     @staticmethod
-    def get_dot_dirs(op_sys: str, dir_start: str | None) -> list:
+    def get_dot_dirs(_op_sys: str, dir_start: str | None) -> list:
         """
         Returns a list of all "hidden" directories (those starting w/period, eg. '.obsidian')
         immediately under a given directory.
-        :param op_sys: kept for the callers' sake; the name test needs no separator.
+        :param _op_sys: kept for the callers' sake; the name test needs no separator.
         :param dir_start:
         :return dirs_dot:
         """
@@ -364,7 +364,8 @@ class SysConfig:
         return [entry.name for entry in os.scandir(dir_start)
                 if entry.is_dir() and entry.name.startswith('.')]
 
-    def get_skip_abs_lst(self, skip_rel_str: str | None, dir_start: str | None) -> list:
+    @staticmethod
+    def get_skip_abs_lst(skip_rel_str: str | None, dir_start: str | None) -> list:
         """
         Returns a list of all directories to be skipped from the vault scan based
         on the comma separated list provided by the user during setup.
@@ -382,7 +383,8 @@ class SysConfig:
 
         return skip_abs_lst
 
-    def read_config(self, pn_file: str) -> dict:
+    @staticmethod
+    def read_config(pn_file: str) -> dict:
         cfg_data = {}
         try:
             with open(pn_file, 'r', encoding='utf-8') as file:
@@ -406,7 +408,8 @@ class SysConfig:
         # QuickAdd tab stayed missing even after the merge existed (#28).
         self.cfg_pack()
 
-    def write_config(self, pn_file, cfg_data):
+    @staticmethod
+    def write_config(pn_file, cfg_data):
         try:
             # UTF-8 and LF explicitly: the platform defaults are cp1252 and
             # CRLF on Windows, so a config carrying a non-ASCII vault path

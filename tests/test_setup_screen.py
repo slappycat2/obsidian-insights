@@ -188,7 +188,7 @@ class RecordingVar:
     that is added back.
     """
 
-    def __init__(self, value=None, master=None):
+    def __init__(self, value=None, _master=None):
         self.value = value
         self.traces = []
 
@@ -200,7 +200,7 @@ class RecordingVar:
         for callback in self.traces:
             callback()
 
-    def trace(self, mode, callback):
+    def trace(self, _mode, callback):
         self.traces.append(callback)
 
 
@@ -323,6 +323,7 @@ class StubScreen:
         self.sys_obj = sys_obj
         StubScreen.instances.append(self)
 
+    # noinspection PyMethodMayBeStatic
     def show(self):
         return StubScreen.returns
 
@@ -392,7 +393,7 @@ def test_cli_stops_cleanly_when_setup_is_cancelled(monkeypatch):
 
     from ovi import ovi
 
-    def refuse(**kwargs):
+    def refuse(**_sysconfig_kwargs):
         raise SetupCancelledError("Setup was cancelled; nothing was changed.")
 
     built = []

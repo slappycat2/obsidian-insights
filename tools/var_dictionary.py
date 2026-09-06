@@ -91,12 +91,13 @@ def literal_type(node):
     return ""
 
 
+# noinspection PyBroadException
 def unparse(node):
     if node is None:
         return ""
     try:
         s = " ".join(ast.unparse(node).split())
-    except Exception:
+    except Exception:                               # any node ast cannot print
         return ""
     return s if len(s) <= 90 else s[:87] + "..."
 
@@ -309,7 +310,7 @@ ON_SCREEN = {"vault_name", "skip_rel_str", "sys_pn_wb_exec", "bool_shw_notes",
 def build(records, out_path):
     wb = Workbook()
 
-    def sheet(title, headings, widths, rows, blurb, table_name=None):
+    def sheet(title, headings, widths, sheet_rows, blurb, table_name=None):
         ws = wb.create_sheet(title)
         ws.sheet_view.showGridLines = False
         ws["A1"] = title
@@ -326,7 +327,7 @@ def build(records, out_path):
             cell.alignment = Alignment(vertical="center", wrap_text=True)
         ws.row_dimensions[4].height = 22
 
-        for r, row in enumerate(rows, 5):
+        for r, row in enumerate(sheet_rows, 5):
             for c, val in enumerate(row, 1):
                 cell = ws.cell(row=r, column=c, value=val)
                 cell.border = BOX
@@ -339,8 +340,8 @@ def build(records, out_path):
         for c, w in enumerate(widths, 1):
             ws.column_dimensions[get_column_letter(c)].width = w
 
-        if rows and table_name:
-            ref = f"A4:{get_column_letter(len(headings))}{4 + len(rows)}"
+        if sheet_rows and table_name:
+            ref = f"A4:{get_column_letter(len(headings))}{4 + len(sheet_rows)}"
             t = Table(displayName=table_name, ref=ref)
             t.tableStyleInfo = TableStyleInfo(name="TableStyleLight9", showRowStripes=True)
             ws.add_table(t)

@@ -168,7 +168,7 @@ class ExcelExporter:
         tbl_hdr_row = tab_def['tbl_hdr_row']
         tbl_beg_col = tab_def['tbl_beg_col']
         tab_table_links_cols = tab_def['tab_table_links_cols']
-        tab_tots_isVisible_col = tab_def['tab_tots_isVisible_col']
+        tab_tots_isvis_col = tab_def['tab_tots_isVisible_col']
         tbl_name = tab_def['tbl_name']
         tab_cd_table_hdr = tab_def['tab_cd_table_hdr']
         tab_cd_table_dtl = tab_def['tab_cd_table_dtl']
@@ -210,7 +210,7 @@ class ExcelExporter:
 
         # TABLE-Dtl Begin Detail
         row_idx = tbl_hdr_row + 1
-        p_v_Index_p_count, p_v_Index_v_count = 0, 0
+        pv_index_p_count, pv_index_v_count = 0, 0
         beg_prop_group = row_idx + 1
         last_prop_name = ""
 
@@ -229,8 +229,8 @@ class ExcelExporter:
 
             # so for dups, values_dict will be all pathnames using this filename
             prop_name = self.xl_clean_cell(prop_name)
-            p_v_Index_p_count += 1
-            p_v_Index_v_count = 0
+            pv_index_p_count += 1
+            pv_index_v_count = 0
             if tab_id == "vals" and last_prop_name == "":
                 last_prop_name = prop_name
 
@@ -249,7 +249,7 @@ class ExcelExporter:
                 # First, define what the values are going to be for this row
                 value_item_count = len(value_files_list)
                 vals = []
-                p_v_Index_v_count += 1
+                pv_index_v_count += 1
 
                 # TABLE Dtl - Set up First (Fixed) Columns Values
                 if tab_id == "pros":
@@ -265,7 +265,7 @@ class ExcelExporter:
                     # property's, the first row was a phantom holding no
                     # property at all, and the last property in the vault never
                     # got a row.
-                    if p_v_Index_v_count > 1:
+                    if pv_index_v_count > 1:
                         continue
 
                     # Distinct files, not the sum of per-value file lists: one
@@ -283,7 +283,7 @@ class ExcelExporter:
                         , prop_name
                         , value_item
                         , value_item_count
-                        , f"{p_v_Index_p_count:03d}-{p_v_Index_v_count:05d}"
+                        , f"{pv_index_p_count:03d}-{pv_index_v_count:05d}"
                             ]
                 elif tab_id == "tags":
                     vals = [int((row_idx - tbl_hdr_row))
@@ -399,7 +399,7 @@ class ExcelExporter:
                         , prop_name
                         , value_item
                         , value_item_count
-                        , f"{p_v_Index_p_count:03d}-{p_v_Index_v_count:05d}"
+                        , f"{pv_index_p_count:03d}-{pv_index_v_count:05d}"
                         ]
 
                 # TABLE-Dtl Set up List of Files Used, convert them to obsidian URLs, store in vals[]
@@ -441,7 +441,7 @@ class ExcelExporter:
                     logger.debug(f"Col: {col_idx}-{dummy_key}")
                     logger.debug(f"Val {col_idx - tbl_beg_col}: {vals[col_idx - tbl_beg_col]}")
 
-                    if col_idx == tab_tots_isVisible_col:
+                    if col_idx == tab_tots_isvis_col:
                         val = tab_def['f_isVisible']
 
                     if isinstance(val,  list):
@@ -483,21 +483,21 @@ class ExcelExporter:
         # ===========================================================================================
         tab_id = self.tab_def['tab_id']
         tab_def = self.tab_def
-        tab_tots_isVisible_col = tab_def['tab_tots_isVisible_col']
+        tab_tots_isvis_col = tab_def['tab_tots_isVisible_col']
         tbl_hdr_row = tab_def['tbl_hdr_row']
-        hdr_IsVis = tab_def['hdr_IsVis']
+        hdr_isvis = tab_def['hdr_IsVis']
         vis_key = 'isVisible'
         tot_table = tab_def['tab_cd_fixed_grid']
 
-        if self.tab_def['tab_has_isVisible_col'] and tab_tots_isVisible_col:
+        if self.tab_def['tab_has_isVisible_col'] and tab_tots_isvis_col:
             # STEP 1 - Set IsVisible formula in last table column
             # Set isVisible Column Header
 
             row_num = tbl_hdr_row
             cell_def = tab_def['tab_cd_fixed_grid'][vis_key]
 
-            col, row, font, sz, w, t_clr, fill_clr, Bold, Ital, Align, val = cell_def
-            _, cell = self.export_cell(tab, cell_def, hdr_IsVis, row_num)
+            val = cell_def[10]   # the IsVisible formula; every detail row gets it
+            _, cell = self.export_cell(tab, cell_def, hdr_isvis, row_num)
             row_num += 1
 
             # Now, export IsVisible Formula to all cells in the IsVisible column
@@ -652,7 +652,7 @@ class ExcelExporter:
 
             tab_name = tab_def['tab_name']
             tab_color = tab_def['tab_color']
-            showGridLines = tab_def['showGridLines']
+            show_grid_lines = tab_def['showGridLines']
 
             # Create the tab, or rename Sheet 1, in the Summaries case...
             if tab_id == 'summ':
@@ -666,7 +666,7 @@ class ExcelExporter:
             self.wb_tabs_open[tab_id] = tab
 
             tab.sheet_properties.tabColor = tab_color
-            tab.sheet_view.showGridLines = showGridLines
+            tab.sheet_view.showGridLines = show_grid_lines
 
         self.sys_tab_seq = live_sys_tab_seq
 
