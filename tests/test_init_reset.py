@@ -42,11 +42,13 @@ def _refuse_to_unlink(monkeypatch, suffix):
     """Make Path.unlink raise PermissionError for one suffix, as Excel does."""
     real_unlink = Path.unlink
 
-    def unlink(self, missing_ok=False):
+    def unlink(self: Path, missing_ok=False):
         if self.suffix == suffix:
             raise PermissionError(
                 32, "The process cannot access the file because it is being "
                     "used by another process")
+        # PyCharm binds Self@Path to the unbound method and rejects an explicit receiver.
+        # noinspection PyTypeChecker
         real_unlink(self, missing_ok=missing_ok)
 
     monkeypatch.setattr(Path, "unlink", unlink)

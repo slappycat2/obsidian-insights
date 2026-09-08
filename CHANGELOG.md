@@ -17,6 +17,8 @@ Notable changes to Obsidian Insights. Format follows
   behavioural edge: `get_skip_abs_lst()` returns an empty list rather than raising when no vault
   or skip list is set. What remains is openpyxl and click stub noise in the tests and four
   "duplicated fragment" notes on parallel field assignments that are clearer as they are.
+  A follow-up pass removed an import the string-target change had orphaned and gave the
+  `Path.unlink` stand-in in the init tests its receiver type.
 - **New Summary-tab banner.** The Illustrator artwork is the source; the shipped asset is that
   export with its transparent artboard margins trimmed and scaled to the 137 px height the
   Summary tab's first row was laid out for, so it no longer needs to be hand-cropped.

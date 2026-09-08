@@ -194,7 +194,6 @@ def test_default_app_detection_per_platform(tmp_path, monkeypatch):
 def test_open_workbook_failure_is_reported_not_raised(monkeypatch):
     """The workbook is already written when the launch fails; a traceback
     after a successful run is the wrong answer."""
-    import click
     from ovi import ovi
 
     def boom(app, _workbook, _system=None):
