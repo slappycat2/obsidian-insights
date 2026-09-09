@@ -25,7 +25,7 @@ else:
 
 #: Workbook tabs, in render order. Single source of truth -- this was
 #: previously duplicated between __post_init__ and cfg_unpack.
-DEFAULT_TAB_SEQ = ('pros', 'vals', 'tags', 'file',
+DEFAULT_TAB_SEQ = ('pros', 'vals', 'tags', 'base', 'file',
                    'code', 'xyml', 'dups', 'tmpl',
                    'nest', 'plug', 'qadd', 'summ', 'ar51')
 

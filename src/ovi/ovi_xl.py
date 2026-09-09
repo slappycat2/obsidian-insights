@@ -22,6 +22,7 @@ from openpyxl.worksheet.table import Table, TableStyleInfo
 from openpyxl.drawing.image import Image
 from openpyxl.cell.cell import ILLEGAL_CHARACTERS_RE
 
+from ovi import ovi_bases
 from ovi.ovi_colors import Colors
 from ovi.ovi_plugin_man import PluginMan
 from ovi.ovi_logger import logger
@@ -394,6 +395,23 @@ class ExcelExporter:
                     if isinstance(vals[8], bool):
                         vals[8] = str(vals[8]).lower()
 
+                elif tab_id == 'base':
+                    # BasesData built the row in column order; slot 0 is the
+                    # RowId placeholder. Slot BASE_PATH is the .base file, or
+                    # the note that embeds the base. obsidian://open assumes
+                    # .md when the extension is missing, so a .base link keeps
+                    # its vault-relative path and extension, shown under the
+                    # file's own name; a note links the way every other tab's
+                    # notes do.
+                    vals = list(value_files_list)
+                    vals[0] = int(row_idx - tbl_hdr_row)
+                    base_path = str(vals[ovi_bases.BASE_PATH])
+                    if vals[ovi_bases.KIND] == ovi_bases.KIND_FILE:
+                        vals[ovi_bases.BASE_PATH] = self.obs_hyperlink(
+                            self.vault_relative(base_path), Path(base_path).stem)
+                    else:
+                        vals[ovi_bases.BASE_PATH] = self.obs_hyperlink(Path(base_path).name)
+
                 elif tab_id == "tmpl":
                     vals = [int((row_idx - tbl_hdr_row))
                         , prop_name
@@ -722,7 +740,7 @@ class ExcelExporter:
         """Escape ``text`` for use inside a double-quoted Excel formula string."""
         return str(text).replace('"', '""')
 
-    def obs_hyperlink(self, file):
+    def obs_hyperlink(self, file, text=None):
         """An Excel HYPERLINK formula that opens ``file`` in Obsidian.
 
         ``vault`` takes either the vault id (the 16-hex-character code in
@@ -731,11 +749,14 @@ class ExcelExporter:
         Both are percent-encoded: a vault folder named ``Work & Home`` would
         otherwise end the vault parameter at the ampersand, and note names
         carry spaces, emoji and accents as a matter of course.
+
+        ``text`` is what the cell shows; by default the path without its
+        .md, which is right for a note and wrong for anything else.
         """
         file = str(file).replace("\\", "/")
         file_link = urllib.parse.quote(file, safe="/")
         vault_link = urllib.parse.quote(str(self.vault_id), safe="")
-        obs_link_text = self.formula_text(file.removesuffix(".md"))
+        obs_link_text = self.formula_text(file.removesuffix(".md") if text is None else text)
         return (f'=hyperlink("obsidian://open?vault={vault_link}&file={file_link}",'
                 f'"{obs_link_text}")')
 

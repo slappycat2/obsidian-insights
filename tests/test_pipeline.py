@@ -96,6 +96,8 @@ def test_workbook_has_the_expected_tabs(workbook_path):
     # This vault has no .obsidian at all, so QuickAdd has nothing to report and
     # its tab is dropped rather than rendered empty.
     assert "QuickAdd" not in wb.sheetnames
+    # Likewise no .base file and no ```base fence, so no Bases tab.
+    assert "Bases" not in wb.sheetnames
 
 
 def test_the_quickadd_tab_renders_when_the_plugin_is_present(make_vault, stub_config):
@@ -141,6 +143,59 @@ def test_the_quickadd_tab_renders_when_the_plugin_is_present(make_vault, stub_co
     assert rows[0][2] == "Choice" and rows[0][5] == "Add a Person"
     assert [r[1] for r in rows] == list(range(1, len(rows) + 1))
     assert any(r[7] == "templatePath" and r[8] == "t/person.md" for r in rows)
+
+
+def test_the_bases_tab_renders_for_a_vault_with_a_base(make_vault, stub_config):
+    """End to end for the Bases tab, for the same reason as QuickAdd above: a
+    tab id with no export_tab branch renders headers and no rows, silently."""
+    from ovi.ovi_build import VaultScan
+    from ovi.ovi_wb_tabs import NewWb
+    from ovi.ovi_xl import ExcelExporter
+
+    files = dict(VAULT)
+    files["Projects/Projects.base"] = """
+        filters:
+          and:
+            - file.inFolder("Projects")
+            - status == "active"
+        views:
+          - type: table
+            name: Active
+            order:
+              - file.name
+              - author
+            sort:
+              - property: file.name
+                direction: ASC
+          - type: cards
+            name: Wall
+    """
+
+    vault = make_vault(files, name="BasesPipelineVault")
+    exporter = ExcelExporter(NewWb(VaultScan(stub_config(vault))).wbd_obj)
+    exporter.export()
+
+    wb = openpyxl.load_workbook(exporter.sys_pn_wbs)
+    assert wb.sheetnames.index("Bases") == wb.sheetnames.index("Tags") + 1
+
+    ws = wb["Bases"]
+    headers = [ws.cell(row=10, column=col).value for col in range(10, 25)]
+    assert headers == ["RowId", "Base", "Folder", "Kind", "View", "Type", "Filters",
+                       "View Filters", "Columns", "Sort", "Group By", "Limit",
+                       "Formulas", "Props", "IsVisible"]
+
+    rows = [[ws.cell(row=r, column=c).value for c in range(10, 24)]
+            for r in range(11, ws.max_row + 1)
+            if ws.cell(row=r, column=11).value is not None]
+
+    assert [r[4] for r in rows] == ["Active", "Wall"], \
+        "the tab rendered without its rows -- export_tab has no 'base' branch"
+    link = str(rows[0][1])
+    assert link.startswith('=hyperlink("obsidian://open?vault=')
+    assert "Projects/Projects.base" in link and '"Projects")' in link
+    assert rows[0][2] == "Projects" and rows[0][3] == "File"
+    assert rows[0][6] == 'file.inFolder("Projects") AND status == "active"'
+    assert rows[0][8] == "file.name | author" and rows[0][9] == "file.name ASC"
 
 
 def test_properties_reach_the_workbook(workbook_path):

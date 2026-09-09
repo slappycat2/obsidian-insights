@@ -54,6 +54,7 @@ class WbDataDef:
         self.pros = {}
         self.vals = {}
         self.tags = {}
+        self.base = {}
         self.xyml = {}
         self.dups = {}
         self.file = {}
@@ -179,6 +180,7 @@ class WbDataDef:
         self.pros = {'tab_def': self.tab_def}
         self.vals = {'tab_def': self.tab_def}
         self.tags = {'tab_def': self.tab_def}
+        self.base = {'tab_def': self.tab_def}
         self.xyml = {'tab_def': self.tab_def}
         self.dups = {'tab_def': self.tab_def}
         self.file = {'tab_def': self.tab_def}
@@ -194,6 +196,7 @@ class WbDataDef:
               'pros': self.pros
             , 'vals': self.tags
             , 'tags': self.tags
+            , 'base': self.base
             , 'xyml': self.xyml
             , 'dups': self.dups
             , 'file': self.file

@@ -180,6 +180,7 @@ class Colors:
               'pros': ['blu', self.dflt_shade]    # , self.clr_redio]
             , 'vals': ['blu', self.dflt_shade]    # , self.clr_redio]
             , 'tags': ['grn', self.dflt_shade]    # , self.clr_yelio]
+            , 'base': ['grn', self.dflt_shade]    # deliberately the same green as tags
             , 'xyml': ['red', self.dflt_shade]    # , self.clr_yelio]
             , 'dups': ['red', self.dflt_shade]    # , self.clr_yelio]
             , 'file': ['pur', self.dflt_shade]    # , self.clr_yelio]

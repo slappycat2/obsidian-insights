@@ -9,6 +9,7 @@ from ovi import CTOT_SLOTS
 from ovi.ovi_wb_setup import WbDataDef
 from ovi.ovi_plugin_man import PluginMan
 from ovi.ovi_quick_add import QuickAddData
+from ovi.ovi_bases import BasesData, EMBEDDED_SIG
 from ovi.ovi_logger import logger
 
 class VaultScan:   # WbConfig
@@ -43,6 +44,7 @@ class VaultScan:   # WbConfig
         self.obs_nests = self.wb_data.get('obs_nests', {})
         self.obs_plugs = self.wb_data.get('obs_plugs', {})
         self.obs_qadd = self.wb_data.get('obs_qadd', {})
+        self.obs_bases = self.wb_data.get('obs_bases', {})
         self.obs_empty = self.wb_data.get('obs_empty', [])
 
         # Frontmatter is only frontmatter at the top of the file. The leading
@@ -81,6 +83,12 @@ class VaultScan:   # WbConfig
         # manifest in the vault, and that is what says whether QuickAdd is both
         # installed and enabled. Empty for any vault where it is not.
         self.obs_qadd = QuickAddData(self.sys_cfg['dir_vault'], plugin_lib).obs_qadd
+
+        # .base files are read here; a base embedded in a note is added as
+        # process_code_blocks() meets it, so the rows are packed only once
+        # the walk is over.
+        self.bases = BasesData(self.sys_cfg['dir_vault'],
+                               self.sys_cfg.get('skip_abs_lst') or [])
 
         self.process_vault()
 
@@ -134,6 +142,8 @@ class VaultScan:   # WbConfig
         self.wb_def['wb_data']['obs_nests'] = self.obs_nests
         self.wb_def['wb_data']['obs_plugs'] = self.obs_plugs
         self.wb_def['wb_data']['obs_qadd'] = self.obs_qadd
+        self.obs_bases = self.bases.pack_rows()
+        self.wb_def['wb_data']['obs_bases'] = self.obs_bases
         self.wb_def['wb_data']['obs_empty'] = self.obs_empty
 
         self.ctot[11] = self.get_max_links(self.obs_props)
@@ -460,6 +470,9 @@ class VaultScan:   # WbConfig
         cb_list = self.extract_codeblocks(content)
         for cb in cb_list:
             cb_sig = self.extract_codeblock_info(cb)
+            if cb_sig == EMBEDDED_SIG:
+                # Still recorded as a code block below: it is one.
+                self.bases.add_embedded(self.filepath, cb)
             # file_cb_sig = f"{self.filepath}|{cb_sig}"
             self.upd_obs_props(self.obs_codes, self.filepath, cb_sig, cb)
 

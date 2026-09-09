@@ -23,6 +23,7 @@ A workbook with one tab per subject, each a filterable table:
 | **Summary** | Vault statistics at a glance |
 | **Properties** / **Values** | Every property, every value, how often each is used, and links to the notes that use it |
 | **Tags** | Every tag, frontmatter and inline, with usage counts and links |
+| **Bases** | Every base, `.base` file or embedded, one row per view with its filters, columns, sort and grouping |
 | **Files** | Every note, with whether each property was frontmatter or inline and whether it was upper-cased |
 | **Xyml** | Notes whose frontmatter did not parse, with a likely reason |
 | **Duplicates** | Notes that share a name in different folders |

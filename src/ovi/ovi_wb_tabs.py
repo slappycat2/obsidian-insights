@@ -231,6 +231,37 @@ class NewWb:
                     }
                     , 'data_src': ['obs_atags']
                     }
+            , 'base': {
+                      'tab_name': "Bases"
+                    , 'shw_grid': False
+                    , 'tab_titl': 'Bases Analysis'
+                    , 'hdr_clrs': True  #  True=Force Tab Colors; False=Use TableStyle Colors
+                    , 'col_key1': "Base"
+                    , 'col_key2': "View"
+                    , 'col_val1': "Type"
+                    , 'col_val2': ""
+                    , 'col_lnks': ""
+                    , 'help_txt': {
+                          'subtitle': [
+                              'Every base in the vault -- .base files and bases embedded in notes --'
+                            , 'one row per view.'
+                          ]
+                        , 'notes': [
+                              'A base is a saved database view over your notes. It holds filters, the'
+                            , 'properties it shows and one or more views (table, cards, ...). One row'
+                            , 'per view; what belongs to the base as a whole (Filters, Formulas, Props)'
+                            , 'is repeated on each of its rows, so a filtered sheet still makes sense.'
+                            , 'Filters are shown as one expression: AND / OR / NOT, in the order the'
+                            , 'base declares them. View Filters are the ones a single view adds.'
+                            , 'Kind says where the base lives: a .base File, or Embedded in a note as'
+                            , 'a ```base block (those are on the Code tab too).'
+                            , 'A base with no views, or one whose YAML does not load, still gets a row'
+                            , 'so you can see it -- Type says which.'
+                            , 'Props counts the properties the base configures (display names etc.).'
+                          ]
+                    }
+                    , 'data_src': ['obs_bases']
+                    }
             , 'file': {
                       'tab_name': "Files"
                     , 'shw_grid': False
@@ -485,6 +516,8 @@ class NewWb:
                 self.tab_def_obj = DefVals(self)
             elif tab_id_key == 'tags':
                 self.tab_def_obj = DefTags(self)
+            elif tab_id_key == 'base':
+                self.tab_def_obj = DefBase(self)
             elif tab_id_key == 'dups':
                 self.tab_def_obj = DefDups(self)
             elif tab_id_key == 'xyml':
@@ -1031,6 +1064,108 @@ class DefTags(NewTab):
             # This one is for the IVisible Column, not the totals
             # The 'isVisible' column, below, is set in calc_col_pointers()
             , 'isVisible':    [ 0, 13, '', sz, 0, clr2, clr2, False, False, 'right', self.f_isVisible]
+        }
+
+        self.tab_def_post()
+
+class DefBase(NewTab):
+    def __init__(self, wb_obj):
+        self.tab_id = 'base'
+        self.tab_common = wb_obj.tab_common
+        super().__init__(self.tab_id, wb_obj)
+
+        clr1, txt1, clr2, txt2, table_style = self.colors.get_tab_clrs(self.tab_id)
+        self.tab_def['tab_table_style'] = table_style
+        # clr1 = tab color,
+        # clr2 = secondary "highlights" color, headings
+        # clr1 = fill color on cells that use color fills
+        # txt1 = text color on cells that use color fills
+
+        sz = self.tab_txt_sz
+        self.font_title_lst = [TITLE_FONT, 24, clr1]
+        self.font_subs_lst = [TITLE_FONT, 14, txt1]
+        self.font_body_lst = ['', sz, txt1]
+        self.tab_def['tab_color'] = clr1
+
+        self.tab_def['tab_table_link_spcrs'] = True  # Always, TRUE for now
+        self.tab_def['tab_txt_sz'] = sz
+        self.tab_def['showGridLines'] = self.showGridLines
+
+        self.tab_def['hdr_links_pfx'] = "File"
+        self.tab_def['tab_table_links_cols'] = 0
+        self.tab_def['tab_has_isVisible_col'] = True
+
+        self.tab_def['tab_cd_title_def'] = [3, 2, TITLE_FONT, 24, 0, clr1, '', True, False, 'left',
+                                            self.tab_title]
+        self.tab_def['tab_cd_subtitle_def'] = [3,  3, '', sz, 0, '', '', False, False, 'left', '']
+        self.tab_def['tab_cd_notes_def']    = [3, 12, '', sz, 0, '', '', False, False, 'left', '']
+        self.tab_def['tab_help_txt'] = self.help_txt
+
+        # Columns 10..23 in the order ovi_bases.BasesData builds a row, with
+        # IsVisible at 24 -- calc_col_pointers() derives that as
+        # (0 links) + (15 cols - 1) + 10 and raises if it is declared anywhere
+        # else. Filters and Columns are not wrapped: a long expression would
+        # stretch its row and bury the ones around it, and the full text is
+        # still there in the formula bar.
+        self.tab_def['tab_cd_table_hdr'] = {
+            # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
+              "RowId":        [10, 10, '', sz,  8, txt1, clr1, True,  False, 'center', self.hdr_RowId]
+            , "Base":         [11, 10, '', sz, 28, txt1, clr1, True,  False, 'left',   self.col_key1]
+            , "Folder":       [12, 10, '', sz, 30, txt1, clr1, True,  False, 'left',   'Folder']
+            , "Kind":         [13, 10, '', sz, 10, txt1, clr1, True,  False, 'left',   'Kind']
+            , "View":         [14, 10, '', sz, 22, txt1, clr1, True,  False, 'left',   self.col_key2]
+            , "Type":         [15, 10, '', sz, 12, txt1, clr1, True,  False, 'left',   self.col_val1]
+            , "Filters":      [16, 10, '', sz, 45, txt1, clr1, True,  False, 'left',   'Filters']
+            , "View Filters": [17, 10, '', sz, 30, txt1, clr1, True,  False, 'left',   'View Filters']
+            , "Columns":      [18, 10, '', sz, 40, txt1, clr1, True,  False, 'left',   'Columns']
+            , "Sort":         [19, 10, '', sz, 22, txt1, clr1, True,  False, 'left',   'Sort']
+            , "Group By":     [20, 10, '', sz, 16, txt1, clr1, True,  False, 'left',   'Group By']
+            , "Limit":        [21, 10, '', sz,  7, txt1, clr1, True,  False, 'center', 'Limit']
+            , "Formulas":     [22, 10, '', sz, 24, txt1, clr1, True,  False, 'left',   'Formulas']
+            , "Props":        [23, 10, '', sz,  7, txt1, clr1, True,  False, 'center', 'Props']
+            , 'isVisible':    [24,  0, '', sz,  1, txt1, clr1, False, False, 'right',  self.hdr_IsVis]
+        }
+        self.tab_def['tab_cd_table_dtl'] = {
+            # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
+              "rowId":        [10, 0, '', sz, 0, "", "", False, False, 'center', '']
+            , "base":         [11, 0, '', sz, 0, "", "", True,  False, 'left',   '']
+            , "folder":       [12, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , "kind":         [13, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , "view":         [14, 0, '', sz, 0, "", "", True,  False, 'left',   '']
+            , "type":         [15, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , "filters":      [16, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , "view_filters": [17, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , "columns":      [18, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , "sort":         [19, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , "group_by":     [20, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , "limit":        [21, 0, '', sz, 0, "", "", False, False, 'center', '']
+            , "formulas":     [22, 0, '', sz, 0, "", "", False, False, 'left',   '']
+            , "props":        [23, 0, '', sz, 0, "", "", False, False, 'center', '']
+            , 'isVisible':    [24, 0, '', sz, 0, "", "", False, False, 'right', self.f_isVisible]
+        }
+        self.tab_def['tab_cd_table_links']  = [25, 0, '', sz, 25, txt1, clr1, False, False, 'left', '']
+        self.tab_def['tab_cd_table_spacer'] = [26, 0, '', sz,  1, txt1, clr1, False, False, 'right', '']
+        self.tab_def['tab_cd_fixed_summ']   = {  # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
+            # totals headers (across and down)
+              'summ-title':  [3,  5, '', 14, 21, txt1, clr1, True,  False, 'left',   'Analysis']
+            , 'Totals':      [0,  0, '', sz, 15, txt1, clr1, True,  False, 'center', 'Totals']
+            , 'Rows':        [3,  6, '', sz,  0, txt2, clr2, True,  False, 'right',  "Rows"]
+            , 'x-uniq-rows': [0,  0, '', sz,  0, "", "",     False, False, 'center', self.f_txt_rows]
+            , 'Bases':       [3,  7, '', sz,  0, txt2, clr2, True,  False, 'right',  self.col_key1]
+            , 'x-ctot-key1': [0,  0, '', sz,  0, "", "",     False, False, 'center', self.f_uniq_key1]
+            , 'Views':       [3,  8, '', sz,  0, txt2, clr2, True,  False, 'right',  self.col_key2]
+            , 'x-ctot-key2': [0,  0, '', sz,  0, "", "",     False, False, 'center', self.f_txt_key2]
+            , 'Types':       [3,  9, '', sz,  0, txt2, clr2, True,  False, 'right',  self.col_val1]
+            , 'x-ctot-val1': [0,  0, '', sz,  0, "", "",     False, False, 'center', self.f_uniq_val1]
+        }
+        # No 'x-null-values': Type is never blank here (a base with no views is
+        # marked as such), so the warning could only ever mislead.
+        self.tab_def['tab_cd_fixed_grid'] = {
+            # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
+              'Notes-hdr':    [3, 11, '', sz,  0, txt1, clr1, True,  False, 'left', 'Notes: ']
+            , 'x-filters-on': [5,  6, '', 12, 0, self.colors.clr_red, "", True, True, 'left', self.f_filters_on]
+            # This one is for the IsVisible Column, not the totals
+            , 'isVisible':    [24, 0, '', sz, 0, clr2, clr2, False, False, 'right', self.f_isVisible]
         }
 
         self.tab_def_post()

@@ -6,6 +6,15 @@ Notable changes to Obsidian Insights. Format follows
 
 ## [Unreleased]
 
+### Added
+
+- **A Bases tab.** Every `.base` file in the vault, and every base a note embeds in a
+  ```` ```base ```` block, one row per view: the base's filters rendered as a single `AND` / `OR` /
+  `NOT` expression, each view's own filters, columns, sort, grouping and limit, and the base's
+  formula names and property count. The Base column opens the base in Obsidian. A base with no
+  views, or one whose YAML does not load, still gets a row that says so. Green, after Tags; a
+  `CONFIG.yaml` written before the tab existed picks it up in that position on its next run.
+
 ### Changed
 
 - **A clean PyCharm inspection.** Some 200 findings across the package, the tests and the dev
