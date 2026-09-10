@@ -71,6 +71,9 @@ class BasesData:
         self.dir_vault = Path(dir_vault)
         self.skip_dirs = [Path(d) for d in skip_dirs if d]
         self.rows = []
+        #: Bases seen, as opposed to rows: a base with three views is one
+        #: base, and so is one that failed to parse. Feeds ctot[14].
+        self.base_count = 0
 
         self.scan_files()
 
@@ -108,6 +111,7 @@ class BasesData:
     # ------------------------------------------------------------------- walk
 
     def add_base(self, path, kind, text):
+        self.base_count += 1
         folder = self.folder_of(path)
 
         try:

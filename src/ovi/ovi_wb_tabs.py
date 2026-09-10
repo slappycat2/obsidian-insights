@@ -1919,6 +1919,9 @@ class DefSumm(NewTab):
             , 'Properties w/colons':             [9, 5, f'=COUNTIF(tbl_pros[{pros_key1}],"*:*")']
             , 'Single Use Properties':           [9, 6, f'=COUNTIF(tbl_pros[{pros_lnks}],1)']
             , 'Single Use Tags':                 [9, 7, f'=COUNTIF(tbl_tags[{tags_lnks}],1)']
+            # A number rather than a formula over tbl_base: the Bases tab is
+            # dropped when the vault has none, and a formula would then be #REF!.
+            , 'Bases':                           [3, 8, ctot[14]]
             }
 
         # self.tab_def['tab_name'] = 'Summary'
@@ -2069,6 +2072,7 @@ class DefAr51(NewTab):
                 , '11-Max Props'
                 , '12-Max Tags'
                 , '13-Empty Notes (whitespace only)'
+                , '14-Bases (.base files + embedded)'
                 ]
 
         # f'=COUNTA(_xlfn.UNIQUE(_xlfn.FILTER({self.tbl_name}[{self.col_key1}],{self.tbl_name}[{self.hdr_IsVis}])))'
@@ -2169,6 +2173,8 @@ class DefAr51(NewTab):
             , 'x-tot-12':   [0, 38, '', 12,  0,   '',   '', False, False, 'right', ctot[12]]
             , 'f-tot-13':   [2, 39, '', 12,  0,   '',   '', False, False, 'left', ctot_descs[13]]
             , 'x-tot-13':   [0, 39, '', 12,  0,   '',   '', False, False, 'right', ctot[13]]
+            , 'f-tot-14':   [2, 40, '', 12,  0,   '',   '', False, False, 'left', ctot_descs[14]]
+            , 'x-tot-14':   [0, 40, '', 12,  0,   '',   '', False, False, 'right', ctot[14]]
 
             , 'cfg-keys':  [7, 1, '', 14, 0,   '', sea2, True, False, 'left', 'CFG Keys']
             , 'cfg-vals':  [8, 1, '', 14, 0,   '', sea2, True, False, 'left', 'Values']

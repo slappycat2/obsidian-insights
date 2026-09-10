@@ -96,8 +96,12 @@ def test_workbook_has_the_expected_tabs(workbook_path):
     # This vault has no .obsidian at all, so QuickAdd has nothing to report and
     # its tab is dropped rather than rendered empty.
     assert "QuickAdd" not in wb.sheetnames
-    # Likewise no .base file and no ```base fence, so no Bases tab.
+    # Likewise no .base file and no ```base fence, so no Bases tab -- and the
+    # Summary's Bases count is a plain 0, not a formula over a table that
+    # does not exist.
     assert "Bases" not in wb.sheetnames
+    assert wb["Summary"]["C8"].value == "Bases"
+    assert wb["Summary"]["D8"].value == 0
 
 
 def test_the_quickadd_tab_renders_when_the_plugin_is_present(make_vault, stub_config):
@@ -177,6 +181,10 @@ def test_the_bases_tab_renders_for_a_vault_with_a_base(make_vault, stub_config):
 
     wb = openpyxl.load_workbook(exporter.sys_pn_wbs)
     assert wb.sheetnames.index("Bases") == wb.sheetnames.index("Tags") + 1
+
+    # One base, two views: the Summary counts bases, the tab shows views.
+    assert wb["Summary"]["C8"].value == "Bases"
+    assert wb["Summary"]["D8"].value == 1
 
     ws = wb["Bases"]
     headers = [ws.cell(row=10, column=col).value for col in range(10, 25)]

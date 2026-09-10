@@ -178,6 +178,20 @@ def test_an_embedded_base_is_harvested_from_its_note(scan):
     assert "BASE" in result.obs_codes[rows[0][BASE_PATH]]
 
 
+def test_bases_are_counted_once_each_whatever_their_rows(scan):
+    """ctot[14] is the Summary tab's number: bases, not views, and a base
+    that failed to parse is still a base."""
+    result = scan({
+        "Documents/Documents.base": DOCUMENTS_BASE,          # two views
+        "Bad.base": "views: [unclosed\n",                     # one row, invalid
+        "Reading.md": "```base\nviews:\n  - type: table\n    name: A\n```\n"
+                      "```base\nviews:\n  - type: table\n    name: B\n```\n",
+    })
+
+    assert len(result.obs_bases) == 5
+    assert result.ctot[14] == 4
+
+
 def test_a_base_in_a_template_is_not_harvested(scan, tmp_path):
     result = scan(
         {"Templates/T.md": "```base\nviews:\n  - type: table\n    name: T\n```\n"},

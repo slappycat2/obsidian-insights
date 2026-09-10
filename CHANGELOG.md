@@ -14,6 +14,8 @@ Notable changes to Obsidian Insights. Format follows
   formula names and property count. The Base column opens the base in Obsidian. A base with no
   views, or one whose YAML does not load, still gets a row that says so. Green, after Tags; a
   `CONFIG.yaml` written before the tab existed picks it up in that position on its next run.
+  The Summary tab's headline grid gains a **Bases** count beneath Duplicate Notes, and the
+  Area51 control totals a matching slot 14.
 
 ### Changed
 

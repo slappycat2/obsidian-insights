@@ -148,6 +148,7 @@ class VaultScan:   # WbConfig
 
         self.ctot[11] = self.get_max_links(self.obs_props)
         self.ctot[12] = self.get_max_links(self.obs_atags)
+        self.ctot[14] = self.bases.base_count
 
         self.sys_cfg['ctot'] = self.ctot
 

@@ -281,6 +281,7 @@ CTOT = [
     ("ctot[11]", "11-Max Props",                     "Most links seen for any one property value. Caps the FileNN columns on the Values tab, with link_lim_vals."),
     ("ctot[12]", "12-Max Tags",                      "Most links seen for any one tag. Caps the FileNN columns on the Tags tab, with link_lim_tags."),
     ("ctot[13]", "13-Empty Notes (whitespace only)", "Notes whose raw text is whitespace only. Added in v0.4.0. A SUBSET of slot 10, since an empty note has no frontmatter either."),
+    ("ctot[14]", "14-Bases (.base files + embedded)", "Bases seen, not rows: a base with three views is one. The Summary tab's Bases number; static so it cannot #REF! when the tab is dropped."),
 ]
 
 SINKS = [
@@ -293,6 +294,7 @@ SINKS = [
     ("obs_codes", "{key: {value: [filepath, ...]}}",   "Code",               "Code blocks by language/signature."),
     ("obs_nests", "{plugin_id|filepath: {key: [values]}}", "Nested",         "Nested YAML, treated as plugin-managed data."),
     ("obs_plugs", "{key: {value: [filepath, ...]}}",   "Plugins",            "Installed plugins from manifest.json + community-plugins.json."),
+    ("obs_bases", "{seq: {seq: row_list}}",            "Bases",              "One row per view of every .base file or embedded base, already in column order (see ovi_bases)."),
     ("obs_empty", "[filepath, ...]",                   "Possible Issues",    "Whitespace-only notes. The one flat list; ExcelExporter turns it into a set."),
 ]
 

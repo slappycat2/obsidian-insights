@@ -212,7 +212,7 @@ refilled: a missing `_0001` stays missing rather than overwriting `ovi_<vault>_0
 
 - `sys_cfg` — the packed `SysConfig` dict (also carries `ctot`, `sys_pn_batch`, `sys_pn_wbs`).
 - `wb_data` — the harvested vault data: `obs_props`, `obs_atags`, `obs_xyaml`, `obs_dupfn`, `obs_files`,
-  `obs_tmplt`, `obs_codes`, `obs_nests`, `obs_plugs`, `obs_qadd`, `obs_empty`.
+  `obs_tmplt`, `obs_codes`, `obs_nests`, `obs_plugs`, `obs_qadd`, `obs_bases`, `obs_empty`.
 - `wb_tabs` — keyed by tab id; each value is a `tab_def` dict.
 
 The `obs_*` dicts are all shaped `{key: {value: [filepath, ...]}}` (see `upd_obs_props`); `obs_files` and
@@ -222,8 +222,8 @@ so the Xyml tab can print `(empty file)` in its "Fm Okay" column instead of a lo
 
 ## The tab system
 
-Tabs are identified by 4-character ids: `pros vals tags file code xyml dups tmpl nest plug qadd summ
-ar51`. Adding or renaming one touches **eight** places. Most mismatches raise; two do not:
+Tabs are identified by 4-character ids: `pros vals tags base file code xyml dups tmpl nest plug qadd
+summ ar51`. Adding or renaming one touches **eight** places. Most mismatches raise; two do not:
 
 1. `NewWb.tab_common` (`ovi_wb_tabs.py`) — display name, titles, help text, `data_src`. Every key
    is read with `[...]`, not `.get()`, and each `help_txt` sub-key needs a matching
@@ -297,7 +297,8 @@ one place it is stated; `ovi_build`, `ovi_setup`, `ovi_obs_app`, `ovi_wb_tabs` a
 Slots: `0` md files seen, `1` templates seen, `2` skip-dir files skipped, `3` files
 processed, `4` NestedDictionary resets, `5` files with frontmatter, `6` files with body properties,
 `7` `upd_obs_files` calls, `8` `upd_obs_nests` calls, `9` `upd_obs_props` calls, `10` files with no
-frontmatter, `11` max links per property value, `12` max links per tag, `13` empty notes.
+frontmatter, `11` max links per property value, `12` max links per tag, `13` empty notes,
+`14` bases (`.base` files plus embedded ones; the Summary tab's "Bases" number).
 
 Adding a slot means bumping `CTOT_SLOTS`, appending to `ctot_descs` **and** adding the matching
 `f-tot-NN`/`x-tot-NN` cell pair in `DefAr51.tab_cd_fixed_summ` — a desc without a cell is simply never
