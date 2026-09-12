@@ -1,0 +1,56 @@
+/* Obsidian Insights */
+
+.ovi-error-modal .ovi-kind {
+	color: var(--text-muted);
+	font-size: var(--font-smaller);
+	text-transform: uppercase;
+	letter-spacing: 0.05em;
+}
+
+.ovi-error-modal .ovi-message {
+	white-space: pre-wrap;
+	user-select: text;
+}
+
+.ovi-error-modal .ovi-hint {
+	color: var(--text-accent);
+}
+
+.ovi-error-modal pre {
+	max-height: 40vh;
+	overflow: auto;
+	font-size: var(--font-smaller);
+	user-select: text;
+	white-space: pre-wrap;
+	word-break: break-all;
+}
+
+.ovi-error-modal .ovi-log-path {
+	color: var(--text-muted);
+	font-size: var(--font-smaller);
+	user-select: text;
+	word-break: break-all;
+}
+
+.ovi-error-modal .ovi-buttons {
+	display: flex;
+	gap: var(--size-4-2);
+	justify-content: flex-end;
+	margin-top: var(--size-4-3);
+}
+
+.ovi-settings .ovi-warning {
+	color: var(--text-warning);
+	font-size: var(--font-smaller);
+	margin-top: var(--size-2-1);
+}
+
+.ovi-settings .ovi-ok {
+	color: var(--text-success);
+	font-size: var(--font-smaller);
+	margin-top: var(--size-2-1);
+}
+
+.ovi-settings input.ovi-wide {
+	width: 100%;
+}

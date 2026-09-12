@@ -1,0 +1,11 @@
+{
+	"id": "obsidian-insights",
+	"name": "Obsidian Insights",
+	"version": "0.1.0",
+	"minAppVersion": "1.5.0",
+	"description": "Turn this vault into a spreadsheet of every property, value and tag, each linked back to its note. Drives the Obsidian Insights engine (ovi) installed on this computer.",
+	"author": "Swen Larsen",
+	"authorUrl": "https://github.com/slappycat2/obsidian-insights",
+	"fundingUrl": "https://ko-fi.com/Z8Z71B3VAA",
+	"isDesktopOnly": true
+}

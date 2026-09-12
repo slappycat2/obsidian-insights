@@ -40,13 +40,15 @@ colon, emoji in names. Common issues are highlighted.
 - **Python 3.13** and [uv](https://docs.astral.sh/uv/). `uv` installs Python for you if needed.
 - **tkinter**, for the setup screen and progress splash. A uv-managed Python has it. If you use the
   system Python on Linux install `python3-tk` (Debian/Ubuntu) or `python3-tkinter` (Fedora); on
-  Homebrew, `brew install python-tk@3.13`.
+  Homebrew, `brew install python-tk@3.13`. Not needed for `--headless` runs or for the Obsidian
+  plugin, which never open a window.
 - **A spreadsheet application** to open the result, or none: leave the application blank in setup
   and the workbook opens with whatever your desktop associates with `.xlsx`. Tested targets are
   Excel (Windows and Mac), LibreOffice Calc (24.8 or newer for the Summary tab's dynamic-array
   formulas) and Numbers.
-- **A desktop session for the first run.** Setup is a small window. After that, `--headless` works
-  from a script or over SSH.
+- **A desktop session for the first run**, unless you name the vault. Setup is a small window.
+  `ovi --headless <vault>` on a machine that has never been set up writes the configuration from
+  the defaults instead, which is how the Obsidian plugin and scripts get by without one.
 
 ## Install and run
 
@@ -76,9 +78,26 @@ uv run ovi "D:/Vaults/MyVault"      # a specific vault, whether or not Obsidian 
 uv run ovi --setup                  # change settings
 uv run ovi --do-not-open            # build the workbook but do not launch the spreadsheet
 uv run ovi --headless --do-not-open # no windows at all, for scripting
+uv run ovi --json -x <vault>        # progress and result as JSON lines, for a program driving ovi
+uv run ovi --skip-folders Archive --max-value-links 5 <vault>   # this run's settings, on the command line
 uv run ovi --init                   # delete generated config, batch files and workbooks
 uv run ovi --help                   # all options
 ```
+
+### Use from Obsidian
+
+The [Obsidian plugin](plugin/README.md) in `plugin/` builds the workbook of the vault you have
+open, from a ribbon icon or the command palette, with a settings page inside Obsidian. It runs
+the same engine, installed once as a command:
+
+```bash
+uv tool install git+https://github.com/slappycat2/obsidian-insights   # puts `ovi` on ~/.local/bin
+```
+
+Then copy the plugin's `main.js`, `manifest.json` and `styles.css` into
+`<vault>/.obsidian/plugins/obsidian-insights/`, enable it under *Community plugins*, and press
+**Detect** in its settings. Desktop only; Windows, macOS and Linux. What passes between the plugin
+and the engine is written down in [docs/PLUGIN-CONTRACT.md](docs/PLUGIN-CONTRACT.md).
 
 ### Where things land
 

@@ -54,9 +54,11 @@ Thumbs.db
 ~$*.xlsx
 
 # ---------------------------------------------------------------------------
-# Node.js build artifacts.
+# The Obsidian plugin's build artifacts. Anchored, like every rule above:
+# main.js is what esbuild produces from plugin/src, and node_modules is npm's.
 # ---------------------------------------------------------------------------
-node_modules/
+/plugin/node_modules/
+/plugin/main.js
 *.exe
 
 # Old scratch code, untracked since Phase 4 and recoverable from commit

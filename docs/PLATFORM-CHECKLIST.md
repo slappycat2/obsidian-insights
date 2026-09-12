@@ -68,6 +68,36 @@ and the spreadsheet application's version with the results.
 - [ ] **Case sensitivity:** a vault containing `Note.md` and `note.md` in the same folder lists both
       on the Files tab and neither on Duplicates.
 
+## Obsidian plugin
+
+Each item with Obsidian started from the Dock, the Start menu or a desktop launcher -- not from a
+terminal, whose `PATH` would mask the most likely failure. The engine installed with
+`uv tool install`, the plugin's three files copied into `<vault>/.obsidian/plugins/obsidian-insights/`
+and enabled.
+
+- [ ] **Detect** finds `~/.local/bin/ovi` (macOS, Linux) or `%USERPROFILE%\.localin\ovi.exe`
+      (Windows) and fills in the path. **Test** reports the engine's version in green.
+- [ ] **Build from the ribbon.** The notice counts up through the five stages, then reports the
+      workbook by name, and the workbook opens in the spreadsheet application: Excel, Numbers or
+      Calc as configured, or the system default with the field blank.
+- [ ] **Open after build off.** The workbook is written and not opened; *Open last workbook* opens
+      it; *Open output folder* opens `data/workbooks` under the data folder.
+- [ ] **First run on a fresh machine** (rename `~/.ovi` aside): the build succeeds with no setup
+      screen, and `~/.ovi/CONFIG.yaml` exists afterwards naming this vault.
+- [ ] **Non-ASCII vault path** builds, and the notice names the workbook correctly.
+- [ ] **Locked workbook** (Windows): with the previous workbook open in Excel, build again. Pass: a
+      dialog naming the locked file with the close-it-and-retry hint, not a hang.
+- [ ] **Timeout**: set it to 1 second on a large vault. Pass: the timeout dialog, and no `python`
+      process left running (Task Manager / `ps`).
+- [ ] **Missing engine**: point the engine path at a file that does not exist. Pass: the not-found
+      dialog with the install hint, no hang.
+- [ ] **Folders to ignore** warns, under the field, about a name that is not a top-level folder of
+      this vault, and the build still runs.
+- [ ] **Engine log level** DEBUG: `logs/ovi.log` under the data folder gains DEBUG lines from the
+      next build.
+- [ ] **Linux, Flatpak Obsidian**: the sandbox may not see `~/.local/bin`. Record whether Detect
+      works, and whether `flatpak override --user --filesystem=home md.obsidian.Obsidian` is needed.
+
 ## Reporting
 
 File anything that fails as an issue with the platform, the checklist line, and the log from

@@ -11,6 +11,8 @@
 *.json  text
 *.toml  text
 *.ts    text
+*.mjs   text
+*.css   text
 *.cfg   text
 *.txt   text
 

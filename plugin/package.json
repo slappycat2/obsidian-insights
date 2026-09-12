@@ -1,0 +1,28 @@
+{
+	"name": "obsidian-insights-plugin",
+	"version": "0.1.0",
+	"description": "Obsidian plugin that builds an Obsidian Insights workbook of the open vault by driving the ovi engine.",
+	"main": "main.js",
+	"private": true,
+	"scripts": {
+		"dev": "node esbuild.config.mjs",
+		"build": "tsc -noEmit -skipLibCheck && node esbuild.config.mjs production",
+		"typecheck": "tsc -noEmit -skipLibCheck",
+		"install-local": "node scripts/install-local.mjs",
+		"check-versions": "node scripts/check-versions.mjs"
+	},
+	"keywords": [
+		"obsidian",
+		"obsidian-plugin"
+	],
+	"author": "Swen Larsen",
+	"license": "MIT",
+	"devDependencies": {
+		"@types/node": "^22.20.2",
+		"builtin-modules": "^5.3.0",
+		"esbuild": "^0.28.2",
+		"obsidian": "^1.13.1",
+		"tslib": "^2.8.1",
+		"typescript": "^5.9.3"
+	}
+}

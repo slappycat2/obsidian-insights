@@ -54,7 +54,7 @@ packages = ["src/ovi"]
 # The sdist otherwise takes everything .gitignore does not exclude, which
 # means 3.6 MB of brand art under img/ and the owner-only tools/.
 [tool.hatch.build.targets.sdist]
-exclude = ["img/", "tools/", ".github/", ".claude/", "CLAUDE.md", "uv.lock"]
+exclude = ["img/", "tools/", "plugin/", ".github/", ".claude/", "CLAUDE.md", "uv.lock"]
 
 [dependency-groups]
 dev = [

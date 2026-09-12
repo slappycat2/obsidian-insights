@@ -327,6 +327,21 @@ Adding a slot means bumping `CTOT_SLOTS`, appending to `ctot_descs` **and** addi
 rendered. Slot `13` counts notes whose raw text is whitespace only; it is a subset of slot `10`, since
 an empty note has no frontmatter either.
 
+## The Obsidian plugin
+
+`plugin/` is a TypeScript Obsidian plugin (esbuild, `npm run build`; `plugin/README.md` has the
+dev loop). It scans nothing itself: `src/engine.ts` spawns `ovi --json` on the open vault with
+`OVI_DATA_DIR` set and parses the events, `src/detect.ts` finds the executable (the `uv tool
+install` locations first, `PATH` last -- a Dock-launched Obsidian has almost no `PATH`),
+`src/settings.ts` is the settings tab and `src/main.ts` the commands, the progress notice and the
+error dialog. The contract between the two sides is `docs/PLUGIN-CONTRACT.md`; the plugin ignores
+events and fields it does not know, so adding to the JSON is safe and removing from it is not.
+The plugin's version (`manifest.json`, `versions.json`, `package.json`, checked by
+`scripts/check-versions.mjs` in CI) is its own, not `__version__`: Obsidian requires it in those
+files, and the engine's number does not belong there. `MIN_ENGINE_VERSION` in `engine.ts` is the
+one place the plugin states which engine it needs. `main.js` and `node_modules/` are gitignored
+(anchored); `plugin/` is excluded from the sdist.
+
 ## Other conventions worth knowing
 
 - **Nested YAML means a plugin.** Obsidian doesn't allow nested frontmatter dicts, so `unpack_yaml()`

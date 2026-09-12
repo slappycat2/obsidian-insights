@@ -96,3 +96,36 @@ jobs:
               sys.exit("Wheel verification failed:\n  " + "\n  ".join(problems))
 
           print("Wheel contents verified.")
+
+  plugin:
+    # The Obsidian plugin under plugin/ is TypeScript bundled by esbuild. It
+    # only spawns the engine, so one platform is enough to prove it compiles
+    # and that its three version statements agree.
+    runs-on: ubuntu-latest
+    defaults:
+      run:
+        working-directory: plugin
+
+    steps:
+      - uses: actions/checkout@v7
+
+      - uses: actions/setup-node@v4
+        with:
+          node-version: 22
+          cache: npm
+          cache-dependency-path: plugin/package-lock.json
+
+      - name: Install
+        run: npm ci
+
+      - name: Type-check
+        run: npm run typecheck
+
+      - name: Build
+        run: npm run build
+
+      - name: Versions agree
+        run: npm run check-versions
+
+      - name: The bundle exists
+        run: test -s main.js

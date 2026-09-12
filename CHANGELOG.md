@@ -24,6 +24,14 @@ Notable changes to Obsidian Insights. Format follows
   creates the configuration from the defaults, the named vault and any setting flags, instead of
   stopping with advice to run setup once. Without a vault path it still stops, and the message now
   names both ways out. `--setup` is never satisfied this way.
+- **An Obsidian plugin**, in `plugin/`. A ribbon icon and three commands build the workbook of the
+  open vault, open the last one and open the output folder, with a settings page inside Obsidian
+  for the engine's path (with Detect and Test buttons), the data folder, the folders to ignore,
+  the link limits, whether to open the workbook, the spreadsheet application, the log level and a
+  timeout. It spawns `ovi --json` and shows its progress in a notice; a failure gets a dialog with
+  the reason, the engine's last messages and the log's path. Desktop only, TypeScript, built with
+  esbuild; CI type-checks and builds it. Version 0.1.0, numbered separately from the engine, which
+  it needs at 1.4.0 or newer.
 
 - **A Bases tab.** Every `.base` file in the vault, and every base a note embeds in a
   ```` ```base ```` block, one row per view: the base's filters rendered as a single `AND` / `OR` /
