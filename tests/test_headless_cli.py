@@ -15,6 +15,7 @@ its first run. With no vault there is nothing to build a config around, and
 the run still stops with advice.
 """
 
+import json
 import os
 import subprocess
 import sys
@@ -22,6 +23,8 @@ from pathlib import Path
 
 import pytest
 import yaml
+
+from ovi import CTOT_SLOTS, __version__
 
 REPO_ROOT = Path(__file__).resolve().parent.parent
 
@@ -119,3 +122,109 @@ def test_setup_flag_is_never_satisfied_by_a_bootstrap(clean_env, make_vault):
     assert result.returncode == 1
     assert "Traceback" not in result.stderr
     assert not (data / "CONFIG.yaml").exists()
+
+
+# ---------------------------------------------------------------------------
+# --json, end to end: what the Obsidian plugin reads
+# ---------------------------------------------------------------------------
+
+def json_events(result):
+    lines = result.stdout.splitlines()
+    assert lines, "nothing on stdout: " + result.stderr
+    return [json.loads(line) for line in lines]
+
+
+def test_json_mode_emits_progress_then_done(clean_env, make_vault):
+    env, data = clean_env
+    vault = make_vault({"Note.md": "---\ntitle: Hello\n---\nBody #tag\n"}, name="Fresh Vault")
+
+    result = run(["-m", "ovi.ovi", "--json", "-x", "-d", "WARNING", str(vault)], env)
+
+    assert result.returncode == 0, result.stderr
+    got = json_events(result)
+    assert [e["event"] for e in got] == ["progress"] * 5 + ["done"]
+    assert [e["percent"] for e in got[:-1]] == [10, 20, 50, 70, 100]
+    done = got[-1]
+    assert done["ok"] is True
+    assert Path(done["workbook"]).is_file()
+    assert Path(done["batch"]).is_file()
+    assert done["vault"] == str(vault)
+    assert done["version"] == __version__
+    assert len(done["ctot"]) == CTOT_SLOTS
+    assert done["ctot"][0] == 1, "one markdown file seen"
+    assert done["opened"] is None, "-x leaves the workbook unopened"
+    assert "Workbook written to" not in result.stdout
+    assert (data / "CONFIG.yaml").is_file(), "--json implies --headless, which bootstraps"
+
+
+def test_json_mode_reports_a_missing_config_as_one_line(clean_env):
+    env, _ = clean_env
+
+    result = run(["-m", "ovi.ovi", "--json", "-x"], env)
+
+    assert result.returncode == 1
+    got = json_events(result)
+    assert len(got) == 1
+    assert got[0]["event"] == "error"
+    assert got[0]["kind"] == "ConfigIncomplete"
+    assert "VAULT_PATH" in got[0]["message"]
+    assert "Traceback" not in result.stderr
+
+
+def test_override_flags_reach_the_workbook(clean_env, make_vault):
+    """The settings the plugin passes have to change the output, not just the
+    config: a skipped folder is not scanned, and the link limits cap the
+    FileNN columns on the Values and Tags tabs."""
+    import openpyxl
+
+    env, data = clean_env
+    note = "---\nstatus: x\n---\nBody #t\n"
+    vault = make_vault({"Notes/A.md": note, "Notes/B.md": note, "Notes/C.md": note,
+                        "Archive/Old.md": note}, name="Vault")
+
+    result = run(["-m", "ovi.ovi", "--json", "-x", "-d", "WARNING",
+                  "--skip-folders", "Archive", "--max-value-links", "1", "--max-tag-links", "1",
+                  str(vault)], env)
+
+    assert result.returncode == 0, result.stderr
+    done = json_events(result)[-1]
+    assert done["ctot"][2] == 1, "one file skipped by folder"
+    assert done["ctot"][3] == 3, "three files analysed"
+
+    wb = openpyxl.load_workbook(done["workbook"])
+    for tab_name in ("Values", "Tags"):
+        headers = [cell.value for row in wb[tab_name].iter_rows(min_row=1, max_row=12)
+                   for cell in row if isinstance(cell.value, str) and cell.value.startswith("File")]
+        assert "File01" in headers, f"{tab_name}: no link columns at all"
+        assert "File02" not in headers, f"{tab_name}: the link limit was ignored"
+    text = " ".join(str(c.value) for row in wb["Values"].iter_rows() for c in row if c.value)
+    assert "Old" not in text, "the skipped folder's note reached the Values tab"
+
+    saved = yaml.safe_load((data / "CONFIG.yaml").read_text(encoding="utf-8"))
+    assert saved["cur_vlts"][done["vault_name"]]["skip_rel_str"] == "Archive"
+
+
+def test_an_invalid_spreadsheet_app_is_a_config_error(clean_env, make_vault, tmp_path):
+    env, data = clean_env
+    vault = make_vault({"Note.md": "text\n"})
+
+    result = run(["-m", "ovi.ovi", "--json", "-x", "--spreadsheet-app", str(tmp_path / "nope.exe"),
+                  str(vault)], env)
+
+    assert result.returncode == 1
+    got = json_events(result)
+    assert got[-1]["kind"] == "ConfigIncomplete"
+    assert "nope.exe" in got[-1]["message"]
+    assert not (data / "CONFIG.yaml").exists()
+
+
+def test_a_blank_spreadsheet_app_means_the_system_default(clean_env, make_vault):
+    env, data = clean_env
+    vault = make_vault({"Note.md": "text\n"})
+
+    result = run(["-m", "ovi.ovi", "--json", "-x", "--spreadsheet-app", "", str(vault)], env)
+
+    assert result.returncode == 0, result.stderr
+    assert json_events(result)[-1]["event"] == "done"
+    saved = yaml.safe_load((data / "CONFIG.yaml").read_text(encoding="utf-8"))
+    assert saved["sys_pn_wb_exec"] == ""
