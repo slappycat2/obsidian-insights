@@ -331,7 +331,7 @@ class StubScreen:
 def run_setup_on(sys_obj, monkeypatch, user_saved):
     StubScreen.instances = []
     StubScreen.returns = user_saved
-    monkeypatch.setattr(ovi_setup, "SetupScreen", StubScreen)
+    monkeypatch.setattr(ovi_setup, "load_setup_screen", lambda: StubScreen)
     return SysConfig.run_setup_ui(sys_obj)
 
 

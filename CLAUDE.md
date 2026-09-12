@@ -114,11 +114,14 @@ exactly this in a child process with an empty home directory, and is the one tes
 real `SysConfig` and the real command line.
 
 **Only the two GUI modules may import tkinter at module scope** (`ovi_setupscreen.py`,
-`ovi_splash.py`). `ovi_setup.py` imports `SetupScreen` inside a `try`, `ovi.py` imports the splash
-inside `run_with_splash()`, and `ExcelExporter.retry_file_removal()` imports `messagebox` when
-called — so `--headless` runs on a Python built without Tk (system Python on Debian without
-`python3-tk`), and `run_setup_ui()` names the package to install when it is missing.
-`tests/test_platform.py` parses the non-GUI modules and fails on a top-level tkinter import.
+`ovi_splash.py`). `ovi_setup.py` imports `SetupScreen` only inside `run_setup_ui()`, through
+`load_setup_screen()` (the seam the tests patch), `ovi.py` imports the splash inside
+`run_with_splash()`, and `ExcelExporter.retry_file_removal()` imports `messagebox` when called — so
+`--headless` runs on a Python built without Tk (system Python on Debian without `python3-tk`), does
+not load Tk on a Python that has it, and `run_setup_ui()` names the package to install when it is
+missing. `tests/test_platform.py` parses the non-GUI modules and fails on a top-level import of
+tkinter or of either GUI module: `ovi_setup.py` used to import `SetupScreen` in a `try` at the top of
+the file, which loaded tkinter into every process that imported the package.
 
 **Platform branches live in two places and are unit-tested from every OS.** `ovi_launch.py` owns
 the spreadsheet application: `default_spreadsheet_app()`, `validate_app()` and `launch_command()`

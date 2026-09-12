@@ -367,12 +367,19 @@ def test_a_locked_workbook_raises_instead_of_prompting_when_not_interactive(tmp_
 
 def test_the_export_and_setup_modules_do_not_import_tk_at_module_scope():
     """--headless must run on a Python built without tkinter. The setup
-    screen and splash are the only modules allowed to need it."""
+    screen and splash are the only modules allowed to need it.
+
+    Importing either of those two modules at module scope counts too:
+    ovi_setup.py used to import SetupScreen inside a try/except at the top of
+    the file, which loaded tkinter into every process on any Python that had
+    it -- including the one the Obsidian plugin spawns."""
     import ast
+
+    gui_modules = {"ovi.ovi_setupscreen", "ovi.ovi_splash"}
 
     assert launch.__file__
     for module in ("ovi_xl.py", "ovi.py", "ovi_build.py", "ovi_wb_tabs.py", "ovi_wb_setup.py",
-                   "ovi_obs_app.py", "ovi_launch.py"):
+                   "ovi_obs_app.py", "ovi_launch.py", "ovi_setup.py"):
         source = (Path(launch.__file__).parent / module).read_text(encoding="utf-8")
         names = []
         for node in ast.parse(source).body:
@@ -382,3 +389,4 @@ def test_the_export_and_setup_modules_do_not_import_tk_at_module_scope():
                 names.append(node.module or "")
 
         assert not any(n.startswith("tkinter") for n in names), f"{module} imports tkinter"
+        assert not gui_modules & set(names), f"{module} imports a Tk module at module scope"

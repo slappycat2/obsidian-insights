@@ -12,16 +12,19 @@ from ovi import ovi_launch as launch
 from ovi.ovi_obs_app import ObsidianApp
 from ovi.ovi_logger import logger, make_logger
 
-try:
+
+def load_setup_screen():
+    """Import the Tk setup screen on demand.
+
+    Deferred so that importing this module -- and therefore ``ovi.ovi`` --
+    never loads tkinter. A --headless run, or one driven by the Obsidian
+    plugin, must work on a Python built without it, and must not pay for
+    loading Tk on one that has it. Debian/Ubuntu split tkinter into
+    python3-tk and Homebrew into python-tk@3.x; the ImportError is left to
+    propagate so run_setup_ui() can say what to install.
+    """
     from ovi.ovi_setupscreen import SetupScreen
-except ImportError as _tk_missing:      # no tkinter on this Python build
-    # Debian/Ubuntu split it into python3-tk, Homebrew into python-tk@3.x.
-    # A --headless run with a valid CONFIG.yaml never needs it, so the
-    # import must not be fatal; run_setup_ui() says what to install.
-    SetupScreen = None
-    TK_IMPORT_ERROR = _tk_missing
-else:
-    TK_IMPORT_ERROR = None
+    return SetupScreen
 
 #: Workbook tabs, in render order. Single source of truth -- this was
 #: previously duplicated between __post_init__ and cfg_unpack.
@@ -279,20 +282,22 @@ class SysConfig:
                 f"--headless to complete setup."
             )
 
-        if SetupScreen is None:
+        try:
+            screen_cls = load_setup_screen()
+        except ImportError as exc:
             raise ConfigIncompleteError(
                 f"Configuration at {self.sys_pn_cfg} is missing or invalid, and the "
                 f"setup screen needs tkinter, which this Python does not have "
-                f"({TK_IMPORT_ERROR}). Install it (Debian/Ubuntu: python3-tk; "
+                f"({exc}). Install it (Debian/Ubuntu: python3-tk; "
                 f"Fedora: python3-tkinter; Homebrew: python-tk@3.13) or use a "
                 f"uv-managed Python, then run again."
-            )
+            ) from exc
 
         # The screen writes the config itself when the user saves, so there is
         # nothing to persist here -- and nothing *should* be persisted when they
         # cancel. This used to call save_config() unconditionally, so dismissing
         # the dialog still wrote a config and the run continued.
-        if not SetupScreen(self).show():
+        if not screen_cls(self).show():
             raise SetupCancelledError("Setup was cancelled; nothing was changed.")
 
     def set_path_vars(self):
