@@ -8,6 +8,23 @@ Notable changes to Obsidian Insights. Format follows
 
 ### Added
 
+- **`--json`, for a program driving ovi.** One JSON object per line on stdout: a `progress`
+  event per pipeline stage, then a `done` event with the workbook and batch paths, the vault, the
+  version, the Area51 counters and whether the workbook was opened -- or a single `error` event
+  with a `kind` (`ConfigIncomplete`, `VaultNotFound`, `WorkbookLocked`, `Unexpected`) and exit 1.
+  Logging stays on stderr and in the log file, so stdout is nothing but those lines. It implies
+  `--headless`. The contract is written down in `docs/PLUGIN-CONTRACT.md`; the Obsidian plugin is
+  its first consumer. Without `--json` the output is unchanged.
+- **Per-run setting flags.** `--skip-folders`, `--max-value-links`, `--max-tag-links` and
+  `--spreadsheet-app` pass the setup screen's settings for one run. An absent flag leaves the
+  configuration alone; an empty `--spreadsheet-app` means the system default. On a machine that
+  already has a `CONFIG.yaml` they are not written back.
+- **A first run without the setup screen.** `--headless` with a `VAULT_PATH` on a machine that has
+  no `CONFIG.yaml` -- or one whose vault or spreadsheet application no longer validates -- now
+  creates the configuration from the defaults, the named vault and any setting flags, instead of
+  stopping with advice to run setup once. Without a vault path it still stops, and the message now
+  names both ways out. `--setup` is never satisfied this way.
+
 - **A Bases tab.** Every `.base` file in the vault, and every base a note embeds in a
   ```` ```base ```` block, one row per view: the base's filters rendered as a single `AND` / `OR` /
   `NOT` expression, each view's own filters, columns, sort, grouping and limit, and the base's
@@ -19,6 +36,10 @@ Notable changes to Obsidian Insights. Format follows
 
 ### Changed
 
+- **tkinter is loaded only when the setup screen is about to open.** `ovi_setup.py` imported the
+  screen at the top of the file, inside a try/except, so any Python that had tkinter loaded it
+  into every run, headless ones included. The import now happens inside `run_setup_ui()`, and the
+  platform test fails on a module-scope import of either GUI module, not only of tkinter itself.
 - **A clean PyCharm inspection.** Some 200 findings across the package, the tests and the dev
   tools are gone: dead code (a loop in the Issues tab builder whose whole body was commented out,
   two `__main__` blocks that would have crashed on their first line, unused imports and locals),
@@ -36,6 +57,10 @@ Notable changes to Obsidian Insights. Format follows
 
 ### Fixed
 
+- **A vault with no properties at all crashed the export.** The Summary and Area51 tabs name the
+  properties dictionary as their data source only because every tab must name one, so a vault of
+  plain notes -- or a brand-new one -- dropped both along with the Properties tab, and the exporter
+  then failed reaching for the Area51 sheet. Both overview tabs now always render.
 - **Tabs added in a newer version now reach machines that already have a `CONFIG.yaml`.** The
   render order is persisted as `sys_tab_seq`, and `cfg_unpack()` restored it verbatim, so a config
   written before a tab existed kept that tab out of every workbook: the QuickAdd tab shipped in
