@@ -32,6 +32,13 @@ DEFAULT_TAB_SEQ = ('pros', 'vals', 'tags', 'base', 'file',
                    'code', 'xyml', 'dups', 'tmpl',
                    'nest', 'plug', 'qadd', 'summ', 'ar51')
 
+#: Settings the command line may override for one run, and which of them
+#: live in the vault's record as well as on the attributes. This is how the
+#: Obsidian plugin passes its settings page through; see
+#: SysConfig.apply_setting_overrides().
+PER_VAULT_OVERRIDES = ('skip_rel_str', 'link_lim_vals', 'link_lim_tags')
+OVERRIDABLE_SETTINGS = PER_VAULT_OVERRIDES + ('sys_pn_wb_exec',)
+
 
 def merge_tab_seq(saved, default=DEFAULT_TAB_SEQ):
     """Reconcile a tab list restored from CONFIG.yaml with the running code.
@@ -133,6 +140,9 @@ class SysConfig:
     force_setup:             bool = field(default=False)
     #: Vault path from the command line; overrides the vault in CONFIG.yaml.
     vault_path_override:     str | None = None
+    #: Settings from the command line that beat CONFIG.yaml for this run.
+    #: Keys are a subset of OVERRIDABLE_SETTINGS.
+    setting_overrides:       dict = field(default_factory=dict)
 
     def __post_init__(self):
         self.sys_cfg_os     = platform.system()
@@ -167,8 +177,16 @@ class SysConfig:
         if self.vault_path_override:
             self.select_vault_by_path(self.vault_path_override)
 
+        # After the vault: apply_vault() copies skip_rel_str from the record
+        # and would undo an override applied before it.
+        if self.setting_overrides:
+            self.apply_setting_overrides()
+
         if self.force_setup or not config_exists or not self.chk_fields_on_load():
-            self.run_setup_ui()
+            if self.can_bootstrap_headless():
+                self.bootstrap_headless()
+            else:
+                self.run_setup_ui()
 
     def apply_vault(self, vault_name: str) -> None:
         """Point this config at one of the vaults known from obsidian.json."""
@@ -266,6 +284,104 @@ class SysConfig:
         # whatever vault CONFIG.yaml names.
         self.cfg_pack()
 
+    def apply_setting_overrides(self) -> None:
+        """Apply command-line settings on top of whatever CONFIG.yaml said.
+
+        The three per-vault values go into the vault's record in both dicts as
+        well as onto the attributes -- the pairing the setup screen keeps in
+        upd_all_sys_objs_with_tk_vars() -- so that a bootstrap saves what was
+        actually used, and nothing that re-applies the vault later in the
+        process can resurrect the stale value. After load_config() the two
+        dicts hold separate objects, so both are written.
+
+        Nothing is written to disk here. Overrides last for this run only,
+        unless bootstrap_headless() goes on to create the config: a plugin's
+        settings page must not silently rewrite a setup the user completed
+        on the command line.
+
+        :raises ValueError: an unknown key or a negative link limit -- a
+            programming error in the caller, not a user error.
+        :raises ConfigIncompleteError: a spreadsheet application that does not
+            validate. Blank is valid and means the system default handler.
+        """
+        unknown = set(self.setting_overrides) - set(OVERRIDABLE_SETTINGS)
+        if unknown:
+            raise ValueError(f"Unknown setting override(s): {', '.join(sorted(unknown))}")
+
+        values = dict(self.setting_overrides)
+
+        if 'sys_pn_wb_exec' in values:
+            app = values['sys_pn_wb_exec'] or ""
+            valid, msg = self.validate_sys_pn_wb_exec(app)
+            if not valid:
+                raise ConfigIncompleteError(f"Spreadsheet application {app!r}: {msg}")
+            values['sys_pn_wb_exec'] = app
+
+        if 'skip_rel_str' in values:
+            # A folder that is not there is harmless to skip. The plugin's
+            # settings page is where live validation belongs, as it is on the
+            # setup screen; here it is a note in the log.
+            valid, msg = self.validate_skip_rel_str(values['skip_rel_str'], self.dir_vault)
+            if not valid:
+                logger.warning("Folders to ignore: %s", msg)
+
+        for key in ('link_lim_vals', 'link_lim_tags'):
+            if key in values:
+                limit = int(values[key])
+                if limit < 0:
+                    raise ValueError(f"{key} must be 0 or more, not {limit}")
+                values[key] = limit
+
+        for key, value in values.items():
+            setattr(self, key, value)
+            if key in PER_VAULT_OVERRIDES and self.vault_name:
+                for vaults in (self.cur_vlts, self.sys_vlts):
+                    rec = vaults.get(self.vault_name)
+                    if rec is not None:
+                        rec[key] = value
+            logger.info("Setting overridden for this run: %s = %r", key, value)
+
+        # The pipeline reads the packed dict, and packing also recomputes
+        # skip_abs_lst from the new skip_rel_str.
+        self.cfg_pack()
+
+    def can_bootstrap_headless(self) -> bool:
+        """Whether a missing or invalid config can be built without a window.
+
+        Only when there is nobody to ask (non-interactive), a vault was named
+        on the command line, and the setup screen was not explicitly asked for.
+        With no vault there is nothing to build a config around, and that case
+        keeps raising ConfigIncompleteError with advice.
+        """
+        return (not self.interactive and not self.force_setup
+                and bool(self.vault_path_override))
+
+    def bootstrap_headless(self) -> None:
+        """Write CONFIG.yaml from the defaults, the vault named on the command
+        line and any overrides, in place of the setup screen.
+
+        This is what lets the Obsidian plugin -- or a script -- run on a
+        machine where setup has never been completed. The vault is already
+        known to be valid, because select_vault_by_path() raised otherwise. A
+        saved spreadsheet application that no longer validates falls back to
+        the platform default rather than blocking; an override that does not
+        validate has already raised in apply_setting_overrides().
+
+        :raises ConfigIncompleteError: the config file could not be written.
+        """
+        valid, msg = self.validate_sys_pn_wb_exec(self.sys_pn_wb_exec)
+        if not valid:
+            logger.warning("Spreadsheet application %r: %s; using the platform default instead",
+                           self.sys_pn_wb_exec, msg)
+            self.sys_pn_wb_exec = self.get_dflt_wb_exec(self.sys_cfg_os)
+
+        if not self.save_config():
+            raise ConfigIncompleteError(f"Could not write the configuration to {self.sys_pn_cfg}")
+
+        self.sys_init = True
+        logger.info("Configuration created non-interactively for %s at %s",
+                    self.vault_name, self.sys_pn_cfg)
+
     def run_setup_ui(self):
         """Show the Tk setup screen, and let the user decline.
 
@@ -279,7 +395,8 @@ class SysConfig:
             raise ConfigIncompleteError(
                 f"Configuration at {self.sys_pn_cfg} is missing or invalid, and "
                 f"ovi is running non-interactively. Run it once without "
-                f"--headless to complete setup."
+                f"--headless to complete setup, or pass a VAULT_PATH and the "
+                f"configuration is created from the defaults."
             )
 
         try:
