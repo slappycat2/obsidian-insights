@@ -75,7 +75,7 @@ terminal, whose `PATH` would mask the most likely failure. The engine installed 
 `uv tool install`, the plugin's three files copied into `<vault>/.obsidian/plugins/obsidian-insights/`
 and enabled.
 
-- [ ] **Detect** finds `~/.local/bin/ovi` (macOS, Linux) or `%USERPROFILE%\.localin\ovi.exe`
+- [ ] **Detect** finds `~/.local/bin/ovi` (macOS, Linux) or `%USERPROFILE%\.local\bin\ovi.exe`
       (Windows) and fills in the path. **Test** reports the engine's version in green.
 - [ ] **Build from the ribbon.** The notice counts up through the five stages, then reports the
       workbook by name, and the workbook opens in the spreadsheet application: Excel, Numbers or
