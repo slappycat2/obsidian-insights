@@ -353,6 +353,29 @@ def test_tables_are_defined_on_data_tabs(workbook_path):
     assert "tbl_vals" in wb["Values"].tables
 
 
+def test_a_vault_with_no_properties_still_produces_a_workbook(make_vault, stub_config):
+    """Regression: the Summary and Area51 tabs name obs_props as their data
+    source, so a vault with no properties at all dropped both along with the
+    Properties tab -- and export_area51() then raised KeyError on the tab it
+    expected to be open. A new vault, or one of plain notes, is a legitimate
+    thing to scan; it gets the two overview tabs and nothing else.
+    """
+    from ovi.ovi_build import VaultScan
+    from ovi.ovi_wb_tabs import NewWb
+    from ovi.ovi_xl import ExcelExporter
+
+    vault = make_vault({"Plain.md": "Just text.\n", "Also/Plain.md": "More text.\n"})
+    scan = VaultScan(stub_config(vault))
+    exporter = ExcelExporter(NewWb(scan).wbd_obj)
+    exporter.export()
+
+    wb = openpyxl.load_workbook(exporter.sys_pn_wbs)
+    assert "Summary" in wb.sheetnames
+    assert "Area51" in wb.sheetnames
+    assert "Properties" not in wb.sheetnames
+    assert "Sheet" not in wb.sheetnames, "openpyxl's default sheet survived"
+
+
 def test_templates_tab_reaches_the_workbook(make_vault, stub_config):
     """Regression, issue #6: nothing populated obs_tmplt, so the Templates tab
     was always empty -- and initialize_all_tabs() drops empty tabs, so it never

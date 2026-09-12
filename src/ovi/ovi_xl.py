@@ -658,12 +658,19 @@ class ExcelExporter:
 
         return col_idx, cell
 
+    #: Tabs that render whatever the vault holds. They name obs_props as their
+    #: data source only because every tab has to name one; dropping them with
+    #: it left a vault with no properties at all -- a new vault, or one of
+    #: plain notes -- with a bare default sheet, and export_area51() then
+    #: raised KeyError on the tab it expected to find.
+    ALWAYS_RENDERED = ('summ', 'ar51')
+
     def initialize_all_tabs(self, wb):
         live_sys_tab_seq = []
         for tab_id in self.sys_tab_seq:
             tab_def = self.wb_def['wb_tabs'][tab_id]
             data_src = tab_def['data_src'][0]
-            if len(self.wb_def['wb_data'][data_src]) == 0:
+            if tab_id not in self.ALWAYS_RENDERED and len(self.wb_def['wb_data'][data_src]) == 0:
                 continue
             else:
                 live_sys_tab_seq.append(tab_id)
