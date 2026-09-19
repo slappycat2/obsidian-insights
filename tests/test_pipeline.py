@@ -415,3 +415,125 @@ def test_templates_tab_reaches_the_workbook(make_vault, stub_config):
     # `date: <% tp.date.now() %>` loses its value when Templater tags are
     # stripped, and is marked rather than left blank.
     assert rows.get("date") == "(-None-)"
+
+
+# ---------------------------------------------------------------------------
+# A workbook Excel opens without repairing it
+#
+# Excel says nothing useful when it repairs a file -- the title bar reads
+# [Repaired] and the detail goes to an error*.xml in %TEMP%. Each test below
+# pins one thing those logs named.
+# ---------------------------------------------------------------------------
+
+def _build(make_vault, stub_config, files, name):
+    from ovi.ovi_build import VaultScan
+    from ovi.ovi_wb_tabs import NewWb
+    from ovi.ovi_xl import ExcelExporter
+
+    exporter = ExcelExporter(NewWb(VaultScan(stub_config(make_vault(files, name=name)))).wbd_obj)
+    exporter.export()
+    return openpyxl.load_workbook(exporter.sys_pn_wbs)
+
+
+def _utf16_units(text):
+    return len(text.encode("utf-16-le")) // 2
+
+
+def test_a_vault_with_no_duplicate_names_has_no_duplicates_tab(make_vault, stub_config):
+    """Regression: obs_dupfn holds every note's filename, so it is never empty,
+    and the Duplicates tab was rendered with no rows. A table that is a header
+    and nothing else is one Excel removes -- "Removed Feature: Table from
+    /xl/tables/table5.xml" -- and the workbook opened as [Repaired]."""
+    wb = _build(make_vault, stub_config, {"a/One.md": "Body.\n", "b/Two.md": "Body.\n"},
+                "NoDuplicatesVault")
+
+    assert "Duplicates" not in wb.sheetnames
+    assert wb["Summary"]["C7"].value == "Duplicate Notes"
+    assert wb["Summary"]["D7"].value == 0
+
+
+def test_every_table_has_a_data_row_and_every_formula_a_table(workbook_path):
+    """Two invariants over the whole workbook. A header-only table is removed by
+    Excel on opening; a formula over the table of a dropped tab is #REF!, which
+    is how the Summary tab used to report every tab the vault had no use for."""
+    import re
+
+    wb = openpyxl.load_workbook(workbook_path)
+    tables = {}
+    for ws in wb:
+        for table in ws.tables.values():
+            tables[table.name] = table.ref
+
+    assert tables, "the fixture vault rendered no tables at all"
+    for name, ref in tables.items():
+        first, last = (int(re.search(r"\d+", part).group()) for part in ref.split(":"))
+        assert last > first, f"{name} ({ref}) is a header row and nothing else"
+
+    # This vault has no nested plugin data and no .obsidian, so at least the
+    # Nests and Plugins boxes on the Summary tab have no table behind them.
+    assert "tbl_nest" not in tables and "tbl_plug" not in tables
+    for ws in wb:
+        for row in ws.iter_rows():
+            for cell in row:
+                if isinstance(cell.value, str) and cell.value.startswith("="):
+                    for ref in re.findall(r"\btbl_\w{4}", cell.value):
+                        assert ref in tables, f"{ws.title}!{cell.coordinate} reads {ref}, which was dropped"
+
+
+def test_a_dropped_tabs_summary_box_reads_zero(workbook_path):
+    summary = openpyxl.load_workbook(workbook_path)["Summary"]
+
+    assert summary["I17"].value == "Nests"
+    assert [summary[f"J{row}"].value for row in (18, 19, 20)] == [0, 0, 0]
+
+
+def test_format_as_table_never_emits_a_bare_header():
+    """The safety net under has_rows(): whatever a tab's data looks like, a tab
+    that wrote no rows still gets a table Excel will accept -- the header plus
+    the "Nothing Found." line export_tab() puts beneath it."""
+    from ovi.ovi_xl import ExcelExporter
+
+    exporter = ExcelExporter.__new__(ExcelExporter)
+    exporter.tab_def = {"tbl_beg_col": 10, "tbl_end_col": 14, "tbl_hdr_row": 10}
+    tab = openpyxl.Workbook().active
+
+    exporter.format_as_table(tab, "tbl_none", "TableStyleMedium2", tot_rows=11)
+    exporter.format_as_table(tab, "tbl_some", "TableStyleMedium2", tot_rows=14)
+
+    assert tab.tables["tbl_none"].ref == "J10:N11"
+    assert tab.tables["tbl_some"].ref == "J10:N13"
+
+
+def test_cell_text_is_cut_to_what_excel_counts_not_what_python_counts():
+    """Regression: openpyxl truncates a cell to 32,767 Python characters, but
+    Excel's limit is 32,767 UTF-16 units and an emoji is two of them. One long
+    code block with four emoji in it was enough: "Repaired Records: String
+    properties from /xl/worksheets/sheet7.xml", on every run over that vault."""
+    from ovi.ovi_xl import MAX_CELL_UNITS, TRUNCATED_MARK, fit_cell_text
+
+    exactly_full = "a" * MAX_CELL_UNITS
+    assert fit_cell_text(exactly_full) == exactly_full
+    assert fit_cell_text("short \U0001F600") == "short \U0001F600"
+
+    # 32,767 Python characters, 32,771 UTF-16 units: what openpyxl let through.
+    fitted = fit_cell_text("a" * (MAX_CELL_UNITS - 4) + "\U0001F600" * 4)
+    assert _utf16_units(fitted) <= MAX_CELL_UNITS
+    assert fitted.endswith(TRUNCATED_MARK)
+
+    # All emoji, so every possible cut point is tested against a pair boundary.
+    fitted = fit_cell_text("\U0001F600" * 20000)
+    assert _utf16_units(fitted) <= MAX_CELL_UNITS
+    fitted.encode("utf-16-le")      # raises on a lone surrogate
+    assert fitted.endswith(TRUNCATED_MARK)
+
+
+def test_an_oversized_code_block_reaches_the_workbook_within_the_limit(make_vault, stub_config):
+    from ovi.ovi_xl import MAX_CELL_UNITS, TRUNCATED_MARK
+
+    block = "```python\n" + ("print('\U0001F600')  # padding padding padding\n" * 1500) + "```\n"
+    wb = _build(make_vault, stub_config, {"Big.md": f"Text.\n\n{block}"}, "BigCodeBlockVault")
+
+    cells = [c.value for row in wb["Code"].iter_rows() for c in row
+             if isinstance(c.value, str) and c.value.endswith(TRUNCATED_MARK)]
+    assert cells, "the long code block was not marked as truncated"
+    assert all(_utf16_units(text) <= MAX_CELL_UNITS for text in cells)

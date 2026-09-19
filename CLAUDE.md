@@ -418,7 +418,18 @@ one place the plugin states which engine it needs. `main.js` and `node_modules/`
   folder configured, or no nested plugin data, legitimately produces 10 sheets rather than 12.
   `summ` and `ar51` are exempt (`ExcelExporter.ALWAYS_RENDERED`): they name `obs_props` only
   because every tab must name a source, and a vault with no properties at all -- a new one, or
-  plain notes -- used to lose both and then crash in `export_area51()`.
+  plain notes -- used to lose both and then crash in `export_area51()`. "Empty" is decided by
+  `ExcelExporter.has_rows()`, not `len()`: `obs_dupfn` holds *every* note's filename (the parsing
+  tests pin that), so Duplicates is empty when no name occurs twice. Dropping a tab removes its
+  table, so `export_cell()` passes every value through `live_formula()`, which turns a formula over
+  a dropped tab's `tbl_<id>[...]` into 0 -- otherwise the Summary tab shows `#REF!` for it.
+- **What makes Excel say `[Repaired]`.** It explains itself only in `%TEMP%\error*.xml`; read that
+  first. Two causes have been found and pinned in `tests/test_pipeline.py`: a table with a header
+  and no data row (`format_as_table()` now always spans at least the "Nothing Found." line), and a
+  cell over 32,767 **UTF-16 units** -- openpyxl truncates by Python characters, so a long code block
+  with emoji in it overshoots; `fit_cell_text()` cuts by Excel's count. To test a workbook without
+  a person looking at it, open it through COM (`Workbooks.Open` on a hidden
+  `Excel.Application`): a normal load *fails* on a file that needs repair.
 - **Outstanding work lives in GitHub issues**, not in code comments. A ~90-line `Bug-NNN` / `ER-NNN`
   block at the top of `ovi_xl.py` (whose own Bug-022 asked for exactly this) became
   `docs/BACKLOG.md`, which in turn became issues #1–#25 on 2026-07-29. `docs/BACKLOG.md` is now a

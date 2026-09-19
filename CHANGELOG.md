@@ -79,6 +79,17 @@ Notable changes to Obsidian Insights. Format follows
 
 ### Fixed
 
+- **Excel no longer opens the workbook as `[Repaired]`.** Two separate causes, both found in the
+  repair logs Excel leaves in `%TEMP%`. A very long code block was cut by openpyxl to 32,767
+  *Python* characters, but Excel's cell limit is 32,767 UTF-16 units and an emoji is two of them, so
+  one such block with a few emoji in it made Excel repair the Code tab's strings on every run. Cell
+  text is now cut to Excel's own count, on a character boundary, and ends with a line saying it was
+  truncated. And a vault in which no two notes share a filename still got a Duplicates tab, with a
+  table that was a header and no rows, which Excel removes on opening: that tab is now dropped like
+  any other empty one, and no table is ever written without a data row.
+- **No more `#REF!` on the Summary tab.** Tabs with nothing to show are dropped, and the Summary
+  tab's formulas over their tables -- the headline counts and that tab's whole coloured box --
+  came up as `#REF!`. They now read 0, as the Bases count already did.
 - **A vault with no properties at all crashed the export.** The Summary and Area51 tabs name the
   properties dictionary as their data source only because every tab must name one, so a vault of
   plain notes -- or a brand-new one -- dropped both along with the Properties tab, and the exporter

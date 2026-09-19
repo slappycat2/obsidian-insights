@@ -30,6 +30,39 @@ from ovi.ovi_logger import logger
 
 FALLBACK_FONT = "Arial"
 
+#: The most text one Excel cell holds -- counted as Excel counts it, in UTF-16
+#: code units, so a character outside the Basic Multilingual Plane (most emoji)
+#: is two. openpyxl truncates to the same number of *Python* characters, which
+#: is only the same thing for text with no such character in it.
+MAX_CELL_UNITS = 32767
+TRUNCATED_MARK = "\n... [truncated: an Excel cell holds 32,767 characters]"
+
+#: A structured reference to one of ovi's own tables, tbl_<tab id>[column].
+RGX_TABLE_REF = re.compile(r'\btbl_(\w{4})\[')
+
+
+def fit_cell_text(text: str) -> str:
+    """Cut ``text`` to what one Excel cell can hold, and say so at the end.
+
+    A long code block is the usual customer. Left to openpyxl it was cut at
+    32,767 Python characters, which with a few emoji in it is more than 32,767
+    UTF-16 units: Excel then reported "Repaired Records: String properties" and
+    opened the workbook as [Repaired]. One such cell on the Code tab was enough.
+    The cut is made on a character boundary, never inside a surrogate pair.
+    """
+    if len(text) * 2 <= MAX_CELL_UNITS:
+        return text
+    if len(text.encode('utf-16-le', 'surrogatepass')) // 2 <= MAX_CELL_UNITS:
+        return text
+
+    budget = MAX_CELL_UNITS - len(TRUNCATED_MARK)
+    units = 0
+    for idx, char in enumerate(text):
+        units += 2 if ord(char) > 0xFFFF else 1
+        if units > budget:
+            return text[:idx] + TRUNCATED_MARK
+    return text
+
 
 class WorkbookLockedError(OSError):
     """The target .xlsx is open in another program and cannot be replaced.
@@ -703,7 +736,7 @@ class ExcelExporter:
         if fill_clr != "" and fill_clr is not None:
             fg_clr = self.colors.get_txt_clr(fill_clr)
 
-        val = self.xl_clean_cell(val)
+        val = self.live_formula(self.xl_clean_cell(val))
 
         cell = tab.cell(row=row_idx, column=col_idx, value=val)
         cell.font = Font(name=c_font, size=c_sz, bold=bold_bool, italic=ital_bool)
@@ -741,12 +774,27 @@ class ExcelExporter:
     #: raised KeyError on the tab it expected to find.
     ALWAYS_RENDERED = ('summ', 'ar51')
 
+    @staticmethod
+    def has_rows(tab_id, data) -> bool:
+        """Whether ``data`` will put at least one row on this tab.
+
+        Not the same as "is non-empty" for Duplicates: obs_dupfn holds every
+        note's filename, and export_tab() skips the ones that occur once. A
+        vault with no duplicate names therefore rendered the tab with no rows,
+        and a table that is only a header row is one Excel refuses -- it opened
+        the workbook as [Repaired], with the table removed.
+        """
+        if tab_id == 'dups':
+            return any(len(paths) > 1 for names in data.values() for paths in names.values())
+        return len(data) > 0
+
     def initialize_all_tabs(self, wb):
         live_sys_tab_seq = []
         for tab_id in self.sys_tab_seq:
             tab_def = self.wb_def['wb_tabs'][tab_id]
             data_src = tab_def['data_src'][0]
-            if tab_id not in self.ALWAYS_RENDERED and len(self.wb_def['wb_data'][data_src]) == 0:
+            if (tab_id not in self.ALWAYS_RENDERED
+                    and not self.has_rows(tab_id, self.wb_def['wb_data'][data_src])):
                 continue
             else:
                 live_sys_tab_seq.append(tab_id)
@@ -851,10 +899,13 @@ class ExcelExporter:
         tbl_end_col   = self.tab_def['tbl_end_col']
         tbl_hdr_row   = self.tab_def['tbl_hdr_row']
         tbl_rng = f"{self.xl_a_col(tbl_beg_col)}{tbl_hdr_row}:{self.xl_a_col(tbl_end_col)}"
-        if tot_rows == int((tot_rows - tbl_hdr_row)):
-            tbl_rng = f"{tbl_rng}11"
-        else:
-            tbl_rng = tbl_rng + str(tot_rows - 1)
+        # Never a header on its own: Excel removes a table with no data row and
+        # opens the workbook as [Repaired]. A tab that produced no rows keeps
+        # the "Nothing Found." line export_tab() wrote under the header. (The
+        # test that used to stand here compared tot_rows with itself less the
+        # header row, so it could not be true and the bare header went out.)
+        last_row = max(tot_rows - 1, tbl_hdr_row + 1)
+        tbl_rng = f"{tbl_rng}{last_row}"
 
         logger.debug(f"tbl_name: {tbl_nm}  tbl_rng: {tbl_rng}")
 
@@ -878,9 +929,27 @@ class ExcelExporter:
             # Strip TZ from dates in string format if applicable
             if self.rgx_noTZdatePattern.search(cell_value):
                 cell_value = self.rgx_noTZdatePattern.sub(self.rgx_noTZdateReplace, cell_value)
-            return ILLEGAL_CHARACTERS_RE.sub("z", cell_value)
+            cell_value = ILLEGAL_CHARACTERS_RE.sub("z", cell_value)
+            # A formula is not text to be shortened; cutting one only breaks it.
+            if not cell_value.startswith("="):
+                cell_value = fit_cell_text(cell_value)
+            return cell_value
 
         return cell_value
+
+    def live_formula(self, val):
+        """``val``, or 0 if it is a formula over the table of a dropped tab.
+
+        Empty tabs are not rendered, so their tables do not exist, and the
+        Summary tab's formulas over them -- its headline counts and the whole
+        coloured box for that tab -- came up as #REF!. The honest figure for
+        "how many of something this vault has none of" is 0, which is also what
+        the Bases count on the same tab states outright.
+        """
+        if isinstance(val, str) and val.startswith("="):
+            if any(tab_id not in self.sys_tab_seq for tab_id in RGX_TABLE_REF.findall(val)):
+                return 0
+        return val
 
     @staticmethod
     def xl_a_col(col_num):
