@@ -6,6 +6,8 @@ Notable changes to Obsidian Insights. Format follows
 
 ## [Unreleased]
 
+## [1.4.0] — 2026-09-18
+
 ### Added
 
 - **`--json`, for a program driving ovi.** One JSON object per line on stdout: a `progress`
