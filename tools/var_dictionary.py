@@ -301,11 +301,11 @@ SINKS = [
 CFG_KEYS = """sys_id sys_ver sys_dir_sys sys_dir_dat sys_dir_bat sys_dir_wbs sys_dir_log sys_dir_img
 sys_pn_cfg sys_pn_wb_exec sys_pn_batch sys_pn_wbs sys_tab_seq sys_cfg_os cur_vlts sys_vlts sys_pn_lg2
 sys_pn_lg3 sys_pn_ico sys_pn_bnr sys_pn_a51 sys_splash_bg vault_name vault_id dir_vault dir_templates
-skip_rel_str skip_abs_lst dirs_dot ctot bool_shw_notes bool_rel_paths bool_summ_rows bool_unused_1
+skip_rel_str skip_abs_lst dirs_dot ctot bool_shw_notes bool_rel_paths bool_summ_rows bool_file_seq
 bool_unused_2 bool_unused_3 link_lim_vals link_lim_tags ovi_date""".split()
 
 ON_SCREEN = {"vault_name", "skip_rel_str", "sys_pn_wb_exec", "bool_shw_notes",
-             "bool_rel_paths", "bool_unused_1", "bool_unused_2",
+             "bool_rel_paths", "bool_file_seq", "bool_unused_2",
              "link_lim_vals", "link_lim_tags"}
 
 

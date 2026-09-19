@@ -160,7 +160,7 @@ VAULT_FIELDS = {
     "bool_shw_notes": True,
     "bool_rel_paths": False,
     "bool_summ_rows": True,
-    "bool_unused_1": False,
+    "bool_file_seq": True,
     "bool_unused_2": False,
     "bool_unused_3": False,
     "link_lim_vals": 5,
@@ -227,7 +227,7 @@ def make_vault_screen(monkeypatch):
     screen.link_lim_vals_var = RecordingVar("5")
     screen.link_lim_tags_var = RecordingVar("7")
     for name in ("bool_shw_notes", "bool_rel_paths", "bool_summ_rows",
-                 "bool_unused_1", "bool_unused_2", "bool_unused_3"):
+                 "bool_file_seq", "bool_unused_2", "bool_unused_3"):
         setattr(screen, f"{name}_var", RecordingVar(VAULT_FIELDS[name]))
     screen.sys_pn_wb_exec_var = RecordingVar("excel.exe")
     return screen
@@ -308,6 +308,33 @@ def test_leaving_a_vault_keeps_the_edits_made_to_it(monkeypatch):
     assert screen.c_vlts["First"]["skip_rel_str"] == "Edited"
     assert screen.c_vlts["First"]["link_lim_tags"] == 12
     assert screen.c_vlts["Second"]["skip_rel_str"] == "Attachments"
+
+
+def test_unticking_filename_sequencing_is_saved_with_the_vault(monkeypatch):
+    """The "Use filename Sequencing?" box took over a reserved slot that had a
+    disabled widget; its value has to reach both the vault record and sys_obj,
+    which is what cfg_pack() hands the pipeline."""
+    screen = make_vault_screen(monkeypatch)
+    screen.bool_file_seq_var.set(False)
+
+    screen.upd_all_sys_objs_with_tk_vars("First")
+
+    assert screen.c_vlts["First"]["bool_file_seq"] is False
+    assert screen.sys_obj.bool_file_seq is False
+    assert screen.c_vlts["Second"]["bool_file_seq"] is True
+
+
+def test_a_vault_record_older_than_filename_sequencing_selects_as_numbered(monkeypatch):
+    """The screen indexes vault records with [...]. A record written before
+    bool_file_seq existed has no such key, and selecting that vault must mean
+    "number the files" -- what it always did -- rather than a KeyError."""
+    screen = make_vault_screen(monkeypatch)
+    del screen.c_vlts["Second"]["bool_file_seq"]
+    screen.sys_obj.bool_file_seq = False
+
+    screen.upd_sys_objs_with_vaults("Second")
+
+    assert screen.sys_obj.bool_file_seq is True
 
 
 # ---------------------------------------------------------------------------
@@ -851,3 +878,32 @@ def test_merge_tab_seq_with_nothing_saved_is_the_default():
 
     assert merge_tab_seq(None) == list(DEFAULT_TAB_SEQ)
     assert merge_tab_seq([]) == list(DEFAULT_TAB_SEQ)
+
+
+def test_a_config_older_than_filename_sequencing_keeps_numbering_its_files():
+    """bool_file_seq took over the slot of the reserved bool_unused_1, which
+    every CONFIG.yaml written before it carries as False -- at the top level and
+    in each vault record. Read under the new meaning, that False would switch an
+    existing setup to unnumbered files the user never asked for."""
+    cfg = SysConfig.__new__(SysConfig)
+    old_rec = {"vault_name": "V", "bool_unused_1": False, "bool_unused_2": False}
+    cfg.sys_cfg = {"bool_unused_1": False,
+                   "sys_vlts": {"V": dict(old_rec)}, "cur_vlts": {"V": dict(old_rec)}}
+
+    cfg.cfg_unpack()
+
+    assert cfg.bool_file_seq is True
+    for vaults in (cfg.sys_vlts, cfg.cur_vlts):
+        assert vaults["V"]["bool_file_seq"] is True
+        assert "bool_unused_1" not in vaults["V"]
+
+
+def test_a_saved_choice_to_stop_numbering_survives_a_reload():
+    cfg = SysConfig.__new__(SysConfig)
+    cfg.sys_cfg = {"bool_file_seq": False,
+                   "sys_vlts": {"V": {"bool_file_seq": False}}, "cur_vlts": {}}
+
+    cfg.cfg_unpack()
+
+    assert cfg.bool_file_seq is False
+    assert cfg.sys_vlts["V"]["bool_file_seq"] is False

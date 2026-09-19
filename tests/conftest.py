@@ -93,7 +93,7 @@ class StubSysConfig:
             "bool_shw_notes": True,
             "bool_rel_paths": True,
             "bool_summ_rows": True,
-            "bool_unused_1": False,
+            "bool_file_seq": True,
             "bool_unused_2": False,
             "bool_unused_3": False,
             "link_lim_vals": 0,

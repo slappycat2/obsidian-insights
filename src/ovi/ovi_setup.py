@@ -124,8 +124,10 @@ class SysConfig:
     bool_shw_notes:          bool = field(default=True)
     bool_rel_paths:          bool = field(default=True)
     bool_summ_rows:          bool = field(default=True)
-    bool_unused_1:           bool = field(default=False)
-    bool_unused_2:           bool = field(default=False)
+    #: Append _NNNN to the batch file and workbook names. Off means one fixed
+    #: pair per vault, overwritten on every run.
+    bool_file_seq:           bool = field(default=True)
+    bool_unused_2:          bool = field(default=False)
     bool_unused_3:           bool = field(default=False)
     link_lim_vals:           int  = field(default=0)
     link_lim_tags:           int  = field(default=0)
@@ -589,7 +591,7 @@ class SysConfig:
             , 'bool_shw_notes':     self.bool_shw_notes
             , 'bool_rel_paths':     self.bool_rel_paths
             , 'bool_summ_rows':     self.bool_summ_rows
-            , 'bool_unused_1':      self.bool_unused_1
+            , 'bool_file_seq':      self.bool_file_seq
             , 'bool_unused_2':      self.bool_unused_2
             , 'bool_unused_3':      self.bool_unused_3
             , 'link_lim_vals':      self.link_lim_vals
@@ -630,6 +632,14 @@ class SysConfig:
         self.sys_cfg_os         = platform.system()
         self.sys_vlts           = self.sys_cfg.get('sys_vlts',          {})
         self.cur_vlts           = self.sys_cfg.get('cur_vlts',          {})
+        # Vault records come back verbatim, never through vault_pack(), and the
+        # setup screen indexes them with [...]. bool_file_seq took over the
+        # slot of the reserved bool_unused_1, which every older record carries
+        # as False -- and False here would mean "stop numbering the files".
+        for vaults in (self.sys_vlts, self.cur_vlts):
+            for vault_rec in vaults.values():
+                vault_rec.pop('bool_unused_1', None)
+                vault_rec.setdefault('bool_file_seq', True)
 
         self.vault_name         = self.sys_cfg.get('vault_name',        '')
         self.vault_id           = self.sys_cfg.get('vault_id',          '')
@@ -642,7 +652,7 @@ class SysConfig:
         self.bool_shw_notes     = self.sys_cfg.get('bool_shw_notes',    True)
         self.bool_rel_paths     = self.sys_cfg.get('bool_rel_paths',    True)
         self.bool_summ_rows     = self.sys_cfg.get('bool_summ_rows',    True)
-        self.bool_unused_1      = self.sys_cfg.get('bool_unused_1',     False)
+        self.bool_file_seq      = self.sys_cfg.get('bool_file_seq',     True)
         self.bool_unused_2      = self.sys_cfg.get('bool_unused_2',     False)
         self.bool_unused_3      = self.sys_cfg.get('bool_unused_3',     False)
         self.link_lim_vals      = self.sys_cfg.get('link_lim_vals',     0)

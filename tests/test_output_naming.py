@@ -159,3 +159,78 @@ def test_get_last_bat_picks_the_highest_number(make_vault, stub_config):
 
     assert Path(wbd.sys_pn_batch).stem.endswith("_0001")
     assert Path(wbd.sys_pn_wbs).name.endswith("_0001.xlsx")
+
+
+# ---------------------------------------------------------------------------
+# "Use filename Sequencing?" unticked: one fixed pair of files per vault
+# ---------------------------------------------------------------------------
+
+def test_sequencing_off_names_the_files_without_a_number(make_vault, stub_config):
+    vault = make_vault({"note.md": "Body.\n"}, name="FixedVault")
+
+    wbd = WbDataDef(stub_config(vault, bool_file_seq=False))
+    wbd.get_next_bat()
+
+    assert Path(wbd.sys_pn_batch).name == "ovi_test_FixedVault.yaml"
+    assert Path(wbd.sys_pn_wbs).name == "ovi_test_FixedVault.xlsx"
+    assert Path(wbd.sys_cfg["sys_pn_wbs"]).name == "ovi_test_FixedVault.xlsx"
+
+
+def test_sequencing_off_aims_every_run_at_the_same_files(make_vault, stub_config):
+    """The point of the option: the second run replaces the first one's files
+    instead of adding a pair beside them -- numbered leftovers included."""
+    vault = make_vault({"note.md": "Body.\n"}, name="SameNameVault")
+    cfg = stub_config(vault, bool_file_seq=False)
+
+    first = WbDataDef(cfg)
+    first.get_next_bat()
+    _touch(first.sys_pn_batch)
+    _touch(first.sys_pn_wbs)
+    _touch(f"{cfg.sys_cfg['sys_dir_wbs']}/{first.file_stub}_0004.xlsx")
+
+    second = WbDataDef(stub_config(vault, bool_file_seq=False))
+    second.get_next_bat()
+
+    assert second.sys_pn_batch == first.sys_pn_batch
+    assert second.sys_pn_wbs == first.sys_pn_wbs
+
+
+def test_sequencing_off_reads_back_the_unnumbered_batch_file(make_vault, stub_config):
+    """NewWb and ExcelExporter find their input through get_last_bat(); with
+    numbered files from earlier runs still on disk it must not pick one of them."""
+    vault = make_vault({"note.md": "Body.\n"}, name="LastFixedVault")
+    cfg = stub_config(vault, bool_file_seq=False)
+
+    wbd = WbDataDef(cfg)
+    _touch(f"{cfg.sys_cfg['sys_dir_bat']}/{wbd.file_stub}_0002.yaml")
+    wbd.get_last_bat()
+
+    assert Path(wbd.sys_pn_batch).name == "ovi_test_LastFixedVault.yaml"
+    assert Path(wbd.sys_pn_wbs).name == "ovi_test_LastFixedVault.xlsx"
+
+
+def test_an_unnumbered_pair_reserves_no_number(make_vault, stub_config):
+    """Ticking the box again resumes numbering where it stopped: the unnumbered
+    files are not mistaken for a sequence number, and are not overwritten."""
+    vault = make_vault({"note.md": "Body.\n"}, name="BackOnVault")
+    cfg = stub_config(vault)
+
+    wbd = WbDataDef(cfg)
+    _touch(f"{cfg.sys_cfg['sys_dir_bat']}/{wbd.file_stub}.yaml")
+    _touch(f"{cfg.sys_cfg['sys_dir_wbs']}/{wbd.file_stub}.xlsx")
+    _touch(f"{cfg.sys_cfg['sys_dir_wbs']}/{wbd.file_stub}_0001.xlsx")
+    wbd.get_next_bat()
+
+    assert Path(wbd.sys_pn_batch).stem.endswith("_0002")
+
+
+def test_a_config_without_the_setting_numbers_its_files(make_vault, stub_config):
+    """A sys_cfg packed before bool_file_seq existed has no such key."""
+    vault = make_vault({"note.md": "Body.\n"}, name="NoKeyVault")
+    cfg = stub_config(vault)
+    del cfg.sys_cfg["bool_file_seq"]
+
+    wbd = WbDataDef(cfg)
+    wbd.get_next_bat()
+
+    assert Path(wbd.sys_pn_batch).stem.endswith("_0000")

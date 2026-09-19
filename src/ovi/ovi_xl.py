@@ -40,12 +40,88 @@ class WorkbookLockedError(OSError):
     """
 
 
+def locked_message(path) -> str:
+    """What a run that gives up on a locked workbook reports -- on the command
+    line, in the log and as the ``message`` of --json's error event."""
+    return (f"Unable to save workbook {path}: it is open in another program. "
+            f"Close it and run again.")
+
+
+def workbook_is_locked(path) -> bool:
+    """True when ``path`` exists and another program is holding it open.
+
+    Asks for write access and takes nothing: the file is neither truncated nor
+    removed, so a run that fails later still leaves the previous workbook
+    behind. A missing file is not locked. Only Windows ever says yes -- POSIX
+    grants the access whoever has the file open.
+    """
+    if not os.path.isfile(path):
+        return False
+    try:
+        with open(path, 'r+b'):
+            return False
+    except PermissionError:
+        return True
+
+
+def ask_retry_cancel(path, parent=None) -> bool:
+    """Ask the user to close the workbook. True for Retry, False for Cancel.
+
+    tkinter is imported here so a headless run never loads it.
+
+    :param parent: the window the run already has on screen -- the splash. It
+        is -topmost, and a dialog raised beneath an always-on-top window cannot
+        be reached, so the attribute is dropped for as long as the question is
+        up. With no window (--no-splash) a root is made for the dialog and kept
+        withdrawn; left to itself, messagebox creates a visible empty one.
+    """
+    import tkinter
+    from tkinter import messagebox
+
+    msg = (f"{path}\n\nis open in another program, so it cannot be replaced.\n\n"
+           f"Close it, then press Retry to continue.")
+
+    own_root = parent is None
+    if own_root:
+        parent = tkinter.Tk()
+        parent.withdraw()
+    was_topmost = bool(parent.attributes('-topmost'))
+    parent.attributes('-topmost', False)
+    try:
+        return messagebox.askretrycancel("Workbook in use", msg, parent=parent)
+    finally:
+        if own_root:
+            parent.destroy()
+        else:
+            parent.attributes('-topmost', was_topmost)
+
+
+def wait_until_unlocked(path, interactive=False, prompt_parent=None) -> None:
+    """Return once ``path`` can be replaced; raise WorkbookLockedError if it
+    never can.
+
+    run_pipeline() calls this before the scan when filename sequencing is off.
+    Every such run aims at the workbook the previous one wrote -- and opened --
+    so finding it still open is the ordinary case, and the time to say so is
+    before the work rather than after it.
+    """
+    while workbook_is_locked(path):
+        logger.warning(locked_message(path))
+        if not interactive:
+            raise WorkbookLockedError(locked_message(path))
+        if not ask_retry_cancel(path, parent=prompt_parent):
+            logger.critical("%s User cancelled on retry.", locked_message(path))
+            raise WorkbookLockedError(locked_message(path))
+
+
 class ExcelExporter:
-    def __init__(self, wbd_obj, interactive=False):
+    def __init__(self, wbd_obj, interactive=False, prompt_parent=None):
         #: When True a locked workbook prompts Retry/Cancel; otherwise it
         #: raises WorkbookLockedError. Tk is only ever imported for the prompt,
         #: so a headless run never needs it.
         self.interactive = interactive
+        #: The window a Retry/Cancel prompt belongs to, if the run has one.
+        self.prompt_parent = prompt_parent
         self.tab_def = {}
         self.wb_tabs_open = {}
         self.ovi_date = datetime.now().strftime("%Y-%m-%d %H:%M:%S")
@@ -708,12 +784,11 @@ class ExcelExporter:
                     os.remove(self.sys_pn_wbs)
                     try_again = False
                 except PermissionError as exc:
-                    msg = (f"Unable to save workbook {self.sys_pn_wbs}: it is open in "
-                           f"another program. Close it and run again.")
+                    msg = locked_message(self.sys_pn_wbs)
                     logger.warning(msg)
                     if not self.interactive:
                         raise WorkbookLockedError(msg) from exc
-                    try_again = self.retry_file_removal(msg)
+                    try_again = self.retry_file_removal(self.sys_pn_wbs)
                     if not try_again:
                         logger.critical("%s User cancelled on retry.", msg)
                         raise WorkbookLockedError(msg) from exc
@@ -723,11 +798,9 @@ class ExcelExporter:
 
         wb.save(self.sys_pn_wbs)
 
-    @staticmethod
-    def retry_file_removal(msg):
-        """Ask Retry/Cancel. Imported here so a headless run never loads Tk."""
-        from tkinter import messagebox
-        return messagebox.askretrycancel("Warning! File in use", msg)
+    def retry_file_removal(self, path):
+        """Ask Retry/Cancel. The seam the tests patch; see ask_retry_cancel()."""
+        return ask_retry_cancel(path, parent=self.prompt_parent)
 
     def vault_relative(self, file) -> str:
         """``file`` as a vault-relative, forward-slash path for an obsidian:// link.

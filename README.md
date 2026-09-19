@@ -68,6 +68,11 @@ On the first run a setup screen appears:
 Click **Save & Run**. The vault is scanned, a new sequentially numbered workbook is written, and it
 opens. From then on `uv run ovi` skips setup; `uv run ovi --setup` brings it back.
 
+Every run keeps its own workbook, `ovi_<vault>_0000.xlsx`, `_0001`, and so on. If you would rather
+have one workbook per vault that each run replaces, untick **Use filename Sequencing?** on the setup
+screen. The previous workbook is then usually still open when you run again, so ovi asks you to
+close it before it starts and carries on when you press Retry.
+
 `python main.py [...]` works identically if you would rather not use the installed command.
 
 ### Usage

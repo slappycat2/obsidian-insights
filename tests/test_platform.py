@@ -365,6 +365,163 @@ def test_a_locked_workbook_raises_instead_of_prompting_when_not_interactive(tmp_
         exporter.save_workbook(Workbook())
 
 
+# ---------------------------------------------------------------------------
+# Filename sequencing off: the target is the workbook the last run opened
+# ---------------------------------------------------------------------------
+
+def _lock(monkeypatch, target, answers_locked):
+    """Make ``open(target, 'r+b')`` raise PermissionError while the iterator
+    ``answers_locked`` says so, the way Windows does for a workbook Excel holds."""
+    import builtins
+    real_open = builtins.open
+    state = iter(answers_locked)
+
+    def fake_open(path, mode="r", *args, **kwargs):
+        if str(path) == str(target) and "+" in mode and next(state):
+            raise PermissionError(13, "in use", str(path))
+        return real_open(path, mode, *args, **kwargs)
+
+    monkeypatch.setattr(builtins, "open", fake_open)
+
+
+def test_the_lock_probe_leaves_the_workbook_as_it_found_it(tmp_path, monkeypatch):
+    """It runs before the scan, so a run that fails afterwards must still leave
+    the previous workbook behind: no truncating, no deleting."""
+    from ovi.ovi_xl import workbook_is_locked
+    target = tmp_path / "out.xlsx"
+
+    assert workbook_is_locked(str(target)) is False, "a missing file is not locked"
+
+    target.write_bytes(b"previous workbook")
+    assert workbook_is_locked(str(target)) is False
+    assert target.read_bytes() == b"previous workbook"
+
+    _lock(monkeypatch, target, [True])
+    assert workbook_is_locked(str(target)) is True
+    assert target.read_bytes() == b"previous workbook"
+
+
+def test_retry_carries_on_once_the_workbook_has_been_closed(tmp_path, monkeypatch):
+    """The user is asked to close the file *so the run can proceed*: Retry after
+    closing it returns, rather than ending the run."""
+    from ovi import ovi_xl
+    target = tmp_path / "out.xlsx"
+    target.write_bytes(b"x")
+    _lock(monkeypatch, target, [True, True, False])
+    asked = []
+    monkeypatch.setattr(ovi_xl, "ask_retry_cancel",
+                        lambda path, parent=None: asked.append((path, parent)) or True)
+
+    ovi_xl.wait_until_unlocked(str(target), interactive=True, prompt_parent="splash")
+
+    assert asked == [(str(target), "splash")] * 2
+
+
+def test_cancel_at_the_prompt_is_a_locked_workbook(tmp_path, monkeypatch):
+    from ovi import ovi_xl
+    target = tmp_path / "out.xlsx"
+    target.write_bytes(b"x")
+    _lock(monkeypatch, target, [True])
+    monkeypatch.setattr(ovi_xl, "ask_retry_cancel", lambda path, parent=None: False)
+
+    with pytest.raises(WorkbookLockedError, match="open in another program"):
+        ovi_xl.wait_until_unlocked(str(target), interactive=True)
+
+
+def test_waiting_for_a_locked_workbook_never_prompts_when_not_interactive(tmp_path, monkeypatch):
+    """--headless and --json (the Obsidian plugin) have nobody to ask."""
+    from ovi import ovi_xl
+    target = tmp_path / "out.xlsx"
+    target.write_bytes(b"x")
+    _lock(monkeypatch, target, [True])
+    monkeypatch.setattr(ovi_xl, "ask_retry_cancel",
+                        lambda path, parent=None: pytest.fail("a dialog was opened"))
+
+    with pytest.raises(WorkbookLockedError, match="open in another program"):
+        ovi_xl.wait_until_unlocked(str(target), interactive=False)
+
+
+def test_an_interactive_save_retries_until_the_workbook_is_free(tmp_path, monkeypatch):
+    """save_workbook() keeps its own loop: the file can be reopened while the
+    scan runs, after the check at the start has passed."""
+    target = tmp_path / "out.xlsx"
+    target.write_bytes(b"x")
+    exporter = make_exporter()
+    exporter.sys_pn_wbs = str(target)
+    exporter.interactive = True
+    real_remove = os.remove
+    attempts = []
+
+    def locked_once(path):
+        attempts.append(path)
+        if len(attempts) == 1:
+            raise PermissionError(13, "in use", path)
+        real_remove(path)
+
+    monkeypatch.setattr(os, "remove", locked_once)
+    monkeypatch.setattr(ExcelExporter, "retry_file_removal", lambda self, path: True)
+    saved = []
+
+    class Workbook:
+        # noinspection PyMethodMayBeStatic
+        def save(self, path):
+            saved.append(path)
+
+    exporter.save_workbook(Workbook())
+
+    assert len(attempts) == 2
+    assert saved == [str(target)]
+
+
+def test_sequencing_off_asks_about_a_locked_workbook_before_scanning(make_vault, stub_config,
+                                                                     monkeypatch):
+    """With one fixed filename the previous workbook is normally still open.
+    Finding that out at save time means the whole scan and render were wasted."""
+    from ovi import ovi
+    from ovi.ovi_wb_setup import WbDataDef
+    vault = make_vault({"note.md": "Body.\n"}, name="PreflightVault")
+    cfg = stub_config(vault, bool_file_seq=False)
+    target = Path(WbDataDef(cfg).sys_pn_wbs)
+    assert target.name == "ovi_test_PreflightVault.xlsx"
+    target.parent.mkdir(parents=True, exist_ok=True)
+    target.write_bytes(b"previous workbook")
+    _lock(monkeypatch, target, [True])
+    monkeypatch.setattr(ovi, "VaultScan", lambda cfg_obj: pytest.fail("scanned first"))
+
+    with pytest.raises(WorkbookLockedError):
+        ovi.run_pipeline(cfg, progress=lambda text, percent: None, interactive=False)
+
+    assert target.read_bytes() == b"previous workbook"
+
+
+def test_a_numbered_run_has_no_workbook_to_ask_about(make_vault, stub_config, monkeypatch):
+    from ovi import ovi
+    vault = make_vault({"note.md": "Body.\n"}, name="NumberedPreflightVault")
+    monkeypatch.setattr(ovi, "wait_until_unlocked",
+                        lambda *a, **k: pytest.fail("checked a name that does not exist yet"))
+
+    exporter = ovi.run_pipeline(stub_config(vault), progress=lambda text, percent: None)
+
+    assert Path(exporter.sys_pn_wbs).name == "ovi_test_NumberedPreflightVault_0000.xlsx"
+
+
+def test_sequencing_off_overwrites_the_workbook_on_the_next_run(make_vault, stub_config):
+    """End to end, twice: one workbook and one batch file, not two of each."""
+    from ovi import ovi
+    vault = make_vault({"note.md": "---\nauthor: Jane\n---\nBody.\n"}, name="TwiceVault")
+
+    first = ovi.run_pipeline(stub_config(vault, bool_file_seq=False),
+                             progress=lambda text, percent: None)
+    second = ovi.run_pipeline(stub_config(vault, bool_file_seq=False),
+                              progress=lambda text, percent: None)
+
+    assert second.sys_pn_wbs == first.sys_pn_wbs
+    workbooks = sorted(p.name for p in Path(first.sys_pn_wbs).parent.glob("ovi_test_TwiceVault*"))
+    batches = sorted(p.name for p in Path(first.sys_pn_batch).parent.glob("ovi_test_TwiceVault*"))
+    assert workbooks == ["ovi_test_TwiceVault.xlsx"]
+    assert batches == ["ovi_test_TwiceVault.yaml"]
+
+
 def test_the_export_and_setup_modules_do_not_import_tk_at_module_scope():
     """--headless must run on a Python built without tkinter. The setup
     screen and splash are the only modules allowed to need it.

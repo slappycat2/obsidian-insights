@@ -157,7 +157,7 @@ class ObsidianApp:
         dst_v_dict['bool_shw_notes']     = src_v_dict.get('bool_shw_notes', True)
         dst_v_dict['bool_rel_paths']     = src_v_dict.get('bool_rel_paths', True)
         dst_v_dict['bool_summ_rows']     = src_v_dict.get('bool_summ_rows', True)
-        dst_v_dict['bool_unused_1']      = src_v_dict.get('bool_unused_1',  False)
+        dst_v_dict['bool_file_seq']      = src_v_dict.get('bool_file_seq',  True)
         dst_v_dict['bool_unused_2']      = src_v_dict.get('bool_unused_2',  False)
         dst_v_dict['bool_unused_3']      = src_v_dict.get('bool_unused_3',  False)
         dst_v_dict['link_lim_vals']      = src_v_dict.get('link_lim_vals', 0)

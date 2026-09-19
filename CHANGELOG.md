@@ -32,6 +32,15 @@ Notable changes to Obsidian Insights. Format follows
   the reason, the engine's last messages and the log's path. Desktop only, TypeScript, built with
   esbuild; CI type-checks and builds it. Version 0.1.0, numbered separately from the engine, which
   it needs at 1.4.0 or newer.
+- **One workbook per vault, if you prefer.** The setup screen's first "For Future Use" box is now
+  **Use filename Sequencing?**. Ticked, which is the default and what an existing `CONFIG.yaml`
+  gets, nothing changes: `ovi_<vault>_0000.xlsx`, `_0001`, and so on. Unticked, the batch file and
+  the workbook lose the number and every run replaces `ovi_<vault>.xlsx`. The previous workbook is
+  then usually still open, so the run checks for that before it scans anything: on screen it asks
+  you to close the file and carries on when you press Retry (Cancel exits 1 and leaves the old
+  workbook alone); `--headless` and `--json` report `WorkbookLocked` straight away. Numbered
+  workbooks are never touched while the box is unticked, and ticking it again resumes one past the
+  highest of them.
 
 - **A Bases tab.** Every `.base` file in the vault, and every base a note embeds in a
   ```` ```base ```` block, one row per view: the base's filters rendered as a single `AND` / `OR` /
@@ -44,6 +53,11 @@ Notable changes to Obsidian Insights. Format follows
 
 ### Changed
 
+- **The locked-workbook prompt can be reached.** It was raised with no parent from underneath the
+  always-on-top splash, where it could come up behind it. It now belongs to the splash, which
+  gives up `-topmost` for as long as the question is on screen, and it says what to do -- close
+  the file, then press Retry -- instead of "run again". Under `--no-splash` it no longer leaves an
+  empty `tk` window beside it.
 - **tkinter is loaded only when the setup screen is about to open.** `ovi_setup.py` imported the
   screen at the top of the file, inside a try/except, so any Python that had tkinter loaded it
   into every run, headless ones included. The import now happens inside `run_setup_ui()`, and the

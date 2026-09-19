@@ -27,8 +27,9 @@ from ovi.ovi_build import VaultScan
 from ovi.ovi_logger import DEFAULT_LOG_LEVEL, logger, make_logger
 from ovi.ovi_setup import (ConfigIncompleteError, SetupCancelledError,
                                      SysConfig, VaultNotFoundError)
+from ovi.ovi_wb_setup import WbDataDef
 from ovi.ovi_wb_tabs import NewWb
-from ovi.ovi_xl import ExcelExporter, WorkbookLockedError
+from ovi.ovi_xl import ExcelExporter, WorkbookLockedError, wait_until_unlocked
 
 LOG_LEVELS = ("DEBUG", "INFO", "WARNING", "ERROR", "CRITICAL")
 
@@ -97,7 +98,7 @@ def report_failure(exc: Exception, json_mode: bool, kind: str | None = None) -> 
 
 
 def run_pipeline(sys_cfg_obj: SysConfig, progress: ProgressFn = log_progress,
-                 interactive: bool = False) -> ExcelExporter:
+                 interactive: bool = False, prompt_parent=None) -> ExcelExporter:
     """Run all four processing stages and return the exporter.
 
     Requires no GUI, which is what makes this callable from tests.
@@ -107,8 +108,18 @@ def run_pipeline(sys_cfg_obj: SysConfig, progress: ProgressFn = log_progress,
         log_progress.
     :param interactive: True when a user is present to answer a Retry/Cancel
         prompt for a locked workbook; False raises WorkbookLockedError instead.
+    :param prompt_parent: the window that prompt belongs to -- the splash, when
+        there is one.
     """
     progress(*PHASES[0])
+
+    # With filename sequencing off, this run replaces the workbook the last one
+    # wrote and opened, so it is usually still open. Ask now, before the scan,
+    # rather than after all the work. A numbered run aims at a name that does
+    # not exist yet and has nothing to ask.
+    if not sys_cfg_obj.sys_cfg.get('bool_file_seq', True):
+        wait_until_unlocked(WbDataDef(sys_cfg_obj).sys_pn_wbs,
+                            interactive=interactive, prompt_parent=prompt_parent)
 
     progress(*PHASES[1])
     scan_obj = VaultScan(sys_cfg_obj)
@@ -117,7 +128,8 @@ def run_pipeline(sys_cfg_obj: SysConfig, progress: ProgressFn = log_progress,
     nwb_obj = NewWb(scan_obj)
 
     progress(*PHASES[3])
-    exporter = ExcelExporter(nwb_obj.wbd_obj, interactive=interactive)
+    exporter = ExcelExporter(nwb_obj.wbd_obj, interactive=interactive,
+                             prompt_parent=prompt_parent)
     exporter.export()
 
     progress(*PHASES[4])
@@ -141,7 +153,7 @@ def run_with_splash(sys_cfg_obj: SysConfig) -> ExcelExporter:
     def work():
         try:
             outcome["exporter"] = run_pipeline(sys_cfg_obj, progress=splash.update_status,
-                                               interactive=True)
+                                               interactive=True, prompt_parent=splash)
             time.sleep(1)  # let the user register the final status line
         except Exception as exc:  # noqa: BLE001 -- re-raised below
             outcome["error"] = exc

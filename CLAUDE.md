@@ -230,6 +230,28 @@ modal Tk retry dialog when `interactive=True` and raises `WorkbookLockedError` o
 locked-file case is a Windows one: POSIX unlinks an open file without complaint). For the same reason gaps are **not**
 refilled: a missing `_0001` stays missing rather than overwriting `ovi_<vault>_0001.xlsx`.
 
+**The number is optional.** `bool_file_seq` — the setup screen's "Use filename Sequencing?" box,
+default True — turns it off: `WbDataDef.batch_stem()` then returns the bare stub, so every run
+writes `ovi_<vault>.yaml` / `ovi_<vault>.xlsx` over the last one's. `seq_nums()` never matches the
+unnumbered pair (its `fullmatch` demands `_NNNN`), which is what lets both modes share the
+directories: the pair reserves no number, and ticking the box again resumes past the highest
+numbered file. With it off the locked workbook stops being an edge case — the previous run opened
+the very file this one must replace — so `run_pipeline()` calls `wait_until_unlocked()` **before
+the scan**. That check probes with `open(path, 'r+b')` and deletes nothing, so a run that fails
+later still leaves the old workbook; `save_workbook()` keeps its own `os.remove` loop for a file
+reopened mid-run. Both prompt through `ask_retry_cancel()`, which takes the splash as `parent` and
+drops its `-topmost` while the dialog is up — a parentless dialog under an always-on-top window
+cannot be reached. `prompt_parent` is threaded `run_with_splash()` → `run_pipeline()` →
+`ExcelExporter` for that reason; do not go back to `tkinter._default_root`.
+
+The setting took over the reserved `bool_unused_1`, which every older `CONFIG.yaml` stores as
+`False` — at the top level and in each vault record. It was therefore renamed rather than
+relabelled: `cfg_unpack()` drops the old key from every record and `setdefault`s the new one to
+True, because records are restored verbatim (never through `vault_pack()`) and the setup screen
+indexes them with `[...]`. `bool_unused_2` is the one remaining disabled "For Future Use" box;
+`bool_unused_3` has no widget. Like the other checkboxes it is not a per-run override and has no
+CLI flag.
+
 `wb_def` has exactly three keys:
 
 - `sys_cfg` — the packed `SysConfig` dict (also carries `ctot`, `sys_pn_batch`, `sys_pn_wbs`).

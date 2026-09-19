@@ -29,6 +29,10 @@ class WbDataDef:
 
         self.sys_id         = self.sys_cfg.get('sys_id','ovi')
         self.file_stub      = self.build_file_stub()
+        #: False when "Use filename Sequencing?" is unticked: one fixed pair of
+        #: files per vault, overwritten by every run. An absent key means
+        #: numbered, which is what every run before the setting existed did.
+        self.use_seq        = self.sys_cfg.get('bool_file_seq', True)
         self.sys_dir_bat    = self.sys_cfg['sys_dir_bat']
         self.sys_dir_wbs    = self.sys_cfg['sys_dir_wbs']
         self.sys_dir_img    = self.sys_cfg['sys_dir_img']
@@ -130,6 +134,16 @@ class WbDataDef:
                 for p in Path(directory).glob(f'{self.file_stub}_*{ext}')
                 if (m := pattern.fullmatch(p.stem)) is not None]
 
+    def batch_stem(self, num: int) -> str:
+        """The filename, less its extension, that batch file and workbook share.
+
+        With sequencing off there is no number and so only one name. seq_nums()
+        never matches it -- its fullmatch demands the _NNNN -- which is what lets
+        the two modes share a directory: the unnumbered pair reserves no number,
+        and turning sequencing back on resumes past the highest numbered file.
+        """
+        return f'{self.file_stub}_{num:04d}' if self.use_seq else self.file_stub
+
     def get_last_bat(self):
         """Sets the name of the latest (most recent) batch file for this vault.
 
@@ -137,10 +151,11 @@ class WbDataDef:
         so it agrees with get_next_bat() by construction -- a batch file restored
         from a backup no longer outranks a genuinely later one on ctime. With no
         batch files at all the name falls back to _0000, a path that need not
-        exist; read_wb_data() is what reports it if it does not.
+        exist; read_wb_data() is what reports it if it does not. With sequencing
+        off, "latest" is the one unnumbered file -- see batch_stem().
         """
         last_num = max(self.seq_nums(self.sys_dir_bat, '.yaml'), default=0)
-        latest_file = f'{PurePath(f"{self.sys_dir_bat}/{self.file_stub}_{last_num:04d}.yaml")}'
+        latest_file = f'{PurePath(f"{self.sys_dir_bat}/{self.batch_stem(last_num)}.yaml")}'
 
         self.sys_pn_batch = latest_file
         self.sys_pn_wbs = f"{self.sys_dir_wbs}/{Path(latest_file).stem}.xlsx"
@@ -162,10 +177,14 @@ class WbDataDef:
         hand the next run a number whose .xlsx already exists -- which
         save_workbook() answers with a retry dialog, or under --headless with
         WorkbookLockedError. Gaps are deliberately not refilled, for the same reason.
+
+        With sequencing off none of that applies: the name is the unnumbered one
+        every time, the previous run's files are overwritten, and a workbook
+        still open from that run is run_pipeline()'s problem to ask about.
         """
         batch_num = max([-1] + self.seq_nums(self.sys_dir_bat, '.yaml')
                              + self.seq_nums(self.sys_dir_wbs, '.xlsx')) + 1
-        c_file = f"{self.sys_dir_bat}/{self.file_stub}_{batch_num:04d}.yaml"
+        c_file = f"{self.sys_dir_bat}/{self.batch_stem(batch_num)}.yaml"
         logger.debug(f"ConfigData: Next Config file: {c_file}")
 
         self.sys_pn_batch = c_file

@@ -29,6 +29,13 @@ and the spreadsheet application's version with the results.
 - [ ] **Locked workbook.** With the previous workbook open in the spreadsheet app, run again.
       Pass on macOS/Linux: a new numbered workbook is written (the old one is never overwritten).
       Pass on Windows: the retry dialog appears, and Cancel exits 1 with a one-line message.
+- [ ] **Filename sequencing off.** `ovi --setup`, untick **Use filename Sequencing?**, Save & Run;
+      pass: the workbook is `ovi_<vault>.xlsx`, with no number. Leave it open and run again.
+      Pass on Windows: "Workbook in use" appears *in front of* the splash while it still reads
+      "Initializing", closing the workbook and pressing Retry finishes the run under the same
+      name, and Cancel exits 1 with the old workbook intact. Pass on macOS/Linux: the run simply
+      overwrites the file. Tick the box again; pass: the next workbook is numbered one past the
+      highest numbered one, and `ovi_<vault>.xlsx` is still there.
 - [ ] **Links.** From the Properties tab, click a `FileNN` link. Pass: Obsidian opens that note.
       From the Duplicates tab, click a link; pass: the right one of the two same-named notes opens.
       Try a note whose name has a space and an accent.

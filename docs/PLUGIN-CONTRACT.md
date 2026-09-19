@@ -90,7 +90,7 @@ Exactly one, last, on failure. Exit code 1.
 |---|---|
 | `ConfigIncomplete` | No configuration and no `VAULT_PATH`; or an override -- `--spreadsheet-app` -- that does not validate; or the configuration could not be written. |
 | `VaultNotFound` | `VAULT_PATH` is not an existing, readable directory. Click usually catches this first, as a usage error (below). |
-| `WorkbookLocked` | The target `.xlsx` is open in another program. Windows only in practice; POSIX overwrites an open file without complaint. Note the number is not reused -- the next run writes the next number. |
+| `WorkbookLocked` | The target `.xlsx` is open in another program. Windows only in practice; POSIX overwrites an open file without complaint. With filename sequencing on (the default) this is rare, since every run aims at a new number, and the number is not reused -- the next run writes the next one. With it off every run aims at the same file, so this is what a run gets whenever the previous workbook is still open; it is reported before the vault is scanned, and the old workbook is left as it was. |
 | `Unexpected` | Anything else. The message is `ExceptionType: text`; the traceback is on stderr and in the log. |
 
 ## stderr and exit codes
@@ -127,8 +127,11 @@ logs/ovi.log                              rotating, 3 MB x 50
 ```
 
 `<vault>` is the vault folder's name reduced to `[A-Za-z0-9._-]`, and `NNNN` counts per vault
-from `0000`, one past the highest number present in either directory. The `done` event names the
-exact files; a program should read those rather than predict them.
+from `0000`, one past the highest number present in either directory. The setup screen's **Use
+filename Sequencing?** box turns the number off: the pair is then `ovi_<vault>.yaml` and
+`ovi_<vault>.xlsx`, overwritten by every run. It is a saved setting with no flag of its own, which
+is one more reason the `done` event names the exact files and a program should read those rather
+than predict them.
 
 ## Versions and compatibility
 

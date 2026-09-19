@@ -39,7 +39,7 @@ class SetupScreen:
         self.bool_shw_notes_var    = tk.BooleanVar(value=self.sys_obj.bool_shw_notes)
         self.bool_rel_paths_var    = tk.BooleanVar(value=self.sys_obj.bool_rel_paths)
         self.bool_summ_rows_var    = tk.BooleanVar(value=self.sys_obj.bool_summ_rows)
-        self.bool_unused_1_var     = tk.BooleanVar(value=self.sys_obj.bool_unused_1)
+        self.bool_file_seq_var     = tk.BooleanVar(value=self.sys_obj.bool_file_seq)
         self.bool_unused_2_var     = tk.BooleanVar(value=self.sys_obj.bool_unused_2)
         self.bool_unused_3_var     = tk.BooleanVar(value=self.sys_obj.bool_unused_3)
         self.link_lim_vals_var     = tk.StringVar(value=str(self.sys_obj.link_lim_vals))
@@ -83,7 +83,7 @@ class SetupScreen:
         self.c_vlts[vk]['bool_shw_notes']    = self.sys_obj.bool_shw_notes    = self.bool_shw_notes_var.get()
         self.c_vlts[vk]['bool_rel_paths']    = self.sys_obj.bool_rel_paths    = self.bool_rel_paths_var.get()
         self.c_vlts[vk]['bool_summ_rows']    = self.sys_obj.bool_summ_rows    = self.bool_summ_rows_var.get()
-        self.c_vlts[vk]['bool_unused_1']     = self.sys_obj.bool_unused_1     = self.bool_unused_1_var.get()
+        self.c_vlts[vk]['bool_file_seq']     = self.sys_obj.bool_file_seq     = self.bool_file_seq_var.get()
         self.c_vlts[vk]['bool_unused_2']     = self.sys_obj.bool_unused_2     = self.bool_unused_2_var.get()
         self.c_vlts[vk]['bool_unused_3']     = self.sys_obj.bool_unused_3     = self.bool_unused_3_var.get()
         self.c_vlts[vk]['link_lim_vals']     = self.sys_obj.link_lim_vals     = int(self.link_lim_vals_var.get())
@@ -107,7 +107,9 @@ class SetupScreen:
         self.sys_obj.bool_shw_notes     = self.c_vlts[vk]['bool_shw_notes']
         self.sys_obj.bool_rel_paths     = self.c_vlts[vk]['bool_rel_paths']
         self.sys_obj.bool_summ_rows     = self.c_vlts[vk]['bool_summ_rows']
-        self.sys_obj.bool_unused_1      = self.c_vlts[vk]['bool_unused_1']
+        # .get(): a record registered before this setting existed has no such
+        # key, and the absent answer is "number the files", as it always was.
+        self.sys_obj.bool_file_seq      = self.c_vlts[vk].get('bool_file_seq', True)
         self.sys_obj.bool_unused_2      = self.c_vlts[vk]['bool_unused_2']
         self.sys_obj.bool_unused_3      = self.c_vlts[vk]['bool_unused_3']
         self.sys_obj.link_lim_vals      = self.c_vlts[vk]['link_lim_vals']
@@ -139,7 +141,7 @@ class SetupScreen:
         self.bool_shw_notes_var.set(self.sys_obj.bool_shw_notes)
         self.bool_rel_paths_var.set(self.sys_obj.bool_rel_paths)
         self.bool_summ_rows_var.set(self.sys_obj.bool_summ_rows)
-        self.bool_unused_1_var.set(self.sys_obj.bool_unused_1)
+        self.bool_file_seq_var.set(self.sys_obj.bool_file_seq)
         self.bool_unused_2_var.set(self.sys_obj.bool_unused_2)
         self.bool_unused_3_var.set(self.sys_obj.bool_unused_3)
         self.link_lim_vals_var.set(str(self.sys_obj.link_lim_vals))
@@ -156,7 +158,7 @@ class SetupScreen:
                  f"bool_shw_notes       {self.sys_obj.bool_shw_notes}\n"
                  f"bool_rel_paths       {self.sys_obj.bool_rel_paths}\n"
                  f"bool_summ_rows       {self.sys_obj.bool_summ_rows}\n"
-                 f"bool_unused_1        {self.sys_obj.bool_unused_1}\n"
+                 f"bool_file_seq        {self.sys_obj.bool_file_seq}\n"
                  f"bool_unused_2        {self.sys_obj.bool_unused_2}\n"
                  f"bool_unused_3        {self.sys_obj.bool_unused_3}\n"
                  f"link_lim_vals        {self.sys_obj.link_lim_vals}\n"
@@ -332,9 +334,11 @@ class SetupScreen:
 
         chekbx_notes = ttk.Checkbutton(opts_frame, text="Show Notes", variable=self.bool_shw_notes_var)
         chekbx_notes.grid(row=0, column=0, sticky="w", pady=5)
-        ck_open1 = ttk.Checkbutton(opts_frame, text="For Future Use-1",
-                                   variable=self.bool_unused_1_var, state='disabled')
-        ck_open1.grid(row=0, column=1, sticky="w", pady=5)
+        # Unticked, every run overwrites ovi_<vault>.xlsx instead of writing
+        # the next _NNNN -- see WbDataDef.get_next_bat().
+        chekbx_fseq = ttk.Checkbutton(opts_frame, text="Use filename Sequencing?",
+                                      variable=self.bool_file_seq_var)
+        chekbx_fseq.grid(row=0, column=1, sticky="w", pady=5)
         chekbx_fullp = ttk.Checkbutton(opts_frame, text="Use Full Paths in Links", variable=self.bool_rel_paths_var)
         chekbx_fullp.grid(row=1, column=0, sticky="w", pady=5)
         ck_open2 = ttk.Checkbutton(opts_frame, text="For Future Use-2",

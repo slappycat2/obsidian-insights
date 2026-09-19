@@ -150,8 +150,7 @@ export default class OviPlugin extends Plugin {
 }
 
 const HINTS: Record<string, string> = {
-	WorkbookLocked: "Close the previous workbook in your spreadsheet application and build again. "
-		+ "The number is not reused; the next build writes the next one.",
+	WorkbookLocked: "Close the previous workbook in your spreadsheet application and build again.",
 	NotFound: INSTALL_HINT + " -- then press Detect in the plugin settings. If it is installed "
 		+ "somewhere else, give the full path there.",
 	NotEngine: "The path in the plugin settings does not point at the Obsidian Insights engine.",
