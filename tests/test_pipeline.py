@@ -222,8 +222,8 @@ def test_properties_reach_the_workbook(workbook_path):
 def _properties_rows(workbook_path):
     """The Properties tab as {property: (values count, file count)}.
 
-    Columns are RowId 10, Properties 11, Values 12, Links 13; the header is on
-    row 10 and the data starts at 11.
+    Columns are RowId 10, Properties 11, Type 12, Values 13, Files 14; the
+    header is on row 10 and the data starts at 11.
     """
     wb = openpyxl.load_workbook(workbook_path)
     tab = wb["Properties"]
@@ -233,8 +233,8 @@ def _properties_rows(workbook_path):
         name = tab.cell(row=row, column=11).value
         if name is None or name == "":
             break
-        rows[str(name)] = (tab.cell(row=row, column=12).value,
-                           tab.cell(row=row, column=13).value)
+        rows[str(name)] = (tab.cell(row=row, column=13).value,
+                           tab.cell(row=row, column=14).value)
     return rows
 
 
@@ -248,9 +248,76 @@ def test_properties_tab_headers(workbook_path):
     wb = openpyxl.load_workbook(workbook_path)
     tab = wb["Properties"]
 
-    headers = [tab.cell(row=10, column=c).value for c in range(10, 14)]
+    headers = [tab.cell(row=10, column=c).value for c in range(10, 15)]
 
-    assert headers == ["RowId", "Properties", "Values", "Files"]
+    assert headers == ["RowId", "Properties", "Type", "Values", "Files"]
+
+
+def _property_types(workbook_path, sheet="Properties"):
+    """{property: Type cell} from a tab whose first columns are RowId,
+    Properties, Type -- the Properties and Values tabs."""
+    wb = openpyxl.load_workbook(workbook_path)
+    tab = wb[sheet]
+    types = {}
+    for row in range(11, tab.max_row + 1):
+        name = tab.cell(row=row, column=11).value
+        if name is None or name == "":
+            break
+        types.setdefault(str(name), tab.cell(row=row, column=12).value)
+    return types
+
+
+def test_property_types_are_inferred_without_a_types_json(workbook_path):
+    """The test vault has no .obsidian folder, so every type is inferred from
+    the frontmatter and shown in parentheses."""
+    types = _property_types(workbook_path)
+
+    assert types == {"author": "(text)", "status": "(text)",
+                     "contributors": "(multitext)"}
+    # The Values tab repeats the type on every row of the property.
+    assert _property_types(workbook_path, "Values") == types
+
+
+def test_property_types_come_from_types_json_when_obsidian_has_them(make_vault, stub_config):
+    """Obsidian's own record wins over inference; a property it has not typed
+    is still inferred, and one with values of two types says so."""
+    from ovi.ovi_build import VaultScan
+    from ovi.ovi_wb_tabs import NewWb
+    from ovi.ovi_xl import ExcelExporter
+
+    files = dict(VAULT)
+    files[".obsidian/types.json"] = """
+        {"types": {"author": "text", "Status": "checkbox", "due": "date"}}
+    """
+    files["Mixed.md"] = """
+        ---
+        due: 2026-10-11
+        done: true
+        score: 7
+        when: 2026-10-11T08:00:00
+        contributors: Solo
+        blank:
+        ---
+        Body.
+        rank:: 3
+    """
+    vault = make_vault(files, name="TypedVault")
+    exporter = ExcelExporter(NewWb(VaultScan(stub_config(vault))).wbd_obj)
+    exporter.export()
+
+    types = _property_types(exporter.sys_pn_wbs)
+
+    assert types["author"] == "text"
+    assert types["status"] == "checkbox", "types.json keys are matched case-insensitively"
+    assert types["due"] == "date"
+    assert types["done"] == "(checkbox)"
+    assert types["score"] == "(number)"
+    assert types["when"] == "(datetime)"
+    assert types["contributors"] == "(multitext, text)"
+    # Only ever an inline field, which Obsidian does not treat as a property.
+    assert types["rank"] == "(inline)"
+    # Present in frontmatter but never given a value: nothing to infer from.
+    assert types["blank"] == "(empty)"
 
 
 def test_every_property_gets_exactly_one_row(workbook_path):
@@ -329,6 +396,75 @@ def test_duplicate_filenames_reach_the_workbook(workbook_path):
         if cell.value is not None
     )
     assert "Alpha.md" in text
+
+
+def value_links(workbook, prop, value):
+    """The (text, horizontal alignment) of every link cell on the Values tab
+    row for ``prop``/``value``."""
+    ws = workbook["Values"]
+    for row in ws.iter_rows(min_row=11):
+        cells = [c for c in row if c.value is not None]
+        texts = [str(c.value) for c in cells]
+        if prop in texts and value in texts:
+            return [(str(c.value), c.alignment.horizontal)
+                    for c in cells if str(c.value).startswith("=hyperlink")]
+    raise AssertionError(f"no Values row for {prop}: {value}")
+
+
+def test_values_tab_total_links_is_the_properties_tab_files_number(workbook_path):
+    """Every row of a property carries the same plain number, equal to the
+    Properties tab's Files count for it: distinct notes, so 'contributors' --
+    two values, both from Gamma.md -- is 1 on both rows even though each row's
+    Links is 1 as well."""
+    wb = openpyxl.load_workbook(workbook_path)
+    ws = wb["Values"]
+    assert [ws.cell(row=10, column=c).value for c in range(10, 17)] == \
+        ["RowId", "Properties", "Type", "Values", "Links", "Total Links", "P-V Index"]
+
+    totals = {}
+    for row in range(11, ws.max_row + 1):
+        name = ws.cell(row=row, column=11).value
+        if not name:
+            break
+        totals.setdefault(str(name), set()).add(ws.cell(row=row, column=15).value)
+
+    files = {prop: counts[1] for prop, counts in _properties_rows(workbook_path).items()}
+    assert {prop: next(iter(t)) for prop, t in totals.items()} == files
+    assert all(len(t) == 1 for t in totals.values()), "the total differs between rows of one property"
+    assert all(isinstance(next(iter(t)), int) for t in totals.values()), "a formula, not a number"
+    assert files["contributors"] == 1 and files["author"] == 3
+
+
+def test_links_point_at_the_note_where_the_value_was_found(workbook_path):
+    """Regression: bool_rel_paths ("Use Full Paths in Links") was stored and
+    never read. Both Alpha.md notes carry author: Jane, and both links on
+    that row opened the same note, because a bare-name obsidian://open
+    resolves to the first Alpha.md Obsidian finds."""
+    wb = openpyxl.load_workbook(workbook_path)
+    links = value_links(wb, "author", "Jane")
+
+    files = sorted(text.split("&file=")[1].split('"')[0] for text, _ in links)
+    assert files == ["Archive/Alpha.md", "Projects/Alpha.md"]
+    # The folders repeat on every row and the name comes last: read from the right.
+    assert {align for _, align in links} == {"right"}
+    assert any(text.endswith('"Archive/Alpha")') for text, _ in links)
+
+
+def test_links_use_bare_names_when_full_paths_is_off(make_vault, stub_config):
+    from ovi.ovi_build import VaultScan
+    from ovi.ovi_wb_tabs import NewWb
+    from ovi.ovi_xl import ExcelExporter
+
+    vault = make_vault(VAULT, name="BareNames")
+    exporter = ExcelExporter(NewWb(VaultScan(stub_config(vault, bool_rel_paths=False))).wbd_obj)
+    exporter.export()
+
+    wb = openpyxl.load_workbook(exporter.sys_pn_wbs)
+    links = value_links(wb, "author", "Jane")
+
+    assert [text.split("&file=")[1].split('"')[0] for text, _ in links] == ["Alpha.md", "Alpha.md"]
+    assert {align for _, align in links} == {"left"}
+    assert all(text.endswith('"Alpha")') for text, _ in links)
 
 
 def test_broken_yaml_reaches_the_workbook(workbook_path):

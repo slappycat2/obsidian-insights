@@ -6,6 +6,33 @@ Notable changes to Obsidian Insights. Format follows
 
 ## [Unreleased]
 
+## [1.5.0] — 2026-10-11
+
+### Added
+
+- **A "Type" column on the Properties and Values tabs**, after the property name. It is the
+  property type Obsidian records in the vault's `.obsidian/types.json` (`text`, `multitext`,
+  `number`, `checkbox`, `date`, `datetime`, `tags`, `aliases`). A property Obsidian has not
+  recorded is shown as the type inferred from its frontmatter values, in parentheses --
+  `(text)`, or `(number, text)` when notes disagree. A property that never has a value is
+  `(empty)`, and a key found only as an inline `key:: value` field, which Obsidian does not treat
+  as a property, is `(inline)`. The batch file carries it as `obs_ptype`.
+- **A "Total Links" column on the Values tab**, after "Links". It is the number of distinct notes
+  using the property over all of its values -- the same figure as the Properties tab's "Files"
+  column, repeated on every row of the property -- written as a plain number, not a formula, so it
+  survives sorting, filtering and copying out. It is less than the sum of "Links" whenever a note
+  gives the property more than one value.
+
+### Fixed
+
+- **"Use Full Paths in Links" now does something.** The setting was saved and never read: every
+  note was linked by its bare name, and `obsidian://open?file=AGENT` opens whichever `AGENT.md`
+  Obsidian finds first, so with the same name in several folders every link in the workbook opened
+  the one in the root. Ticked (the default), a note is now linked and shown by its vault-relative
+  path, which names exactly the note where the property, tag or code block was found, and those
+  cells are right-aligned so the name at the end of the path stays in view. Unticked, the links
+  are the bare names they always were.
+
 ## [1.4.0] — 2026-09-18
 
 ### Added
@@ -494,7 +521,9 @@ are standing in the right directory" to an installable, tested, CI-covered packa
   the package from commits and producing wheels containing only metadata.
 - Two markdown parser bugs found by the new test suite.
 
-[Unreleased]: https://github.com/slappycat2/obsidian-insights/compare/v1.3.0...HEAD
+[Unreleased]: https://github.com/slappycat2/obsidian-insights/compare/v1.5.0...HEAD
+[1.5.0]: https://github.com/slappycat2/obsidian-insights/compare/v1.4.0...v1.5.0
+[1.4.0]: https://github.com/slappycat2/obsidian-insights/compare/v1.3.0...v1.4.0
 [1.3.0]: https://github.com/slappycat2/obsidian-insights/compare/v1.2.0...v1.3.0
 [1.2.0]: https://github.com/slappycat2/obsidian-insights/compare/v1.1.0...v1.2.0
 [1.1.0]: https://github.com/slappycat2/obsidian-insights/compare/v1.0.0...v1.1.0

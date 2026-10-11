@@ -157,7 +157,7 @@ class NewWb:
                     , 'tab_titl': 'Properties Analysis'
                     , 'hdr_clrs': True  #  True=Force Tab Colors; False=Use TableStyle Colors
                     , 'col_key1': "Properties"
-                    , 'col_key2': ""
+                    , 'col_key2': "Type"
                     , 'col_val1': "Values"
                     , 'col_val2': ""
                     # "Files", not "Links": this column counts distinct notes
@@ -174,6 +174,10 @@ class NewWb:
                               ' - Anything in red bold/italics are likely errors or at least worthy of review.'
                             , ' - All Properties and Tags are listed in lowercase, as that is how Obsidian sees them.'
                             , '     The FileDetails Tab shows them as entered, if lowercase was not used.'
+                            , ' - "Type" is the property type Obsidian records in .obsidian/types.json. In parentheses,'
+                            , '     a type Obsidian has not recorded, as inferred from the frontmatter values found.'
+                            , '     "(empty)" never has a value; "(inline)" is a key:: value field Obsidian does'
+                            , '     not see as a property at all.'
                             , ' - "Files" is the number of distinct notes using the property. A note giving that'
                             , '     property two values is counted once.'
                             , ' - The Files total sums that column, so it is the number of property usages, not'
@@ -188,9 +192,9 @@ class NewWb:
                 , 'tab_titl': 'Properties and Values Analysis'
                 , 'hdr_clrs': True  # True=Force Tab Colors; False=Use TableStyle Colors
                 , 'col_key1': "Properties"
-                , 'col_key2': ""
+                , 'col_key2': "Type"
                 , 'col_val1': "Values"
-                , 'col_val2': ""
+                , 'col_val2': "Total Links"
                 , 'col_lnks': "Links"   # NB: This column title may be referenced in the tab_notes, below!
                 , 'help_txt': {
                       'subtitle': [
@@ -203,8 +207,13 @@ class NewWb:
                       , '      a warning will display next to the tab Totals Section'
                       , ' - The "Links" column reflects the total number of links found in all markdown files.'
                       , '   If the columns-maximum is reached, this number will be more than what is displayed.'
+                      , ' - "Total Links" is the number of distinct notes using the property, over all of its'
+                      , '   values -- the "Files" number on the Properties tab. It is less than the sum of'
+                      , '   "Links" when a note gives the property more than one value.'
                       , ' - All Properties are listed in lowercase, as that is how Obsidian sees them.'
                       , '     The "Files" Tab shows them as entered, if lowercase was not used.'
+                      , ' - "Type" is the property type from .obsidian/types.json; in parentheses, the type'
+                      , '     inferred from the frontmatter values when Obsidian has not recorded one.'
                       , ' - The Values Total does not include empty values, and therefore may differ from the'
                     , '       the Values Total in the "Properties" Tab.'
                       ]
@@ -866,14 +875,17 @@ class DefPros(NewTab):
                               # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
               "RowId":          [10, 10, '', sz, 12, txt1, clr1, True, False, 'center', self.hdr_RowId]
             , "Prop":           [11, 10, '', sz, 27, txt1, clr1, True, False, 'left'  , self.col_key1]
-            , "Values Count":   [12, 10, '', sz, 12, txt1, clr1, True, False, 'center', self.col_val1]
-            , "File Count":     [13, 10, '', sz, 12, txt1, clr1, True, False, 'center', self.col_lnks]
+            , "Type":           [12, 10, '', sz, 14, txt1, clr1, True, False, 'left'  , self.col_key2]
+            , "Values Count":   [13, 10, '', sz, 12, txt1, clr1, True, False, 'center', self.col_val1]
+            , "File Count":     [14, 10, '', sz, 12, txt1, clr1, True, False, 'center', self.col_lnks]
         }
         self.tab_def['tab_cd_table_dtl'] = {  # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
               "RowId":          [10,  0, '', sz,  0, "", "", False, False, 'center', self.hdr_RowId]
             , "Prop":           [11,  0, '', sz,  0, "", "", True,  False, 'left', self.col_key1]
-            , "Values Count":   [12,  0, '', sz,  0, "", "", False, False, 'center', self.col_val1]
-            , "File Count":     [13,  0, '', sz,  0, "", "", False, False, 'center', self.col_lnks]
+            # No default: a property with no type stays blank.
+            , "Type":           [12,  0, '', sz,  0, "", "", False, False, 'left', '']
+            , "Values Count":   [13,  0, '', sz,  0, "", "", False, False, 'center', self.col_val1]
+            , "File Count":     [14,  0, '', sz,  0, "", "", False, False, 'center', self.col_lnks]
         }
         self.tab_def['tab_cd_table_links']     = [0, 0, '', 0, 0, txt1, clr1, False, False, '', '']
         self.tab_def['tab_cd_table_spacer'] = [0, 0, '', 0, 0, txt1, clr1, False, False, 'right', '']
@@ -954,20 +966,25 @@ class DefVals(NewTab):
             # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
              "RowId":  [10, 10, '', sz,  8, txt1, clr1, True, False, 'center', self.hdr_RowId]
            , "Prop":   [ 0,  0, '', sz, 27, txt1, clr1, True, False, 'left'  , self.col_key1]
+           , "Type":   [ 0,  0, '', sz, 14, txt1, clr1, True, False, 'left'  , self.col_key2]
            , "Val":    [ 0,  0, '', sz, 50, txt1, clr1, True, False, 'left'  , self.col_val1]
            , "FCnt":   [ 0,  0, '', sz,  8, txt1, clr1, True, False, 'center', self.col_lnks]
+           , "FTot":   [ 0,  0, '', sz, 12, txt1, clr1, True, False, 'center', self.col_val2]
            , "PVI":    [ 0,  0, '', sz, 13, txt1, clr1, True, False, 'center', self.hdr_PVI]
            }
         self.tab_def['tab_cd_table_dtl'] =  {
             # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
              "RowId":  [10, 0, '', sz, 0, "", "", False, False, 'center', '']
            , "Prop":   [0,  0, '', sz, 0, "", "", True, False,  'left', '']
+           , "Type":   [0,  0, '', sz, 0, "", "", False, False, 'left', '']
            , "Vals":   [0,  0, '', sz, 0, "", "", False, False, 'left', '']
            , "FCnt":   [0,  0, '', sz, 0, "", "", False, False, 'center', '']
+           , "FTot":   [0,  0, '', sz, 0, "", "", False, False, 'center', '']
            , "PVI":    [0,  0, '', sz, 0, "", "", False, False, 'center', '']
            }
-        self.tab_def['tab_cd_table_links']  = [15, 0, '', sz, 18, txt1, clr1, False, False, 'left'  , '']
-        self.tab_def['tab_cd_table_spacer'] = [16, 0, '', sz,  1, txt1, clr1, False, False, 'right'  , '']
+        # The seven fixed columns occupy 10..16, so the links begin at 17.
+        self.tab_def['tab_cd_table_links']  = [17, 0, '', sz, 18, txt1, clr1, False, False, 'left'  , '']
+        self.tab_def['tab_cd_table_spacer'] = [18, 0, '', sz,  1, txt1, clr1, False, False, 'right'  , '']
         self.tab_def['tab_cd_fixed_summ']   = {
             # [col,row,font,sz, w,t_clr,fill_clr,Bold,Ital,  Align,  val ] = 11
             # totals headers (across and down)

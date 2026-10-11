@@ -294,6 +294,8 @@ def make_exporter(vault_id="vid", dir_vault="/v"):
     exporter.vault_id = vault_id
     exporter.dir_vault = dir_vault
     exporter.interactive = False
+    exporter.full_paths = True
+    exporter._vault_relative_cache = {}
     return exporter
 
 
@@ -335,6 +337,25 @@ def test_duplicates_link_is_vault_relative_with_forward_slashes(tmp_path):
     # a path outside the vault and comes back whole.
     outside = tmp_path / "Elsewhere" / "Note.md"
     assert exporter.vault_relative(str(outside)).endswith("Elsewhere/Note.md")
+
+
+def test_a_note_link_follows_the_full_paths_setting(tmp_path):
+    """Regression: the exporter never read bool_rel_paths. Every note was
+    linked by its bare name, which obsidian://open resolves to whichever note
+    of that name it finds first -- so with an AGENT.md in three folders, every
+    link in the workbook opened the one in the root."""
+    vault = tmp_path / "Vault"
+    note = vault / "Projects" / "AGENT.md"
+    note.parent.mkdir(parents=True)
+    note.write_text("", encoding="utf-8")
+    exporter = make_exporter(dir_vault=str(vault))
+
+    assert "file=Projects/AGENT.md" in exporter.note_link(str(note))
+    assert exporter.note_link(str(note)).endswith('"Projects/AGENT")')
+
+    exporter.full_paths = False
+    assert "file=AGENT.md" in exporter.note_link(str(note))
+    assert exporter.note_link(str(note)).endswith('"AGENT")')
 
 
 # ---------------------------------------------------------------------------

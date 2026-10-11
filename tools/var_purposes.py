@@ -110,6 +110,7 @@ AUTHORED = {
 "obs_codes": "Code blocks found in note bodies, by language/signature. Feeds the Code tab and helps map signatures to plugins.",
 "obs_nests": "Nested YAML, treated as plugin-managed data: {plugin_id|filepath: {key: [values]}}. Obsidian does not allow nested frontmatter dicts, so a nested dict means a plugin wrote it.",
 "obs_plugs": "Installed plugins read from .obsidian/plugins/*/manifest.json plus community-plugins.json. Feeds the Plugins tab.",
+"obs_ptype": "{property: type} for the Type column of the Properties and Values tabs: the type from .obsidian/types.json, or in parentheses the one inferred from the frontmatter values, or (empty) / (inline). Built by VaultScan.property_types() after the scan.",
 "obs_empty": "Plain list of paths to notes whose raw text is whitespace only. The one sink that is not a nested dict; ExcelExporter turns it into a set so the Xyml tab can print '(empty file)' instead of a lookup that reads blank.",
 "obs_datav": "Dataview-style data. Issue #12 covers task shorthand fields.",
 "VaultScan.key_stack": "Tracks how deep unpack_yaml() currently is inside a nested dict. The routing decision is structural — upd_val() tests whether this is non-empty. It must never go back to testing plugin_id, which is a whole-file text scan and swallowed a plugin-touched note's genuine top-level properties.",

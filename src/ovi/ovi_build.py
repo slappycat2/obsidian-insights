@@ -1,5 +1,7 @@
 import re
 import copy
+import datetime
+import json
 from pathlib import Path
 from typing import Any
 
@@ -46,6 +48,16 @@ class VaultScan:   # WbConfig
         self.obs_qadd = self.wb_data.get('obs_qadd', {})
         self.obs_bases = self.wb_data.get('obs_bases', {})
         self.obs_empty = self.wb_data.get('obs_empty', [])
+        #: {property: type} for the Type column of the Properties and Values
+        #: tabs -- see property_types().
+        self.obs_ptype = self.wb_data.get('obs_ptype', {})
+        #: The YAML value types seen for each top-level frontmatter property,
+        #: {property: {obsidian type, ...}}, and the properties found inline.
+        #: property_types() turns them into obs_ptype for whatever types.json
+        #: does not declare.
+        self.yaml_types: dict[str, set[str]] = {}
+        self.frontmatter_props: set[str] = set()
+        self.inline_props: set[str] = set()
 
         # Frontmatter is only frontmatter at the top of the file. The leading
         # \A ... \s* skips a BOM and any blank line a stripped Templater block
@@ -145,6 +157,8 @@ class VaultScan:   # WbConfig
         self.obs_bases = self.bases.pack_rows()
         self.wb_def['wb_data']['obs_bases'] = self.obs_bases
         self.wb_def['wb_data']['obs_empty'] = self.obs_empty
+        self.obs_ptype = self.property_types()
+        self.wb_def['wb_data']['obs_ptype'] = self.obs_ptype
 
         self.ctot[11] = self.get_max_links(self.obs_props)
         self.ctot[12] = self.get_max_links(self.obs_atags)
@@ -256,6 +270,8 @@ class VaultScan:   # WbConfig
             # if k.endswith(":"):
             #     k = k[:-1]
 
+            if not self.isTemplate:
+                self.inline_props.add(k.lower())
             self.upd_val(k, v)
 
         # body tags
@@ -332,6 +348,12 @@ class VaultScan:   # WbConfig
                     and isinstance(value[0][0], list) and len(value[0][0]) == 1):
                 value = f"[[{value[0][0][0]}]]"
 
+            if not self.key_stack and not self.isTemplate:
+                # A top-level property of a real note: what Obsidian would
+                # make of this value, recorded before the list is taken apart
+                # into one upd_val() per item.
+                self.note_yaml_type(key, value)
+
             if isinstance(value, dict):
                 # nested dicts not allowed in Obsidian, so this must be a plugin
                 self.key_stack.append(key)
@@ -359,6 +381,84 @@ class VaultScan:   # WbConfig
                 # otherwise, the value is a single string, bool, etc.
                 self.upd_val(f"{obs_prop_key}{key}", value)
         return
+
+    #: Obsidian types its built-in properties itself; types.json need not say so.
+    BUILTIN_PROPERTY_TYPES = {'tags': 'tags', 'aliases': 'aliases', 'cssclasses': 'multitext'}
+
+    @staticmethod
+    def yaml_type(value) -> str | None:
+        """The Obsidian property type a YAML value would be inferred as.
+
+        The names are the ones types.json uses: text, multitext (a list),
+        number, checkbox, date and datetime. None for an empty value, which
+        says nothing about the type, and for a dict, which is plugin data.
+        """
+        if value is None or isinstance(value, dict):
+            return None
+        if isinstance(value, bool):          # before int: bool is an int
+            return 'checkbox'
+        if isinstance(value, (int, float)):
+            return 'number'
+        if isinstance(value, datetime.datetime):   # before date: a subclass
+            return 'datetime'
+        if isinstance(value, datetime.date):
+            return 'date'
+        if isinstance(value, (list, set, tuple)):
+            return 'multitext'
+        return 'text'
+
+    def note_yaml_type(self, key: str, value) -> None:
+        self.frontmatter_props.add(key.lower())
+        inferred = self.yaml_type(value)
+        if inferred is not None:
+            self.yaml_types.setdefault(key.lower(), set()).add(inferred)
+
+    def read_declared_types(self) -> dict[str, str]:
+        """The property types Obsidian has recorded in .obsidian/types.json.
+
+        Keys are lowercased to match the harvested property names. A missing
+        file is the normal state of a vault Obsidian has never opened, and an
+        unreadable one is a warning: the column falls back to inference.
+        """
+        types_file = Path(self.sys_cfg['dir_vault']) / '.obsidian' / 'types.json'
+        try:
+            with open(types_file, encoding='utf-8') as fh:
+                declared = json.load(fh).get('types', {})
+        except FileNotFoundError:
+            return {}
+        except (OSError, ValueError, AttributeError) as exc:
+            logger.warning(f"Could not read {types_file}: {exc}")
+            return {}
+        if not isinstance(declared, dict):
+            logger.warning(f"{types_file} has no 'types' mapping")
+            return {}
+        return {str(k).lower(): str(v) for k, v in declared.items()}
+
+    def property_types(self) -> dict[str, str]:
+        """{property: type} for every property harvested into obs_props.
+
+        The type Obsidian declares in types.json wins. A property it has not
+        typed is shown as what it would infer from the frontmatter values seen,
+        in parentheses -- '(text)', or '(number, text)' when notes disagree.
+        '(empty)' is a frontmatter property that never has a value, so there
+        is nothing to infer from, and '(inline)' one found only as an inline
+        'key:: value' field, which Obsidian does not see at all.
+        """
+        declared = {**self.BUILTIN_PROPERTY_TYPES, **self.read_declared_types()}
+        types = {}
+        for prop in self.obs_props:
+            name = str(prop).lower()
+            if name in declared:
+                types[prop] = declared[name]
+            elif name in self.yaml_types:
+                types[prop] = f"({', '.join(sorted(self.yaml_types[name]))})"
+            elif name in self.frontmatter_props:
+                types[prop] = '(empty)'
+            elif name in self.inline_props:
+                types[prop] = '(inline)'
+            else:
+                types[prop] = ''
+        return types
 
     def upd_val(self, k: str, v: Any) -> None:
         # logger.debug(f"ovi_build:upd_val {k=}: {v=}")

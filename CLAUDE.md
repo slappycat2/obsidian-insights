@@ -256,13 +256,17 @@ CLI flag.
 
 - `sys_cfg` — the packed `SysConfig` dict (also carries `ctot`, `sys_pn_batch`, `sys_pn_wbs`).
 - `wb_data` — the harvested vault data: `obs_props`, `obs_atags`, `obs_xyaml`, `obs_dupfn`, `obs_files`,
-  `obs_tmplt`, `obs_codes`, `obs_nests`, `obs_plugs`, `obs_qadd`, `obs_bases`, `obs_empty`.
+  `obs_tmplt`, `obs_codes`, `obs_nests`, `obs_plugs`, `obs_qadd`, `obs_bases`, `obs_empty`, `obs_ptype`.
 - `wb_tabs` — keyed by tab id; each value is a `tab_def` dict.
 
 The `obs_*` dicts are all shaped `{key: {value: [filepath, ...]}}` (see `upd_obs_props`); `obs_files` and
 `obs_nests` use `{filepath|F-or-I: {key: [values]}}` and `{plugin_id|filepath: {key: [values]}}`.
 `obs_empty` is the exception: a plain list of empty notes' paths, which `ExcelExporter` turns into a set
 so the Xyml tab can print `(empty file)` in its "Fm Okay" column instead of a lookup that reads blank.
+`obs_ptype` is flat too: `{property: type}` for the "Type" column of the Properties and Values tabs,
+built by `VaultScan.property_types()` after the scan -- the type from `.obsidian/types.json` (keys
+lowercased), else the YAML value types `note_yaml_type()` saw for the property in parentheses, else
+`(empty)` or `(inline)`. It is read with `.get()` in the exporter so an older batch file still renders.
 
 ## The tab system
 
@@ -399,6 +403,13 @@ one place the plugin states which engine it needs. `main.js` and `node_modules/`
   not frontmatter. `split_file()` records nothing; `parse_file()` decides what a missing frontmatter
   means, which is what keeps templates off the Issues tab. Code fences are stripped from the body
   *after* the split — strip them first and a fence at the top of a note promotes a body rule to line 1.
+- **Every note link goes through `ExcelExporter.note_link()`.** It reads `full_paths` (the packed
+  `bool_rel_paths`, the setup screen's "Use Full Paths in Links") and links by vault-relative path
+  when it is on, by bare name when it is off; `export_cell()` right-aligns an `obsidian://` link in
+  full-path mode. The setting was stored and never read (the links were bare names), so every `AGENT.md` in the
+  workbook opened the one in the root. The Xyml tab's "Fm Okay" column is a `VLOOKUP` of its link
+  against the Files tab's, so both must build it the same way -- do not call `obs_hyperlink()` on
+  a note directly. The Duplicates and Bases tabs link by path in either mode, deliberately.
 - **Bad frontmatter is classified, not dropped** — `obs_xyaml` codes `BadY` / `NoFm` / `MtFm` / `ErrY` /
   `NonD`, described in `WbDataDef.xyml_descs`.
 - **Everything is lowercased** for grouping; the original casing is preserved in `actual_prop_key` and

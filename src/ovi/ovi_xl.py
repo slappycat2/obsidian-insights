@@ -181,6 +181,13 @@ class ExcelExporter:
         self.sys_tab_seq = self.sys_cfg['sys_tab_seq']   # ['summ', 'pros', 'tags', 'dups', 'xyml']  # ['summ', 'pros', 'tags', 'dups']
         self.dir_vault = self.sys_cfg['dir_vault']
         self.vault_id = self.sys_cfg['vault_id']
+        #: The setup screen's "Use Full Paths in Links". On, a note is linked
+        #: and shown by its vault-relative path; off, by its bare name. A bare
+        #: name is what obsidian://open resolves itself, and with two notes of
+        #: the same name in different folders it picks one of them -- every
+        #: AGENT.md in the workbook used to open the one in the root.
+        self.full_paths = bool(self.sys_cfg.get('bool_rel_paths', True))
+        self._vault_relative_cache = {}
         self.sys_pn_wbs = self.sys_cfg['sys_pn_wbs']
         logger.info(f"initializing workbook {self.sys_pn_wbs}...")
 
@@ -197,6 +204,9 @@ class ExcelExporter:
         #
         # A list on the wire so it stays yaml.dump-able; a set here for the test.
         self.obs_empty = set(self.wb_data.get('obs_empty', []))
+        # {property: type} for the Type column of the Properties and Values
+        # tabs. .get(): a batch file written before the column existed has none.
+        self.obs_ptype = self.wb_data.get('obs_ptype', {})
 
         # Compiled once: export_cell() runs this over every string cell in the
         # workbook, and re.compile() on each was the only reason it was a str.
@@ -341,6 +351,16 @@ class ExcelExporter:
             prop_name = self.xl_clean_cell(prop_name)
             pv_index_p_count += 1
             pv_index_v_count = 0
+
+            # The property's distinct notes, once per property: the Properties
+            # tab's Files number and the Values tab's Total Links column are
+            # the same figure. Distinct, not the sum of per-value file lists --
+            # a note giving the property two values is one note.
+            prop_file_total = 0
+            if tab_id in ("pros", "vals"):
+                prop_file_total = len({file
+                                       for files in values_dict.values()
+                                       for file in files})
             if tab_id == "vals" and last_prop_name == "":
                 last_prop_name = prop_name
 
@@ -378,21 +398,19 @@ class ExcelExporter:
                     if pv_index_v_count > 1:
                         continue
 
-                    # Distinct files, not the sum of per-value file lists: one
-                    # note listing two values of the same property is one file.
-                    distinct_files = {file
-                                      for files in values_dict.values()
-                                      for file in files}
                     vals = [int((row_idx - tbl_hdr_row))
                         , prop_name
+                        , self.obs_ptype.get(prop_name, '')
                         , len(values_dict)
-                        , len(distinct_files)
+                        , prop_file_total
                         ]
                 elif tab_id == "vals":
                     vals = [int((row_idx - tbl_hdr_row))
                         , prop_name
+                        , self.obs_ptype.get(prop_name, '')
                         , value_item
                         , value_item_count
+                        , prop_file_total
                         , f"{pv_index_p_count:03d}-{pv_index_v_count:05d}"
                             ]
                 elif tab_id == "tags":
@@ -415,7 +433,7 @@ class ExcelExporter:
                         fm_okay = '=IFERROR(IF(VLOOKUP(tbl_xyml[Notes],tbl_file[Notes],1,FALSE)=tbl_xyml[Notes],TRUE,FALSE),"")'
 
                     vals = [int((row_idx - tbl_hdr_row))
-                            , self.obs_hyperlink(Path(value_item).name)
+                            , self.note_link(value_item)
                             , fm_okay
                             , self.xyml_descs[prop_name][0]
                             ]
@@ -432,7 +450,7 @@ class ExcelExporter:
                     prop_vals = " | ".join(map(str, value_files_list[1:]))
 
                     vals = [int((row_idx - tbl_hdr_row))
-                            , self.obs_hyperlink(Path(file_nm).name)
+                            , self.note_link(file_nm)
                             , ' '
                             , loc
                             , value_item
@@ -446,7 +464,7 @@ class ExcelExporter:
                     plugin_id = self.plugin_lib.get_name(cb_sig)
 
                     vals = [int((row_idx - tbl_hdr_row))
-                            , self.obs_hyperlink(Path(file_nm).name)
+                            , self.note_link(file_nm)
                             , plugin_id
                             , cb_sig
                             , len(value_files_list)
@@ -457,7 +475,7 @@ class ExcelExporter:
                     prop_vals = " | ".join(map(str, value_files_list[1:]))
                     vals = [int((row_idx - tbl_hdr_row))
                             , plugin_id
-                            , self.obs_hyperlink(Path(file_nm).name)
+                            , self.note_link(file_nm)
                             , value_item
                             , vtot
                             , prop_vals
@@ -519,7 +537,7 @@ class ExcelExporter:
                         vals[ovi_bases.BASE_PATH] = self.obs_hyperlink(
                             self.vault_relative(base_path), Path(base_path).stem)
                     else:
-                        vals[ovi_bases.BASE_PATH] = self.obs_hyperlink(Path(base_path).name)
+                        vals[ovi_bases.BASE_PATH] = self.note_link(base_path)
 
                 elif tab_id == "tmpl":
                     vals = [int((row_idx - tbl_hdr_row))
@@ -542,9 +560,9 @@ class ExcelExporter:
                         # vault-relative path to tell them apart.
                         obs_link = self.obs_hyperlink(self.vault_relative(file))
                     else:
-                        # Just need the MD filename
+                        # The note where this value, tag or block was found.
                         if isinstance(file, str) and file.endswith('.md') and Path(file).is_file():
-                            obs_link = self.obs_hyperlink(Path(file).name)
+                            obs_link = self.note_link(file)
 
                     vals = vals + [obs_link, " "]
 
@@ -697,6 +715,11 @@ class ExcelExporter:
         hyperlink = False
         if isinstance(val, str) and val.upper().startswith("=HYPERLINK"):
             hyperlink = True
+            # A full-path link reads from the right: the folders are the
+            # same on every row and the note's name is at the end, which a
+            # left-aligned cell of the usual width cuts off first.
+            if self.full_paths and "obsidian://" in val.lower():
+                align_val = 'right'
 
         if isinstance(val, str) and val.endswith(":"):
             txt_clr = self.colors.clr_red
@@ -857,11 +880,28 @@ class ExcelExporter:
         between the vault path and the scanned path does not defeat the match.
         A file outside the vault (it should never happen) is returned whole.
         """
-        try:
-            relative = Path(file).resolve().relative_to(Path(self.dir_vault).resolve())
-        except (ValueError, OSError):
-            return str(file).replace("\\", "/")
-        return relative.as_posix()
+        key = str(file)
+        cached = self._vault_relative_cache.get(key)
+        if cached is None:
+            try:
+                relative = Path(file).resolve().relative_to(Path(self.dir_vault).resolve())
+                cached = relative.as_posix()
+            except (ValueError, OSError):
+                cached = key.replace("\\", "/")
+            self._vault_relative_cache[key] = cached
+        return cached
+
+    def note_link(self, file) -> str:
+        """The link to a note, as the "Use Full Paths in Links" setting asks.
+
+        With it on, the vault-relative path, which names exactly this note;
+        off, the bare filename, which Obsidian resolves to *a* note of that
+        name. Every tab links a note through here so that the Xyml tab's
+        lookup against the Files tab compares like with like.
+        """
+        if self.full_paths:
+            return self.obs_hyperlink(self.vault_relative(file))
+        return self.obs_hyperlink(Path(file).name)
 
     @staticmethod
     def formula_text(text) -> str:
